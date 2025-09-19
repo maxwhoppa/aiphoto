@@ -6,7 +6,7 @@ import { registerMiddleware } from '@/middleware';
 import { createContext } from '@/trpc/context';
 import { appRouter } from '@/routes';
 import { authMiddleware } from '@/middleware/auth';
-import { MonitoringService, createRequestTracker } from '@/utils/monitoring';
+import { MonitoringService } from '@/utils/monitoring';
 import { createConnection } from '@/db';
 import { createRedisConnection } from '@/services/redis';
 
@@ -30,7 +30,14 @@ async function createServer() {
     await registerMiddleware(fastify);
 
     // Request tracking middleware
-    fastify.addHook('preHandler', createRequestTracker());
+    fastify.addHook('preHandler', async (request, _reply) => {
+      const requestId = request.headers['x-request-id'] as string || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Add context for monitoring
+      MonitoringService.addAnnotation('requestId', requestId);
+      MonitoringService.addAnnotation('method', request.method);
+      MonitoringService.addAnnotation('path', request.url);
+    });
 
     // Auth middleware for protected routes
     fastify.addHook('preHandler', async (request, reply) => {
@@ -61,7 +68,13 @@ async function createServer() {
       trpcOptions: {
         router: appRouter,
         createContext,
-        onError: ({ error, type, path, input, ctx }) => {
+        onError: ({ error, type, path, input, ctx }: {
+          error: Error;
+          type: 'query' | 'mutation' | 'subscription' | 'unknown';
+          path: string | undefined;
+          input: unknown;
+          ctx: { user?: { userId?: string }; requestId?: string };
+        }) => {
           MonitoringService.captureError(error, {
             type,
             path,

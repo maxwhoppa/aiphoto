@@ -19,7 +19,7 @@ interface CognitoTokenPayload {
 }
 
 class CognitoJWTVerifier {
-  private client: jwksClient.JwksClient;
+  private client: ReturnType<typeof jwksClient>;
   private issuer: string;
 
   constructor() {
@@ -99,9 +99,8 @@ export async function authMiddleware(
 
     // Get or create user in database
     const db = getDb();
-    let user = await db.query.users.findFirst({
-      where: eq(users.cognitoId, payload.sub),
-    });
+    const userResults = await db.select().from(users).where(eq(users.cognitoId, payload.sub)).limit(1);
+    let user = userResults[0];
 
     if (!user) {
       // Create new user
@@ -109,9 +108,18 @@ export async function authMiddleware(
         cognitoId: payload.sub,
         email: payload.email,
       }).returning();
-      user = newUser;
       
-      logger.info('New user created', { userId: user.id, email: user.email });
+      if (!newUser) {
+        throw new AuthenticationError('Failed to create user');
+      }
+      
+      user = newUser;
+      logger.info('New user created', { userId: newUser.id, email: newUser.email });
+    }
+
+    // Ensure user exists
+    if (!user) {
+      throw new AuthenticationError('Failed to retrieve or create user');
     }
 
     // Attach user to request context

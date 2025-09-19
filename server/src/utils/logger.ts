@@ -8,5 +8,7 @@ export const logger = new Logger({
 });
 
 export function createLogger(context: string) {
-  return logger.createChild({ context });
+  return logger.createChild({
+    persistentLogAttributes: { context }
+  });
 }

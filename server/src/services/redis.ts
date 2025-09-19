@@ -11,7 +11,6 @@ export function createRedisConnection(): Redis {
 
   try {
     redis = new Redis(config.REDIS_URL, {
-      retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
       enableOfflineQueue: false,
@@ -189,7 +188,7 @@ export class CacheService {
   async setJobStatus(
     jobId: string, 
     status: string, 
-    data?: Record<string, any>,
+    data?: Record<string, unknown>,
     ttlSeconds: number = 3600
   ): Promise<void> {
     const key = `job_status:${jobId}`;
@@ -204,7 +203,7 @@ export class CacheService {
 
   async getJobStatus(jobId: string): Promise<{
     status: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
     updatedAt: string;
   } | null> {
     const key = `job_status:${jobId}`;

@@ -1,9 +1,20 @@
 import * as Sentry from '@sentry/node';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
-import type { Express } from 'express-serve-static-core';
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { config } from './config';
 import { logger } from './logger';
+
+// Extend Express Request interface to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        userId: string;
+      };
+    }
+  }
+}
 
 // Initialize Sentry
 if (config.SENTRY_DSN) {
@@ -13,7 +24,7 @@ if (config.SENTRY_DSN) {
     tracesSampleRate: config.NODE_ENV === 'production' ? 0.1 : 1.0,
     integrations: [
       new Sentry.Integrations.Http({ tracing: true }),
-      new Sentry.Integrations.Express({ app: undefined }),
+      new Sentry.Integrations.Express(),
     ],
     beforeSend(event) {
       // Filter out sensitive information
@@ -30,7 +41,6 @@ if (config.SENTRY_DSN) {
 export const tracer = new Tracer({
   serviceName: 'aiphoto-server',
   captureHTTPsRequests: true,
-  captureResponse: true,
 });
 
 // CloudWatch Metrics
@@ -50,7 +60,7 @@ export class MonitoringService {
       Sentry.withScope(scope => {
         if (context) {
           Object.entries(context).forEach(([key, value]) => {
-            scope.setTag(key, value);
+            scope.setTag(key, String(value));
           });
         }
         Sentry.captureException(error);
@@ -59,13 +69,17 @@ export class MonitoringService {
   }
 
   static captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: Record<string, unknown>) {
-    logger[level === 'warning' ? 'warn' : level](message, context);
+    if (context) {
+      logger[level === 'warning' ? 'warn' : level](message, context);
+    } else {
+      logger[level === 'warning' ? 'warn' : level](message);
+    }
     
     if (config.SENTRY_DSN) {
       Sentry.withScope(scope => {
         if (context) {
           Object.entries(context).forEach(([key, value]) => {
-            scope.setTag(key, value);
+            scope.setTag(key, String(value));
           });
         }
         Sentry.captureMessage(message, level as Sentry.SeverityLevel);
@@ -73,7 +87,7 @@ export class MonitoringService {
     }
   }
 
-  static recordMetric(name: string, value: number, unit: MetricUnit = MetricUnit.Count, dimensions?: Record<string, string>) {
+  static recordMetric(name: string, value: number, unit: typeof MetricUnit[keyof typeof MetricUnit] = MetricUnit.Count, dimensions?: Record<string, string>) {
     metrics.addMetric(name, unit, value);
     
     if (dimensions) {
@@ -186,9 +200,9 @@ export class MonitoringService {
     }
   }
 
-  static createSegment<T>(name: string, fn: () => Promise<T>): Promise<T> {
-    return tracer.putAnnotation('segmentName', name)
-      .captureAsyncFunc(name, fn);
+  static async createSegment<T>(name: string, fn: () => Promise<T>): Promise<T> {
+    tracer.putAnnotation('segmentName', name);
+    return await fn();
   }
 
   static addAnnotation(key: string, value: string) {
@@ -202,9 +216,9 @@ export class MonitoringService {
 
 // Middleware for request tracking
 export function createRequestTracker() {
-  return (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+  return (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
     const startTime = Date.now();
-    const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const requestId = (Array.isArray(req.headers['x-request-id']) ? req.headers['x-request-id'][0] : req.headers['x-request-id']) || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Add annotations for X-Ray
     MonitoringService.addAnnotation('requestId', requestId);
@@ -219,7 +233,7 @@ export function createRequestTracker() {
         method: req.method,
         statusCode: res.statusCode,
         responseTime,
-        userId: req.user?.userId,
+        ...(req.user?.userId && { userId: req.user.userId }),
       });
     });
     

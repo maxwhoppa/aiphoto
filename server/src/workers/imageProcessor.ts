@@ -99,7 +99,7 @@ async function processRecord(record: SQSRecord) {
       .set({
         status: 'completed',
         processedImageUrl: result.processedImageUrl,
-        geminiRequestId: result.geminiRequestId,
+        geminiRequestId: result.geminiRequestId ?? null,
         processingCompletedAt: new Date(),
         updatedAt: new Date(),
       })

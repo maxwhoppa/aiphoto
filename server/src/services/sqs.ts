@@ -84,7 +84,7 @@ export class SQSService {
         QueueUrl: this.queueUrl,
         MaxNumberOfMessages: maxMessages,
         WaitTimeSeconds: 20, // Long polling
-        VisibilityTimeoutSeconds: 300, // 5 minutes
+        VisibilityTimeout: 300, // 5 minutes
         MessageAttributeNames: ['All'],
       });
 

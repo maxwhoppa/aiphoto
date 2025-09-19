@@ -4,11 +4,11 @@ import { config } from '@/utils/config';
 import * as schema from './schema';
 import { logger } from '@/utils/logger';
 
-let connection: postgres.Sql;
-let db: ReturnType<typeof drizzle>;
+let connection: postgres.Sql | undefined;
+let db: ReturnType<typeof drizzle> | undefined;
 
 export function createConnection() {
-  if (connection) {
+  if (connection && db) {
     return { connection, db };
   }
 

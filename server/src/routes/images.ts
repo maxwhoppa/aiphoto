@@ -5,7 +5,7 @@ import { sqsService } from '@/services/sqs';
 import { geminiService } from '@/services/gemini';
 import { cacheService } from '@/services/redis';
 import { getDb, userImages, imageProcessingJobs } from '@/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { MonitoringService } from '@/utils/monitoring';
 import { NotFoundError, ValidationError } from '@/utils/errors';
@@ -131,6 +131,10 @@ export const imagesRouter = router({
           uploadTime: Date.now() - startTime,
         });
 
+        if (!userImage) {
+          throw new Error('Failed to create image record');
+        }
+        
         return {
           imageId: userImage.id,
           suggestions,
@@ -169,14 +173,19 @@ export const imagesRouter = router({
         const db = getDb();
         
         // Get the user's image
-        const userImage = await db.query.userImages.findFirst({
-          where: and(
+        const userImage = await db.select().from(userImages).where(
+          and(
             eq(userImages.id, imageId),
             eq(userImages.userId, userId)
-          ),
-        });
+          )
+        ).limit(1);
 
-        if (!userImage) {
+        if (!userImage || userImage.length === 0) {
+          throw new NotFoundError('Image not found');
+        }
+        
+        const foundImage = userImage[0];
+        if (!foundImage) {
           throw new NotFoundError('Image not found');
         }
 
@@ -193,7 +202,7 @@ export const imagesRouter = router({
         await db.insert(imageProcessingJobs).values({
           id: jobId,
           userId,
-          originalImageUrl: userImage.s3Url,
+          originalImageUrl: foundImage.s3Url,
           prompt,
           status: 'pending',
         }).returning();
@@ -202,7 +211,7 @@ export const imagesRouter = router({
         await sqsService.sendMessage({
           jobId,
           userId,
-          originalImageS3Key: userImage.s3Key,
+          originalImageS3Key: foundImage.s3Key,
           prompt,
           createdAt: new Date().toISOString(),
         });
@@ -246,12 +255,14 @@ export const imagesRouter = router({
 
         // Fall back to database
         const db = getDb();
-        const job = await db.query.imageProcessingJobs.findFirst({
-          where: and(
+        const jobs = await db.select().from(imageProcessingJobs).where(
+          and(
             eq(imageProcessingJobs.id, jobId),
             eq(imageProcessingJobs.userId, userId)
-          ),
-        });
+          )
+        ).limit(1);
+        
+        const job = jobs[0];
 
         if (!job) {
           throw new NotFoundError('Job not found');
@@ -292,12 +303,11 @@ export const imagesRouter = router({
         const { userId } = ctx.user;
 
         const db = getDb();
-        const images = await db.query.userImages.findMany({
-          where: eq(userImages.userId, userId),
-          limit,
-          offset,
-          orderBy: (userImages, { desc }) => [desc(userImages.createdAt)],
-        });
+        const images = await db.select().from(userImages)
+          .where(eq(userImages.userId, userId))
+          .limit(limit)
+          .offset(offset)
+          .orderBy(desc(userImages.createdAt));
 
         // Get download URLs for each image
         const imagesWithUrls = await Promise.all(
@@ -336,12 +346,11 @@ export const imagesRouter = router({
         const { userId } = ctx.user;
 
         const db = getDb();
-        const jobs = await db.query.imageProcessingJobs.findMany({
-          where: eq(imageProcessingJobs.userId, userId),
-          limit,
-          offset,
-          orderBy: (imageProcessingJobs, { desc }) => [desc(imageProcessingJobs.createdAt)],
-        });
+        const jobs = await db.select().from(imageProcessingJobs)
+          .where(eq(imageProcessingJobs.userId, userId))
+          .limit(limit)
+          .offset(offset)
+          .orderBy(desc(imageProcessingJobs.createdAt));
 
         // Get download URLs for processed images
         const jobsWithUrls = await Promise.all(
