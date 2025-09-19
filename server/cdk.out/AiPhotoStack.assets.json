@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "da72a8da2ca5fd81ea5057e05dc0708ee2c983574aa515528350bf2865835fdb": {
+      "displayName": "aiphoto-prod Template",
+      "source": {
+        "path": "AiPhotoStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "016065104421-us-east-1-6b4719f6": {
+          "bucketName": "cdk-hnb659fds-assets-016065104421-us-east-1",
+          "objectKey": "da72a8da2ca5fd81ea5057e05dc0708ee2c983574aa515528350bf2865835fdb.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::016065104421:role/cdk-hnb659fds-file-publishing-role-016065104421-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

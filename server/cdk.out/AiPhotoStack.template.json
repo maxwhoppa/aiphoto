@@ -1,0 +1,830 @@
+{
+ "Resources": {
+  "ImagesBucket1E86AFB2": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "aiphoto-images-aiphoto-prod",
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "Id": "transition-to-ia",
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "STANDARD_IA",
+         "TransitionInDays": 30
+        }
+       ]
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/ImagesBucket/Resource"
+   }
+  },
+  "ProcessingQueue6DC600C3": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 604800,
+    "QueueName": "aiphoto-processing-aiphoto-prod",
+    "VisibilityTimeout": 900
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/ProcessingQueue/Resource"
+   }
+  },
+  "UserPool6BA7E5F2": {
+   "Type": "AWS::Cognito::UserPool",
+   "Properties": {
+    "AccountRecoverySetting": {
+     "RecoveryMechanisms": [
+      {
+       "Name": "verified_phone_number",
+       "Priority": 1
+      },
+      {
+       "Name": "verified_email",
+       "Priority": 2
+      }
+     ]
+    },
+    "AdminCreateUserConfig": {
+     "AllowAdminCreateUserOnly": true
+    },
+    "AutoVerifiedAttributes": [
+     "email"
+    ],
+    "EmailVerificationMessage": "The verification code to your new account is {####}",
+    "EmailVerificationSubject": "Verify your new account",
+    "Policies": {
+     "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": false,
+      "RequireUppercase": true
+     }
+    },
+    "SmsVerificationMessage": "The verification code to your new account is {####}",
+    "UserPoolName": "aiphoto-users-aiphoto-prod",
+    "UsernameAttributes": [
+     "email"
+    ],
+    "VerificationMessageTemplate": {
+     "DefaultEmailOption": "CONFIRM_WITH_CODE",
+     "EmailMessage": "The verification code to your new account is {####}",
+     "EmailSubject": "Verify your new account",
+     "SmsMessage": "The verification code to your new account is {####}"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/UserPool/Resource"
+   }
+  },
+  "UserPoolClient2F5918F7": {
+   "Type": "AWS::Cognito::UserPoolClient",
+   "Properties": {
+    "AllowedOAuthFlows": [
+     "implicit",
+     "code"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "AllowedOAuthScopes": [
+     "profile",
+     "phone",
+     "email",
+     "openid",
+     "aws.cognito.signin.user.admin"
+    ],
+    "CallbackURLs": [
+     "https://example.com"
+    ],
+    "ExplicitAuthFlows": [
+     "ALLOW_USER_PASSWORD_AUTH",
+     "ALLOW_USER_SRP_AUTH",
+     "ALLOW_REFRESH_TOKEN_AUTH"
+    ],
+    "GenerateSecret": false,
+    "SupportedIdentityProviders": [
+     "COGNITO"
+    ],
+    "UserPoolId": {
+     "Ref": "UserPool6BA7E5F2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/UserPoolClient/Resource"
+   }
+  },
+  "ApiFunctionServiceRole52B9747B": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/ApiFunction/ServiceRole/Resource"
+   }
+  },
+  "ApiFunctionServiceRoleDefaultPolicy20A32B8D": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ImagesBucket1E86AFB2",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ImagesBucket1E86AFB2",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "sqs:SendMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "ProcessingQueue6DC600C3",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ApiFunctionServiceRoleDefaultPolicy20A32B8D",
+    "Roles": [
+     {
+      "Ref": "ApiFunctionServiceRole52B9747B"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/ApiFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "ApiFunctionCE271BD4": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "arm64"
+    ],
+    "Code": {
+     "ZipFile": "\n        exports.handler = async (event) => {\n          console.log('Event:', JSON.stringify(event, null, 2));\n          \n          // Simple health check response\n          if (event.path === '/health') {\n            return {\n              statusCode: 200,\n              headers: {\n                'Content-Type': 'application/json',\n                'Access-Control-Allow-Origin': '*',\n              },\n              body: JSON.stringify({\n                status: 'ok',\n                timestamp: new Date().toISOString(),\n                environment: 'production',\n                message: 'AI Photo Server is running'\n              }),\n            };\n          }\n          \n          // Default response\n          return {\n            statusCode: 200,\n            headers: {\n              'Content-Type': 'application/json',\n              'Access-Control-Allow-Origin': '*',\n            },\n            body: JSON.stringify({\n              message: 'AI Photo Server API',\n              version: '1.0.0',\n              timestamp: new Date().toISOString(),\n            }),\n          };\n        };\n      "
+    },
+    "Environment": {
+     "Variables": {
+      "S3_BUCKET_NAME": {
+       "Ref": "ImagesBucket1E86AFB2"
+      },
+      "SQS_QUEUE_URL": {
+       "Ref": "ProcessingQueue6DC600C3"
+      },
+      "COGNITO_USER_POOL_ID": {
+       "Ref": "UserPool6BA7E5F2"
+      },
+      "COGNITO_REGION": "us-east-1",
+      "NODE_ENV": "production"
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 1024,
+    "Role": {
+     "Fn::GetAtt": [
+      "ApiFunctionServiceRole52B9747B",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "ApiFunctionServiceRoleDefaultPolicy20A32B8D",
+    "ApiFunctionServiceRole52B9747B"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/ApiFunction/Resource"
+   }
+  },
+  "AiPhotoApi3E9DA2BE": {
+   "Type": "AWS::ApiGateway::RestApi",
+   "Properties": {
+    "Description": "AI Photo Processing API",
+    "Name": "aiphoto-api-aiphoto-prod"
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Resource"
+   }
+  },
+  "AiPhotoApiCloudWatchRole49B4C541": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "apigateway.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+       ]
+      ]
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/CloudWatchRole/Resource"
+   }
+  },
+  "AiPhotoApiAccount056005E0": {
+   "Type": "AWS::ApiGateway::Account",
+   "Properties": {
+    "CloudWatchRoleArn": {
+     "Fn::GetAtt": [
+      "AiPhotoApiCloudWatchRole49B4C541",
+      "Arn"
+     ]
+    }
+   },
+   "DependsOn": [
+    "AiPhotoApi3E9DA2BE"
+   ],
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Account"
+   }
+  },
+  "AiPhotoApiDeployment554AA70B0e536b269e1f1c5b9f6dfd97261e23e3": {
+   "Type": "AWS::ApiGateway::Deployment",
+   "Properties": {
+    "Description": "AI Photo Processing API",
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    }
+   },
+   "DependsOn": [
+    "AiPhotoApiproxyANY207F3A2B",
+    "AiPhotoApiproxyOPTIONS6BC43703",
+    "AiPhotoApiproxy1891A2A0",
+    "AiPhotoApiANY1FFCDFD6",
+    "AiPhotoApiOPTIONSCF74EF7E"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Deployment/Resource",
+    "aws:cdk:do-not-refactor": true
+   }
+  },
+  "AiPhotoApiDeploymentStageprod42F807A7": {
+   "Type": "AWS::ApiGateway::Stage",
+   "Properties": {
+    "DeploymentId": {
+     "Ref": "AiPhotoApiDeployment554AA70B0e536b269e1f1c5b9f6dfd97261e23e3"
+    },
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    },
+    "StageName": "prod"
+   },
+   "DependsOn": [
+    "AiPhotoApiAccount056005E0"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/DeploymentStage.prod/Resource"
+   }
+  },
+  "AiPhotoApiOPTIONSCF74EF7E": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Fn::GetAtt": [
+      "AiPhotoApi3E9DA2BE",
+      "RootResourceId"
+     ]
+    },
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/OPTIONS/Resource"
+   }
+  },
+  "AiPhotoApiANYApiPermissionAiPhotoStackAiPhotoApiDB8D76A3ANY1AFAE4DA": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:us-east-1:016065104421:",
+       {
+        "Ref": "AiPhotoApi3E9DA2BE"
+       },
+       "/",
+       {
+        "Ref": "AiPhotoApiDeploymentStageprod42F807A7"
+       },
+       "/*/"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/ANY/ApiPermission.AiPhotoStackAiPhotoApiDB8D76A3.ANY.."
+   }
+  },
+  "AiPhotoApiANYApiPermissionTestAiPhotoStackAiPhotoApiDB8D76A3ANYB3C6138B": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:us-east-1:016065104421:",
+       {
+        "Ref": "AiPhotoApi3E9DA2BE"
+       },
+       "/test-invoke-stage/*/"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/ANY/ApiPermission.Test.AiPhotoStackAiPhotoApiDB8D76A3.ANY.."
+   }
+  },
+  "AiPhotoApiANY1FFCDFD6": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "ANY",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "RequestTemplates": {
+      "application/json": "{ \"statusCode\": \"200\" }"
+     },
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "ApiFunctionCE271BD4",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Fn::GetAtt": [
+      "AiPhotoApi3E9DA2BE",
+      "RootResourceId"
+     ]
+    },
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/ANY/Resource"
+   }
+  },
+  "AiPhotoApiproxy1891A2A0": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "AiPhotoApi3E9DA2BE",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "{proxy+}",
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/{proxy+}/Resource"
+   }
+  },
+  "AiPhotoApiproxyOPTIONS6BC43703": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "AiPhotoApiproxy1891A2A0"
+    },
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/{proxy+}/OPTIONS/Resource"
+   }
+  },
+  "AiPhotoApiproxyANYApiPermissionAiPhotoStackAiPhotoApiDB8D76A3ANYproxy0A03AB9D": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:us-east-1:016065104421:",
+       {
+        "Ref": "AiPhotoApi3E9DA2BE"
+       },
+       "/",
+       {
+        "Ref": "AiPhotoApiDeploymentStageprod42F807A7"
+       },
+       "/*/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/{proxy+}/ANY/ApiPermission.AiPhotoStackAiPhotoApiDB8D76A3.ANY..{proxy+}"
+   }
+  },
+  "AiPhotoApiproxyANYApiPermissionTestAiPhotoStackAiPhotoApiDB8D76A3ANYproxy0B3077DF": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:us-east-1:016065104421:",
+       {
+        "Ref": "AiPhotoApi3E9DA2BE"
+       },
+       "/test-invoke-stage/*/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/{proxy+}/ANY/ApiPermission.Test.AiPhotoStackAiPhotoApiDB8D76A3.ANY..{proxy+}"
+   }
+  },
+  "AiPhotoApiproxyANY207F3A2B": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "ANY",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "RequestTemplates": {
+      "application/json": "{ \"statusCode\": \"200\" }"
+     },
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "ApiFunctionCE271BD4",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Ref": "AiPhotoApiproxy1891A2A0"
+    },
+    "RestApiId": {
+     "Ref": "AiPhotoApi3E9DA2BE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/AiPhotoApi/Default/{proxy+}/ANY/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02R0VLDIBBFv8V3ghr1A9o6vjnGOj47lKzpNoSNWbBmGP5dQlLN0569e5m7QCnL2wd5c6XOXOi6LQweZHhzSrciSR+B72TYet2CE7tPO1MU/MUyvHrwMKkZotDUWHQkwzvDUBGZafbHF9gZBOvWo1mJwqjuUCsZnrzVDslOnjVXMHTInLooUHUy7Mnk/FwrMqjH7MsUheqxUQ7OakxWYLfpMbv/caM1+bTMI/SGxm7Za9Wlh2hyxAzpKPlBw1YxiGdwR6qn4ULVQD/jxbIkZY5RrOUX73qf7mupBnni6+/yXpbpC06MWAxpH+xA7uf6C+TrsSWfAQAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "AiPhotoStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "AiPhotoApiEndpointB609DA8E": {
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "AiPhotoApi3E9DA2BE"
+      },
+      ".execute-api.us-east-1.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "AiPhotoApiDeploymentStageprod42F807A7"
+      },
+      "/"
+     ]
+    ]
+   }
+  },
+  "ApiEndpoint": {
+   "Description": "API Gateway endpoint URL",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "AiPhotoApi3E9DA2BE"
+      },
+      ".execute-api.us-east-1.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "AiPhotoApiDeploymentStageprod42F807A7"
+      },
+      "/"
+     ]
+    ]
+   }
+  },
+  "UserPoolId": {
+   "Description": "Cognito User Pool ID",
+   "Value": {
+    "Ref": "UserPool6BA7E5F2"
+   }
+  },
+  "UserPoolClientId": {
+   "Description": "Cognito User Pool Client ID",
+   "Value": {
+    "Ref": "UserPoolClient2F5918F7"
+   }
+  },
+  "S3BucketName": {
+   "Description": "S3 bucket for images",
+   "Value": {
+    "Ref": "ImagesBucket1E86AFB2"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
