@@ -33,7 +33,10 @@ export const imagesRouter = router({
       
       try {
         const { fileName, contentType } = input;
-        const { userId } = ctx.user!;
+        if (!ctx.user) {
+          throw new ValidationError('User not authenticated');
+        }
+        const { userId } = ctx.user;
 
         // Validate file type
         s3Service.validateImageFile(contentType, fileName);
@@ -84,7 +87,10 @@ export const imagesRouter = router({
       
       try {
         const { s3Key, fileName, contentType, sizeBytes } = input;
-        const { userId } = ctx.user!;
+        if (!ctx.user) {
+          throw new ValidationError('User not authenticated');
+        }
+        const { userId } = ctx.user;
 
         // Verify the file exists in S3
         const exists = await s3Service.headObject(s3Key);
@@ -131,7 +137,7 @@ export const imagesRouter = router({
         };
       } catch (error) {
         MonitoringService.recordUploadMetrics({
-          userId: ctx.user!.userId,
+          userId: ctx.user?.userId,
           fileSize: parseInt(input.sizeBytes),
           contentType: input.contentType,
           success: false,
@@ -155,7 +161,10 @@ export const imagesRouter = router({
       
       try {
         const { imageId, prompt } = input;
-        const { userId } = ctx.user!;
+        if (!ctx.user) {
+          throw new ValidationError('User not authenticated');
+        }
+        const { userId } = ctx.user;
 
         const db = getDb();
         
@@ -181,7 +190,7 @@ export const imagesRouter = router({
 
         // Create processing job
         const jobId = uuidv4();
-        const [job] = await db.insert(imageProcessingJobs).values({
+        await db.insert(imageProcessingJobs).values({
           id: jobId,
           userId,
           originalImageUrl: userImage.s3Url,
@@ -224,7 +233,10 @@ export const imagesRouter = router({
     .query(async ({ input, ctx }) => {
       try {
         const { jobId } = input;
-        const { userId } = ctx.user!;
+        if (!ctx.user) {
+          throw new ValidationError('User not authenticated');
+        }
+        const { userId } = ctx.user;
 
         // First check cache for real-time status
         const cachedStatus = await cacheService.getJobStatus(jobId);
@@ -274,7 +286,10 @@ export const imagesRouter = router({
     .query(async ({ input, ctx }) => {
       try {
         const { limit, offset } = input;
-        const { userId } = ctx.user!;
+        if (!ctx.user) {
+          throw new ValidationError('User not authenticated');
+        }
+        const { userId } = ctx.user;
 
         const db = getDb();
         const images = await db.query.userImages.findMany({
@@ -315,7 +330,10 @@ export const imagesRouter = router({
     .query(async ({ input, ctx }) => {
       try {
         const { limit, offset } = input;
-        const { userId } = ctx.user!;
+        if (!ctx.user) {
+          throw new ValidationError('User not authenticated');
+        }
+        const { userId } = ctx.user;
 
         const db = getDb();
         const jobs = await db.query.imageProcessingJobs.findMany({
@@ -331,7 +349,7 @@ export const imagesRouter = router({
             ...job,
             processedImageDownloadUrl: job.processedImageUrl && job.status === 'completed'
               ? await s3Service.createDownloadPresignedUrl({
-                  s3Key: job.processedImageUrl.split('/').pop()!, // Extract S3 key from URL
+                  s3Key: job.processedImageUrl.split('/').pop() || '', // Extract S3 key from URL
                   expiresIn: 3600,
                 })
               : null,

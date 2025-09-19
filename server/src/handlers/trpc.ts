@@ -1,10 +1,10 @@
-import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import { createContext } from '@/trpc/context';
 import { appRouter } from '@/routes';
 import { MonitoringService } from '@/utils/monitoring';
 import { authMiddleware } from '@/middleware/auth';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 
-export async function handler(event: any, context: any) {
+export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   const { FastifyAdapter } = await import('@trpc/server/adapters/aws-lambda');
   
   try {

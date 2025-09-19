@@ -95,9 +95,9 @@ export class SQSService {
       }
 
       const messages: SQSMessage[] = result.Messages.map(msg => ({
-        messageId: msg.MessageId!,
-        receiptHandle: msg.ReceiptHandle!,
-        body: JSON.parse(msg.Body!) as ImageProcessingMessage,
+        messageId: msg.MessageId || '',
+        receiptHandle: msg.ReceiptHandle || '',
+        body: JSON.parse(msg.Body || '{}') as ImageProcessingMessage,
       }));
 
       logger.debug('Received messages from SQS', {
@@ -256,7 +256,7 @@ export class JobProcessor {
     }
   }
 
-  private async handleMessageError(message: SQSMessage, error: unknown): Promise<void> {
+  private async handleMessageError(message: SQSMessage, _error: unknown): Promise<void> {
     const retryCount = (message.body.retryCount || 0) + 1;
     const maxRetries = 3;
 

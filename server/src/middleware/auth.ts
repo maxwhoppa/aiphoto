@@ -85,7 +85,7 @@ const jwtVerifier = new CognitoJWTVerifier();
 
 export async function authMiddleware(
   request: FastifyRequest,
-  reply: FastifyReply
+  _reply: FastifyReply
 ) {
   try {
     const authHeader = request.headers.authorization;
@@ -115,7 +115,7 @@ export async function authMiddleware(
     }
 
     // Attach user to request context
-    (request as any).user = {
+    (request as FastifyRequest & { user: { userId: string; cognitoId: string; email: string } }).user = {
       userId: user.id,
       cognitoId: user.cognitoId,
       email: user.email,

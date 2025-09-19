@@ -64,7 +64,7 @@ export class CacheService {
     }
   }
 
-  async set(key: string, value: any, ttlSeconds?: number): Promise<boolean> {
+  async set(key: string, value: string | number | boolean | object, ttlSeconds?: number): Promise<boolean> {
     try {
       const serialized = JSON.stringify(value);
       
@@ -118,7 +118,7 @@ export class CacheService {
 
   async setWithLock(
     key: string, 
-    value: any, 
+    value: string | number | boolean | object, 
     ttlSeconds: number = 300,
     lockTimeoutMs: number = 5000
   ): Promise<boolean> {
@@ -189,7 +189,7 @@ export class CacheService {
   async setJobStatus(
     jobId: string, 
     status: string, 
-    data?: any,
+    data?: Record<string, any>,
     ttlSeconds: number = 3600
   ): Promise<void> {
     const key = `job_status:${jobId}`;
@@ -204,7 +204,7 @@ export class CacheService {
 
   async getJobStatus(jobId: string): Promise<{
     status: string;
-    data?: any;
+    data?: Record<string, any>;
     updatedAt: string;
   } | null> {
     const key = `job_status:${jobId}`;

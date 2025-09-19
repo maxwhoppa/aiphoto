@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/node';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
+import type { Express } from 'express-serve-static-core';
 import { config } from './config';
 import { logger } from './logger';
 
@@ -42,7 +43,7 @@ export const metrics = new Metrics({
 });
 
 export class MonitoringService {
-  static captureError(error: Error, context?: Record<string, any>) {
+  static captureError(error: Error, context?: Record<string, unknown>) {
     logger.error('Application error', { error, context });
     
     if (config.SENTRY_DSN) {
@@ -57,7 +58,7 @@ export class MonitoringService {
     }
   }
 
-  static captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: Record<string, any>) {
+  static captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: Record<string, unknown>) {
     logger[level === 'warning' ? 'warn' : level](message, context);
     
     if (config.SENTRY_DSN) {
@@ -194,14 +195,14 @@ export class MonitoringService {
     tracer.putAnnotation(key, value);
   }
 
-  static addMetadata(key: string, value: any) {
+  static addMetadata(key: string, value: unknown) {
     tracer.putMetadata(key, value);
   }
 }
 
 // Middleware for request tracking
 export function createRequestTracker() {
-  return (req: any, res: any, next: any) => {
+  return (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
     const startTime = Date.now();
     const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     

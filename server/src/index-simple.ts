@@ -7,7 +7,7 @@ async function createServer() {
   });
 
   // Health check route
-  fastify.get('/health', async (request, reply) => {
+  fastify.get('/health', async (_request, _reply) => {
     return { 
       status: 'ok', 
       timestamp: new Date().toISOString(),
@@ -16,7 +16,7 @@ async function createServer() {
   });
 
   // Simple API route
-  fastify.get('/api/status', async (request, reply) => {
+  fastify.get('/api/status', async (_request, _reply) => {
     return {
       message: 'AI Photo Server is running',
       version: '1.0.0',

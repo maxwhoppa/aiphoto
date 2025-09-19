@@ -24,7 +24,6 @@ const ALLOWED_IMAGE_TYPES = [
   'image/heic',
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export interface UploadPresignedUrlRequest {
   fileName: string;
@@ -246,7 +245,7 @@ export class S3Service {
       await s3Client.send(headCommand);
       return true;
     } catch (error) {
-      if ((error as any).name === 'NotFound') {
+      if ((error as { name?: string }).name === 'NotFound') {
         return false;
       }
       throw error;

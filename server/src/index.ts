@@ -6,7 +6,7 @@ import { registerMiddleware } from '@/middleware';
 import { createContext } from '@/trpc/context';
 import { appRouter } from '@/routes';
 import { authMiddleware } from '@/middleware/auth';
-import { MonitoringService, createRequestTracker, Sentry } from '@/utils/monitoring';
+import { MonitoringService, createRequestTracker } from '@/utils/monitoring';
 import { createConnection } from '@/db';
 import { createRedisConnection } from '@/services/redis';
 
@@ -81,7 +81,7 @@ async function createServer() {
         url: request.url,
         method: request.method,
         statusCode,
-        userId: (request as any).user?.userId,
+        userId: (request as { user?: { userId?: string } }).user?.userId,
       });
 
       logger.error('Request error', {

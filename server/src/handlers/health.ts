@@ -2,8 +2,9 @@ import { getDb } from '@/db';
 import { sql } from 'drizzle-orm';
 import { getRedis } from '@/services/redis';
 import { logger } from '@/utils/logger';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 
-export async function handler(event: any, context: any) {
+export async function handler(_event: APIGatewayProxyEvent, _context: Context) {
   try {
     const healthChecks = {
       database: false,
