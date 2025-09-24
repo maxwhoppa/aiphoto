@@ -80,22 +80,22 @@ export const imagesRouter = router({
                 s3Key: imageData.s3Key,
                 cognitoUserId: ctx.user.sub,
               });
-              return { ...imageData, valid: false, error: 'File not found in S3' };
+              return { ...imageData, valid: false, error: 'File not found in S3' } as const;
             }
-            return { ...imageData, valid: true };
+            return { ...imageData, valid: true } as const;
           } catch (error) {
             logger.error('S3 validation error', {
               s3Key: imageData.s3Key,
               error,
             });
-            return { ...imageData, valid: false, error: 'Failed to validate S3 file' };
+            return { ...imageData, valid: false, error: 'Failed to validate S3 file' } as const;
           }
         })
       );
 
       // Only record valid images
-      const validImages = validatedImages.filter(img => img.valid);
-      const invalidImages = validatedImages.filter(img => !img.valid);
+      const validImages = validatedImages.filter((img): img is typeof img & { valid: true } => img.valid);
+      const invalidImages = validatedImages.filter((img): img is typeof img & { valid: false; error: string } => !img.valid);
 
       if (validImages.length === 0) {
         throw new Error('No valid images found in S3');
