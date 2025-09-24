@@ -1,0 +1,1 @@
+ALTER TABLE "user_images" ADD CONSTRAINT "user_images_userId_s3Key_unique" UNIQUE("user_id", "s3_key");

@@ -8,6 +8,13 @@
       "when": 1758666379922,
       "tag": "0000_acoustic_leech",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1758666380000,
+      "tag": "0001_add_unique_constraint",
+      "breakpoints": true
     }
   ]
 }

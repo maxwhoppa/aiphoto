@@ -103,19 +103,42 @@ export const imagesRouter = router({
 
       const uploadedImages = await Promise.all(
         validImages.map(async (imageData) => {
-          const [newImage] = await db
-            .insert(userImages)
-            .values({
-              userId: user.id,
-              originalFileName: imageData.fileName,
-              s3Key: imageData.s3Key,
-              s3Url: imageData.s3Url,
-              contentType: imageData.contentType,
-              sizeBytes: imageData.sizeBytes.toString(),
-            })
-            .returning();
+          try {
+            const [newImage] = await db
+              .insert(userImages)
+              .values({
+                userId: user.id,
+                originalFileName: imageData.fileName,
+                s3Key: imageData.s3Key,
+                s3Url: imageData.s3Url,
+                contentType: imageData.contentType,
+                sizeBytes: imageData.sizeBytes.toString(),
+              })
+              .returning();
 
-          return newImage;
+            return newImage;
+          } catch (error: any) {
+            // Check if it's a unique constraint violation
+            if (error.code === '23505' && error.constraint?.includes('userId_s3Key')) {
+              logger.info('Image already exists, skipping duplicate', {
+                s3Key: imageData.s3Key,
+                cognitoUserId: ctx.user.sub,
+              });
+              
+              // Return the existing image
+              const [existingImage] = await db
+                .select()
+                .from(userImages)
+                .where(and(
+                  eq(userImages.userId, user.id),
+                  eq(userImages.s3Key, imageData.s3Key)
+                ))
+                .limit(1);
+                
+              return existingImage;
+            }
+            throw error;
+          }
         })
       );
 

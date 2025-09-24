@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, text, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, text, boolean, integer, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const users = pgTable('users', {
@@ -18,7 +18,9 @@ export const userImages = pgTable('user_images', {
   contentType: varchar('content_type', { length: 100 }).notNull(),
   sizeBytes: varchar('size_bytes', { length: 20 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  uniqueUserS3Key: unique().on(table.userId, table.s3Key),
+}));
 
 export const generatedImages = pgTable('generated_images', {
   id: uuid('id').primaryKey().defaultRandom(),
