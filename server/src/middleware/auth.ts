@@ -112,13 +112,32 @@ export async function optionalAuthMiddleware(
   next: NextFunction
 ) {
   try {
-    await authMiddleware(req, res, () => {});
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No auth header, continue without user context
+      logger.debug('No authorization header, continuing without user context');
+      return next();
+    }
+
+    const token = authHeader.substring(7);
+    const payload = await jwtVerifier.verifyToken(token);
+
+    // Attach JWT payload to request if valid
+    req.user = payload;
+    logger.debug('User authenticated via optional auth', { 
+      cognitoId: payload.sub,
+      email: payload.email 
+    });
+
+    next();
   } catch (error) {
-    logger.debug('Optional auth failed', { 
+    // Auth failed, but continue without user context
+    logger.debug('Optional auth failed, continuing without user context', { 
       error: error instanceof Error ? error.message : error 
     });
+    next();
   }
-  next();
 }
 
 export type { AuthenticatedRequest };
