@@ -32,14 +32,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Public tRPC endpoints (no auth required)
-app.use('/trpc/health.check', createExpressMiddleware({
-  router: appRouter,
-  createContext: createTRPCContext,
-}));
-
-// Protected tRPC endpoints (auth required)
-app.use('/trpc', authMiddleware, createExpressMiddleware({
+// All tRPC endpoints with optional auth
+app.use('/trpc', optionalAuthMiddleware, createExpressMiddleware({
   router: appRouter,
   createContext: createTRPCContext,
   onError: ({ error, path, input }) => {
@@ -50,12 +44,6 @@ app.use('/trpc', authMiddleware, createExpressMiddleware({
       stack: error.stack,
     });
   },
-}));
-
-// Optional auth for some endpoints (user context added if available)
-app.use('/trpc-optional', optionalAuthMiddleware, createExpressMiddleware({
-  router: appRouter,
-  createContext: createTRPCContext,
 }));
 
 // Error handling middleware
