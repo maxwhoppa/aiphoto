@@ -17,10 +17,10 @@ A production-ready Express server with tRPC that handles AI photo processing usi
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - PostgreSQL database
 - Redis (optional)
-- AWS account with Cognito, RDS, and S3
+- AWS account with Cognito, RDS, S3, and SQS
 - Google Gemini API key
 
 ### Installation
@@ -63,40 +63,28 @@ See `.env.example` for all required environment variables.
 
 ### Available Procedures
 
-#### Users
-- `users.me` - Get current user profile
-- `users.updateProfile` - Update user profile
-- `users.getMyImages` - Get user's images
-- `users.deleteAccount` - Delete user account
-
-#### Admin Users
-- `users.getAllUsers` - Get all users (admin only)
-- `users.toggleUserStatus` - Toggle user active status (admin only)
-- `users.updateUserRole` - Update user role (admin only)
-
 #### Images
-- `images.uploadImage` - Upload new image
-- `images.generateImages` - Generate AI images with Gemini
-- `images.getProcessingJobs` - Get processing job status
-- `images.getJob` - Get specific job details
-- `images.deleteImage` - Delete image
-- `images.getScenarios` - Get available scenarios
-
-#### Admin Images
-- `images.getAllJobs` - Get all processing jobs (admin only)
+- `images.getUploadUrls` - Get presigned S3 upload URLs for user images
+- `images.recordUploadedImages` - Record uploaded images in database after S3 upload
+- `images.generateImages` - Generate AI images with Gemini for multiple scenarios
+- `images.getGeneratedImages` - Get user's generated images with optional filtering
+- `images.getGeneratedImage` - Get specific generated image by ID
+- `images.getMyImages` - Get user's original uploaded images
+- `images.deleteImage` - Delete original uploaded image
+- `images.deleteGeneratedImage` - Delete generated image
+- `images.getScenarios` - Get available image generation scenarios
 
 #### Health
 - `health.check` - Public health check
-- `health.detailed` - Detailed health check (admin only)
 
 ## Database Schema
 
 The application uses PostgreSQL with Drizzle ORM. Key tables:
 
-- `users` - User accounts linked to Cognito
-- `user_images` - Uploaded images
-- `image_processing_jobs` - AI processing job queue
-- `scenarios` - Available image scenarios
+- `users` - User accounts linked to AWS Cognito (id, cognitoId, email)
+- `user_images` - Original uploaded images (userId, originalFileName, s3Key, s3Url, contentType, sizeBytes)
+- `generated_images` - AI-generated images (userId, originalImageId, scenario, prompt, s3Key, s3Url, geminiRequestId)
+- `scenarios` - Available image generation scenarios (name, description, prompt, isActive, sortOrder)
 
 ## Deployment
 
@@ -126,24 +114,28 @@ docker-compose up -d
 
 ### GitHub Actions CI/CD
 
-The repository includes automated deployment workflows:
+The repository includes automated deployment using CloudFormation and CodeDeploy:
 
-- **Staging**: Deploys on push to `main` branch
-- **Production**: Deploys on push to `production` branch
+- **Production**: Deploys on push to `main` or `production` branch
+- Uses AWS CloudFormation for infrastructure provisioning
+- Uses AWS CodeDeploy for application deployment
+- Automatically creates S3 buckets and EC2 key pairs if needed
 
 #### Required GitHub Secrets
 
-**Staging Environment:**
-- `STAGING_HOST` - EC2 instance hostname
-- `STAGING_USERNAME` - SSH username
-- `STAGING_SSH_KEY` - SSH private key
-- `STAGING_SSH_PORT` - SSH port (default: 22)
+**Required Secrets:**
+- `AWS_ACCESS_KEY_ID` - AWS access key for CloudFormation and CodeDeploy
+- `AWS_SECRET_ACCESS_KEY` - AWS secret access key
+- `GOOGLE_GEMINI_API_KEY` - Google Gemini API key for AI processing
 
-**Production Environment:**
-- `PRODUCTION_HOST` - EC2 instance hostname
-- `PRODUCTION_USERNAME` - SSH username
-- `PRODUCTION_SSH_KEY` - SSH private key
-- `PRODUCTION_SSH_PORT` - SSH port (default: 22)
+**Optional Secrets (with defaults):**
+- `DATABASE_URL` - PostgreSQL connection string (defaults to localhost)
+- `REDIS_URL` - Redis connection string (defaults to localhost)
+- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID (defaults to us-east-1_vT51duDCY)
+- `COGNITO_REGION` - AWS Cognito region (defaults to us-east-1)
+- `S3_BUCKET_NAME` - S3 bucket for image storage (defaults to aiphoto-images-dev)
+- `CORS_ORIGIN` - Allowed CORS origins (defaults to localhost URLs)
+- `KEY_PAIR_NAME` - EC2 key pair name (defaults to aiphoto-production)
 
 ## Scripts
 
@@ -153,41 +145,54 @@ The repository includes automated deployment workflows:
 - `npm test` - Run tests
 - `npm run lint` - Run ESLint
 - `npm run typecheck` - Run TypeScript type checking
-- `npm run db:generate` - Generate database migrations
-- `npm run db:migrate` - Run database migrations
-- `npm run db:studio` - Open Drizzle Studio
+- `npm run db:generate` - Generate database migrations with drizzle-kit
+- `npm run db:migrate` - Run database migrations with tsx
+- `npm run db:studio` - Open Drizzle Studio for database management
 
 ## Architecture
 
 ```
-┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
-│   Frontend      │────│   Nginx      │────│   Express       │
-│   (React/RN)    │    │   (Proxy)    │    │   + tRPC        │
-└─────────────────┘    └──────────────┘    └─────────────────┘
+┌─────────────────┐                         ┌─────────────────┐
+│   Frontend      │─────────────────────────│   Express       │
+│   (Expo/RN)     │                         │   + tRPC        │
+└─────────────────┘                         └─────────────────┘
                                                      │
                               ┌──────────────────────┼──────────────────────┐
                               │                      │                      │
                     ┌─────────▼────────┐   ┌────────▼────────┐   ┌─────────▼─────────┐
-                    │   PostgreSQL     │   │   Redis         │   │   AWS Services    │
-                    │   (User/Image    │   │   (Cache)       │   │   - Cognito       │
-                    │    Data)         │   │                 │   │   - S3            │
-                    └──────────────────┘   └─────────────────┘   │   - SQS           │
-                                                                 └───────────────────┘
-                                           
-                                           ┌───────────────────┐
-                                           │   Google Gemini   │
-                                           │   (AI Processing) │
-                                           └───────────────────┘
+                    │   PostgreSQL     │   │   Redis         │   │   AWS Cognito     │
+                    │   + Drizzle ORM  │   │   (Cache)       │   │   (Auth/Users)    │
+                    │                  │   │                 │   │                   │
+                    │   - users        │   │                 │   └───────────────────┘
+                    │   - user_images  │   │                 │             │
+                    │   - generated_   │   │                 │             │
+                    │     images       │   │                 │   ┌─────────▼─────────┐
+                    │   - scenarios    │   │                 │   │   AWS S3          │
+                    └──────────────────┘   └─────────────────┘   │   (Image Storage) │
+                                                                 │                   │
+                              ┌──────────────────────────────────┤   - Original      │
+                              │                                  │     Images        │
+                              │                                  │   - Generated     │
+                    ┌─────────▼────────┐                         │     Images        │
+                    │   Google Gemini  │                         └───────────────────┘
+                    │   (AI Image      │                                   │
+                    │    Generation)   │                                   │
+                    │                  │                         ┌─────────▼─────────┐
+                    │   - Style        │                         │   AWS SQS         │
+                    │     Transfer     │                         │   (Future:        │
+                    │   - Scenario     │                         │    Job Queue)     │
+                    │     Processing   │                         └───────────────────┘
+                    └──────────────────┘                         
 ```
 
 ## Security Features
 
-- JWT token validation with Cognito
-- Request validation with Zod
-- Rate limiting and CORS protection
+- JWT token validation with AWS Cognito
+- Request validation with Zod schemas
+- CORS protection with configurable origins
 - Helmet.js security headers
-- Input sanitization
-- Error handling and logging
+- S3 file validation for uploads
+- Structured error handling and Winston logging
 
 ## Monitoring and Logging
 
