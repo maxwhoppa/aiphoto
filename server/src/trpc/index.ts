@@ -1,6 +1,6 @@
 import { initTRPC } from '@trpc/server';
 import { Context } from './context';
-import { mapToTRPCError } from '../utils/errors';
+import { mapToTRPCError, AuthenticationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
 const t = initTRPC.context<Context>().create({
@@ -27,7 +27,7 @@ export const publicProcedure = t.procedure;
 // Auth middleware
 const isAuthenticated = t.middleware(({ ctx, next }) => {
   if (!ctx.user) {
-    throw mapToTRPCError(new Error('Authentication required'));
+    throw mapToTRPCError(new AuthenticationError('Authentication required'));
   }
 
   return next({
