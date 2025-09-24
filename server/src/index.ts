@@ -73,7 +73,7 @@ app.use('*', (req, res) => {
 const port = config.PORT;
 
 app.listen(port, () => {
-  logger.info(`Server running on port ${port}`, {
+  logger.info(`Server running on port ${port} with auto-migrations`, {
     environment: config.NODE_ENV,
     port,
     cors: config.CORS_ORIGIN,

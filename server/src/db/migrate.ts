@@ -1,20 +1,34 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import { getDb, closeDb } from './index';
-import { logger } from '../utils/logger';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import path from 'path';
 
 async function main() {
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  if (!databaseUrl) {
+    console.error('DATABASE_URL environment variable is required for migrations');
+    process.exit(1);
+  }
+
+  console.log('Starting database migration...');
+  
+  // Create connection just for migrations
+  const migrationClient = postgres(databaseUrl, { max: 1 });
+  const db = drizzle(migrationClient);
+  
   try {
-    logger.info('Starting database migration...');
-    const db = getDb();
+    const migrationsFolder = path.resolve(__dirname, '../../drizzle');
+    console.log(`Running migrations from: ${migrationsFolder}`);
     
-    await migrate(db, { migrationsFolder: './drizzle' });
+    await migrate(db, { migrationsFolder });
     
-    logger.info('Database migration completed successfully');
+    console.log('Database migration completed successfully');
   } catch (error) {
-    logger.error('Database migration failed:', error);
+    console.error('Database migration failed:', error);
     process.exit(1);
   } finally {
-    await closeDb();
+    await migrationClient.end();
   }
 }
 
