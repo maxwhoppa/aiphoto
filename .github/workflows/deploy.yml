@@ -187,3 +187,9 @@ jobs:
             --application-name $APP_NAME \
             --deployment-group-name $DEPLOYMENT_GROUP \
             --s3-location bucket=aiphoto-codedeploy-bucket,key=aiphoto-production/deployment-package-${{ github.sha }}.zip,bundleType=zip
+          
+          # Refresh instances to pick up new environment variables
+          echo "Refreshing EC2 instances with new configuration..."
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name production-aiphoto-asg \
+            --region ${{ env.AWS_REGION }}
