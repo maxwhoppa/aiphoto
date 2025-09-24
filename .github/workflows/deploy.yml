@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./server
-        run: npm ci
+        run: npm install
 
       - name: Run type checking
         working-directory: ./server
@@ -78,7 +78,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./server
-        run: npm ci
+        run: npm install
 
       - name: Build application
         working-directory: ./server
