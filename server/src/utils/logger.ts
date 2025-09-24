@@ -1,5 +1,5 @@
 import winston from 'winston';
-import { config } from './config.js';
+import { config } from './config';
 
 const logger = winston.createLogger({
   level: config.NODE_ENV === 'development' ? 'debug' : 'info',

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-interface CognitoTokenPayload {
+export interface CognitoTokenPayload {
   sub: string;
   email?: string;
   username?: string;

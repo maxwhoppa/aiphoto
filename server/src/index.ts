@@ -2,11 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
-import { appRouter } from './trpc/root.js';
-import { createTRPCContext } from './trpc/context.js';
-import { authMiddleware, optionalAuthMiddleware } from './middleware/auth.js';
-import { config } from './utils/config.js';
-import { logger } from './utils/logger.js';
+import { appRouter } from './trpc/root';
+import { createTRPCContext } from './trpc/context';
+import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
+import { config } from './utils/config';
+import { logger } from './utils/logger';
 
 const app = express();
 

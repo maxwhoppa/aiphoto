@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { jwtVerify, createRemoteJWKSet } from 'jose';
-import { config } from '../utils/config.js';
-import { AuthenticationError } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
+import { config } from '../utils/config';
+import { AuthenticationError } from '../utils/errors';
+import { logger } from '../utils/logger';
 
 interface CognitoTokenPayload {
   sub: string;

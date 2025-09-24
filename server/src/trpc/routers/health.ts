@@ -1,7 +1,8 @@
-import { router, publicProcedure } from '../index.js';
-import { getDb } from '../../db/index.js';
-import { geminiService } from '../../services/gemini.js';
-import { logger } from '../../utils/logger.js';
+import { router, publicProcedure } from '../index';
+import { getDb } from '../../db/index';
+import { geminiService } from '../../services/gemini';
+import { logger } from '../../utils/logger';
+import { sql } from 'drizzle-orm';
 
 export const healthRouter = router({
   // Public health check
@@ -19,7 +20,7 @@ export const healthRouter = router({
       // Check database
       try {
         const db = getDb();
-        await db.execute('SELECT 1');
+        await db.execute(sql`SELECT 1`);
         health.services.database = true;
       } catch (error) {
         logger.error('Database health check failed', error);

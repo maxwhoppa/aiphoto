@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from './schema.js';
-import { config } from '../utils/config.js';
+import * as schema from './schema';
+import { config } from '../utils/config';
 
 let connection: postgres.Sql<{}> | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
@@ -30,4 +30,4 @@ export async function closeDb() {
   }
 }
 
-export * from './schema.js';
+export * from './schema';

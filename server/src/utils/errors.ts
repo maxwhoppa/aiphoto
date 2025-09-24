@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { logger } from './logger.js';
+import { logger } from './logger';
 
 export class AuthenticationError extends Error {
   constructor(message: string) {

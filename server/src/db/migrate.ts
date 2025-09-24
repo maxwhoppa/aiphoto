@@ -1,6 +1,6 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import { getDb, closeDb } from './index.js';
-import { logger } from '../utils/logger.js';
+import { getDb, closeDb } from './index';
+import { logger } from '../utils/logger';
 
 async function main() {
   try {
@@ -18,6 +18,6 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   main();
 }

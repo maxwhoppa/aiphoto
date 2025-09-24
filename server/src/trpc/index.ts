@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server';
-import { Context } from './context.js';
-import { mapToTRPCError } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
+import { Context } from './context';
+import { mapToTRPCError } from '../utils/errors';
+import { logger } from '../utils/logger';
 
 const t = initTRPC.context<Context>().create({
   errorFormatter: ({ shape, error }) => {

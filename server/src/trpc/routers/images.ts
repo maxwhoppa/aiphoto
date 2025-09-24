@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '../index.js';
-import { getDb, userImages, generatedImages, users, scenarios } from '../../db/index.js';
+import { router, protectedProcedure } from '../index';
+import { getDb, userImages, generatedImages, users, scenarios } from '../../db/index';
 import { eq, desc, and } from 'drizzle-orm';
-import { logger } from '../../utils/logger.js';
-import { geminiService } from '../../services/gemini.js';
-import { s3Service } from '../../services/s3.js';
+import { logger } from '../../utils/logger';
+import { geminiService } from '../../services/gemini';
+import { s3Service } from '../../services/s3';
 
 export const imagesRouter = router({
   // Get presigned upload URLs for S3

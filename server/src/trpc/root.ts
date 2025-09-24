@@ -1,6 +1,6 @@
-import { router } from './index.js';
-import { imagesRouter } from './routers/images.js';
-import { healthRouter } from './routers/health.js';
+import { router } from './index';
+import { imagesRouter } from './routers/images';
+import { healthRouter } from './routers/health';
 
 export const appRouter = router({
   images: imagesRouter,
