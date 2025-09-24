@@ -153,7 +153,7 @@ jobs:
               KeyPairName="${{ secrets.KEY_PAIR_NAME || 'aiphoto-production' }}" \
               DatabaseUrl="${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/aiphoto' }}" \
               RedisUrl="${{ secrets.REDIS_URL || 'redis://localhost:6379' }}" \
-              CognitoUserPoolId="${{ secrets.COGNITO_USER_POOL_ID || 'us-east-1_64yfVC7J5' }}" \
+              CognitoUserPoolId="${{ secrets.COGNITO_USER_POOL_ID || 'us-east-1_vT51duDCY' }}" \
               CognitoRegion="${{ secrets.COGNITO_REGION || 'us-east-1' }}" \
               GeminiApiKey="${{ secrets.GOOGLE_GEMINI_API_KEY }}" \
               S3BucketName="${{ secrets.S3_BUCKET_NAME || 'aiphoto-images-dev' }}" \
