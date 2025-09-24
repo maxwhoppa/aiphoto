@@ -115,6 +115,23 @@ jobs:
             echo "S3 bucket already exists"
           fi
 
+      - name: Clean up failed stack if needed
+        run: |
+          # Check if stack exists and is in ROLLBACK_COMPLETE state
+          STACK_STATUS=$(aws cloudformation describe-stacks --stack-name aiphoto-production --query 'Stacks[0].StackStatus' --output text --region ${{ env.AWS_REGION }} 2>/dev/null || echo "STACK_NOT_EXISTS")
+          
+          if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Stack is in ROLLBACK_COMPLETE state, deleting it first..."
+            aws cloudformation delete-stack --stack-name aiphoto-production --region ${{ env.AWS_REGION }}
+            echo "Waiting for stack deletion to complete..."
+            aws cloudformation wait stack-delete-complete --stack-name aiphoto-production --region ${{ env.AWS_REGION }}
+            echo "Stack deleted successfully"
+          elif [ "$STACK_STATUS" != "STACK_NOT_EXISTS" ]; then
+            echo "Stack exists with status: $STACK_STATUS"
+          else
+            echo "Stack does not exist, ready to create"
+          fi
+
       - name: Deploy CloudFormation Stack
         run: |
           # Deploy with minimal required secrets - add more to GitHub secrets as needed
@@ -135,7 +152,6 @@ jobs:
               GitHubRepo="${{ github.repository }}" \
             --capabilities CAPABILITY_NAMED_IAM \
             --region ${{ env.AWS_REGION }}
-        continue-on-error: true
 
       - name: Show CloudFormation Events on Failure
         if: failure()
