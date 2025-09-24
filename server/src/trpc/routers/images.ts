@@ -195,57 +195,74 @@ export const imagesRouter = router({
         throw new Error('No valid images found');
       }
 
-      const results: Array<{ imageId: string; scenario: string; success: boolean; generatedImageId?: string; error?: string }> = [];
-
-      // Process each image with each scenario
+      // Create all image+scenario combinations for parallel processing
+      const processingTasks = [];
+      
       for (const imageId of validImageIds) {
         const image = images.find(img => img.id === imageId)!;
         
         for (const scenario of input.scenarios) {
+          processingTasks.push({
+            imageId,
+            image,
+            scenario,
+            customPrompt: input.customPrompts?.[scenario],
+          });
+        }
+      }
+
+      logger.info('Starting parallel image generation', {
+        cognitoUserId: ctx.user.sub,
+        totalTasks: processingTasks.length,
+        imageCount: validImageIds.length,
+        scenarioCount: input.scenarios.length,
+      });
+
+      // Process all combinations in parallel
+      const results = await Promise.allSettled(
+        processingTasks.map(async (task) => {
           try {
-            const customPrompt = input.customPrompts?.[scenario];
-            const prompt = customPrompt || await geminiService.generateImagePrompt(scenario);
+            const customPrompt = task.customPrompt;
+            const prompt = customPrompt || await geminiService.generateImagePrompt(task.scenario);
 
             // Process with Gemini
             const result = await geminiService.processImageWithScenario(
-              image.s3Url,
-              scenario,
+              task.image.s3Url,
+              task.scenario,
               customPrompt
             );
 
             if (result.error) {
-              results.push({
-                imageId,
-                scenario,
+              return {
+                imageId: task.imageId,
+                scenario: task.scenario,
                 success: false,
                 error: result.error,
-              });
-              continue;
+              };
             }
 
             // Generate S3 upload URL for the generated image
             const uploadData = await s3Service.generateGeneratedImageUploadUrl(
               user.id,
-              imageId,
-              scenario
+              task.imageId,
+              task.scenario
             );
 
             // Process with Gemini and get the generated image
             const generatedImageResult = await geminiService.generateAndUploadImage(
-              image.s3Url,
-              scenario,
+              task.image.s3Url,
+              task.scenario,
               customPrompt,
               uploadData.uploadUrl
             );
 
             if (generatedImageResult.error) {
-              results.push({
-                imageId,
-                scenario,
+              return {
+                imageId: task.imageId,
+                scenario: task.scenario,
                 success: false,
                 error: generatedImageResult.error,
-              });
-              continue;
+              };
             }
 
             // Save generated image record
@@ -253,8 +270,8 @@ export const imagesRouter = router({
               .insert(generatedImages)
               .values({
                 userId: user.id,
-                originalImageId: imageId,
-                scenario,
+                originalImageId: task.imageId,
+                scenario: task.scenario,
                 prompt,
                 s3Key: uploadData.s3Key,
                 s3Url: uploadData.s3Url,
@@ -262,43 +279,53 @@ export const imagesRouter = router({
               })
               .returning();
 
-            results.push({
-              imageId,
-              scenario,
-              success: true,
-              generatedImageId: generatedImage.id,
-            });
-
             logger.info('Image generated successfully', {
               cognitoUserId: ctx.user.sub,
-              originalImageId: imageId,
-              scenario,
+              originalImageId: task.imageId,
+              scenario: task.scenario,
               generatedImageId: generatedImage.id,
             });
 
-          } catch (error) {
-            results.push({
-              imageId,
-              scenario,
-              success: false,
-              error: error instanceof Error ? error.message : 'Processing failed',
-            });
+            return {
+              imageId: task.imageId,
+              scenario: task.scenario,
+              success: true,
+              generatedImageId: generatedImage.id,
+            };
 
+          } catch (error) {
             logger.error('Image generation failed', {
               cognitoUserId: ctx.user.sub,
-              originalImageId: imageId,
-              scenario,
+              originalImageId: task.imageId,
+              scenario: task.scenario,
               error,
             });
+
+            return {
+              imageId: task.imageId,
+              scenario: task.scenario,
+              success: false,
+              error: error instanceof Error ? error.message : 'Processing failed',
+            };
           }
+        })
+      );
+
+      // Extract results from Promise.allSettled
+      const processedResults = results.map(result => 
+        result.status === 'fulfilled' ? result.value : {
+          imageId: 'unknown',
+          scenario: 'unknown', 
+          success: false,
+          error: result.reason instanceof Error ? result.reason.message : 'Processing failed'
         }
-      }
+      );
 
       return {
-        processed: results.length,
-        successful: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length,
-        results,
+        processed: processedResults.length,
+        successful: processedResults.filter(r => r.success).length,
+        failed: processedResults.filter(r => !r.success).length,
+        results: processedResults,
       };
     }),
 

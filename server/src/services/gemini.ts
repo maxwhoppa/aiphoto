@@ -26,12 +26,17 @@ class GeminiService {
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(config.GOOGLE_GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
-    logger.info('Gemini service initialized');
+    logger.info('Gemini service initialized with gemini-2.0-flash-exp (nano banana model)');
   }
 
-  async generateContent(request: GeminiGenerationRequest): Promise<GeminiGenerationResponse> {
+  // Create a new model instance for parallel processing
+  private createModelInstance(): GenerativeModel {
+    return this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  }
+
+  async generateContent(request: GeminiGenerationRequest, useNewInstance = false): Promise<GeminiGenerationResponse> {
     const requestId = this.generateRequestId();
     
     try {
@@ -39,9 +44,12 @@ class GeminiService {
         requestId,
         scenario: request.scenario,
         hasImage: !!request.imageUrl,
+        useNewInstance,
       });
 
-      const result = await this.model.generateContent(request.prompt);
+      // Use a new model instance for parallel processing
+      const model = useNewInstance ? this.createModelInstance() : this.model;
+      const result = await model.generateContent(request.prompt);
       const response = await result.response;
       const generatedContent = response.text();
 
@@ -117,7 +125,7 @@ class GeminiService {
         prompt: fullPrompt,
         imageUrl: originalImageUrl,
         scenario,
-      });
+      }, true); // Use new instance for parallel processing
     } catch (error) {
       logger.error('Gemini image processing failed', {
         requestId,
