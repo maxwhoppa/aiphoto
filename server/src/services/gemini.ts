@@ -148,7 +148,7 @@ class GeminiService {
         hasUploadUrl: !!s3UploadUrl,
       });
 
-      const prompt = customPrompt || await this.generateImagePrompt(scenario);
+      const _prompt = customPrompt || await this.generateImagePrompt(scenario);
 
       // NOTE: Google Gemini currently doesn't support image generation
       // This is a placeholder implementation that would need to be replaced

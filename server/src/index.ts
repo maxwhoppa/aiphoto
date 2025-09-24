@@ -59,7 +59,7 @@ app.use('/trpc-optional', optionalAuthMiddleware, createExpressMiddleware({
 }));
 
 // Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Express Error:', {
     error: err.message,
     path: req.path,
