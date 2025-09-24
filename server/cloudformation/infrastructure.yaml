@@ -428,7 +428,7 @@ Resources:
       ServiceRoleArn: !GetAtt CodeDeployRole.Arn
       AutoScalingGroups:
         - !Ref AutoScalingGroup
-      DeploymentConfigName: CodeDeployDefault.AllAtOneTime
+      DeploymentConfigName: CodeDeployDefault.AllInstancesAtOnce
 
 Outputs:
   LoadBalancerDNS:
