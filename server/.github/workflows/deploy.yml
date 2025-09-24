@@ -37,7 +37,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: server/package-lock.json
 
       - name: Install dependencies
         working-directory: ./server
@@ -76,7 +75,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: server/package-lock.json
 
       - name: Install dependencies
         working-directory: ./server
