@@ -1,254 +1,163 @@
-import { 
-  S3Client, 
-  PutObjectCommand, 
-  GetObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand 
-} from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { config } from '@/utils/config';
-import { logger } from '@/utils/logger';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import { ValidationError } from '@/utils/errors';
+import { config } from '../utils/config.js';
+import { logger } from '../utils/logger.js';
 
-const s3Client = new S3Client({
-  region: config.AWS_REGION,
-});
-
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-];
-
-
-export interface UploadPresignedUrlRequest {
-  fileName: string;
-  contentType: string;
-  userId: string;
-}
-
-export interface UploadPresignedUrlResponse {
+export interface PresignedUploadUrl {
   uploadUrl: string;
   s3Key: string;
+  s3Url: string;
   expiresIn: number;
 }
 
-export interface DownloadPresignedUrlRequest {
-  s3Key: string;
-  expiresIn?: number;
+export interface PresignedDownloadUrl {
+  downloadUrl: string;
+  expiresIn: number;
 }
 
-export class S3Service {
+class S3Service {
+  private s3Client: S3Client;
   private bucketName: string;
 
   constructor() {
-    this.bucketName = config.S3_BUCKET_NAME;
-  }
-
-  validateImageFile(contentType: string, fileName: string): void {
-    if (!ALLOWED_IMAGE_TYPES.includes(contentType.toLowerCase())) {
-      throw new ValidationError(
-        `Unsupported file type: ${contentType}. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`
-      );
-    }
-
-    const ext = path.extname(fileName).toLowerCase();
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic'];
+    this.s3Client = new S3Client({
+      region: config.AWS_REGION,
+      credentials: config.AWS_ACCESS_KEY_ID && config.AWS_SECRET_ACCESS_KEY ? {
+        accessKeyId: config.AWS_ACCESS_KEY_ID,
+        secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+      } : undefined, // Use default credentials if not provided
+    });
     
-    if (!allowedExtensions.includes(ext)) {
-      throw new ValidationError(
-        `Unsupported file extension: ${ext}. Allowed extensions: ${allowedExtensions.join(', ')}`
-      );
-    }
+    this.bucketName = config.S3_BUCKET_NAME;
+    
+    logger.info('S3 service initialized', {
+      region: config.AWS_REGION,
+      bucket: this.bucketName,
+    });
   }
 
-  generateS3Key(userId: string, fileName: string, prefix: string = 'uploads'): string {
-    const fileId = uuidv4();
-    const ext = path.extname(fileName);
-    const timestamp = Date.now();
-    return `${prefix}/${userId}/${timestamp}_${fileId}${ext}`;
-  }
-
-  async createUploadPresignedUrl({
-    fileName,
-    contentType,
-    userId,
-  }: UploadPresignedUrlRequest): Promise<UploadPresignedUrlResponse> {
+  async generateUploadUrl(
+    userId: string,
+    fileName: string,
+    contentType: string,
+    expiresInSeconds: number = 3600 // 1 hour default
+  ): Promise<PresignedUploadUrl> {
     try {
-      this.validateImageFile(contentType, fileName);
-
-      const s3Key = this.generateS3Key(userId, fileName);
-      const expiresIn = 15 * 60; // 15 minutes
-
-      const putCommand = new PutObjectCommand({
+      // Create a unique S3 key
+      const timestamp = Date.now();
+      const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const s3Key = `users/${userId}/originals/${timestamp}-${sanitizedFileName}`;
+      
+      const command = new PutObjectCommand({
         Bucket: this.bucketName,
         Key: s3Key,
         ContentType: contentType,
-        Metadata: {
-          userId,
-          originalFileName: fileName,
-          uploadedAt: new Date().toISOString(),
-        },
       });
 
-      const uploadUrl = await getSignedUrl(s3Client, putCommand, {
-        expiresIn,
+      const uploadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: expiresInSeconds,
       });
 
-      logger.info('Created upload presigned URL', {
+      const s3Url = `https://${this.bucketName}.s3.${config.AWS_REGION}.amazonaws.com/${s3Key}`;
+
+      logger.info('Generated S3 upload URL', {
         userId,
         s3Key,
-        fileName,
         contentType,
+        expiresIn: expiresInSeconds,
       });
 
       return {
         uploadUrl,
         s3Key,
-        expiresIn,
+        s3Url,
+        expiresIn: expiresInSeconds,
       };
     } catch (error) {
-      logger.error('Failed to create upload presigned URL', {
-        error,
+      logger.error('Failed to generate S3 upload URL', {
         userId,
         fileName,
-        contentType,
+        error: error instanceof Error ? error.message : error,
       });
-      throw error;
+      throw new Error('Failed to generate upload URL');
     }
   }
 
-  async createDownloadPresignedUrl({
-    s3Key,
-    expiresIn = 60 * 60, // 1 hour default
-  }: DownloadPresignedUrlRequest): Promise<string> {
-    try {
-      // Verify object exists
-      await this.headObject(s3Key);
-
-      const getCommand = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: s3Key,
-      });
-
-      const downloadUrl = await getSignedUrl(s3Client, getCommand, {
-        expiresIn,
-      });
-
-      logger.debug('Created download presigned URL', {
-        s3Key,
-        expiresIn,
-      });
-
-      return downloadUrl;
-    } catch (error) {
-      logger.error('Failed to create download presigned URL', {
-        error,
-        s3Key,
-      });
-      throw error;
-    }
-  }
-
-  async uploadBuffer(
-    buffer: Buffer,
+  async generateDownloadUrl(
     s3Key: string,
-    contentType: string,
-    metadata: Record<string, string> = {}
-  ): Promise<void> {
+    expiresInSeconds: number = 3600 // 1 hour default
+  ): Promise<PresignedDownloadUrl> {
     try {
-      const putCommand = new PutObjectCommand({
+      const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: s3Key,
-        Body: buffer,
-        ContentType: contentType,
-        Metadata: metadata,
       });
 
-      await s3Client.send(putCommand);
+      const downloadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: expiresInSeconds,
+      });
 
-      logger.info('Buffer uploaded to S3', {
+      logger.info('Generated S3 download URL', {
         s3Key,
-        contentType,
-        size: buffer.length,
+        expiresIn: expiresInSeconds,
       });
+
+      return {
+        downloadUrl,
+        expiresIn: expiresInSeconds,
+      };
     } catch (error) {
-      logger.error('Failed to upload buffer to S3', {
-        error,
+      logger.error('Failed to generate S3 download URL', {
         s3Key,
-        contentType,
+        error: error instanceof Error ? error.message : error,
       });
-      throw error;
+      throw new Error('Failed to generate download URL');
     }
   }
 
-  async downloadBuffer(s3Key: string): Promise<Buffer> {
+  async generateGeneratedImageUploadUrl(
+    userId: string,
+    originalImageId: string,
+    scenario: string,
+    expiresInSeconds: number = 3600
+  ): Promise<PresignedUploadUrl> {
     try {
-      const getCommand = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: s3Key,
-      });
-
-      const response = await s3Client.send(getCommand);
+      const timestamp = Date.now();
+      const s3Key = `users/${userId}/generated/${originalImageId}/${scenario}/${timestamp}.jpg`;
       
-      if (!response.Body) {
-        throw new Error('No body in S3 response');
-      }
-
-      const buffer = Buffer.from(await response.Body.transformToByteArray());
-
-      logger.debug('Buffer downloaded from S3', {
-        s3Key,
-        size: buffer.length,
-      });
-
-      return buffer;
-    } catch (error) {
-      logger.error('Failed to download buffer from S3', {
-        error,
-        s3Key,
-      });
-      throw error;
-    }
-  }
-
-  async deleteObject(s3Key: string): Promise<void> {
-    try {
-      const deleteCommand = new DeleteObjectCommand({
+      const command = new PutObjectCommand({
         Bucket: this.bucketName,
         Key: s3Key,
+        ContentType: 'image/jpeg',
       });
 
-      await s3Client.send(deleteCommand);
+      const uploadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: expiresInSeconds,
+      });
 
-      logger.info('Object deleted from S3', { s3Key });
-    } catch (error) {
-      logger.error('Failed to delete object from S3', {
-        error,
+      const s3Url = `https://${this.bucketName}.s3.${config.AWS_REGION}.amazonaws.com/${s3Key}`;
+
+      logger.info('Generated S3 upload URL for generated image', {
+        userId,
+        originalImageId,
+        scenario,
         s3Key,
       });
-      throw error;
-    }
-  }
 
-  async headObject(s3Key: string): Promise<boolean> {
-    try {
-      const headCommand = new HeadObjectCommand({
-        Bucket: this.bucketName,
-        Key: s3Key,
-      });
-
-      await s3Client.send(headCommand);
-      return true;
+      return {
+        uploadUrl,
+        s3Key,
+        s3Url,
+        expiresIn: expiresInSeconds,
+      };
     } catch (error) {
-      if ((error as { name?: string }).name === 'NotFound') {
-        return false;
-      }
-      throw error;
+      logger.error('Failed to generate S3 upload URL for generated image', {
+        userId,
+        originalImageId,
+        scenario,
+        error: error instanceof Error ? error.message : error,
+      });
+      throw new Error('Failed to generate upload URL for generated image');
     }
   }
 
@@ -258,3 +167,4 @@ export class S3Service {
 }
 
 export const s3Service = new S3Service();
+export default s3Service;

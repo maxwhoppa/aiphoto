@@ -1,302 +1,219 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
-import { config } from '@/utils/config';
-import { logger } from '@/utils/logger';
-import { s3Service } from './s3';
-import sharp from 'sharp';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { config } from '../utils/config.js';
+import { logger } from '../utils/logger.js';
 
-const genAI = new GoogleGenerativeAI(config.GOOGLE_GEMINI_API_KEY);
-
-export interface ImageProcessingRequest {
-  originalImageS3Key: string;
+export interface GeminiGenerationRequest {
   prompt: string;
-  userId: string;
-  jobId: string;
+  imageUrl?: string;
+  scenario?: string;
 }
 
-export interface ImageProcessingResult {
-  processedImageS3Key: string;
-  processedImageUrl: string;
-  processingTime: number;
-  geminiRequestId?: string;
+export interface GeminiGenerationResponse {
+  requestId: string;
+  generatedContent?: string;
+  error?: string;
 }
 
-export class GeminiService {
-  private model;
+export interface GeminiImageGenerationResponse {
+  requestId: string;
+  imageUrl?: string;
+  error?: string;
+}
+
+class GeminiService {
+  private genAI: GoogleGenerativeAI;
+  private model: GenerativeModel;
 
   constructor() {
-    this.model = genAI.getGenerativeModel({
-      model: 'gemini-pro-vision',
-      generationConfig: {
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-        topP: 0.8,
-        topK: 40,
-      },
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-      ],
-    });
+    this.genAI = new GoogleGenerativeAI(config.GOOGLE_GEMINI_API_KEY);
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+    
+    logger.info('Gemini service initialized');
   }
 
-  private async preprocessImage(buffer: Buffer): Promise<Buffer> {
-    try {
-      // Optimize image for Gemini processing
-      const processedBuffer = await sharp(buffer)
-        .resize(1024, 1024, { 
-          fit: 'inside', 
-          withoutEnlargement: true 
-        })
-        .jpeg({ 
-          quality: 85,
-          progressive: true 
-        })
-        .toBuffer();
-
-      logger.debug('Image preprocessed', {
-        originalSize: buffer.length,
-        processedSize: processedBuffer.length,
-      });
-
-      return processedBuffer;
-    } catch (error) {
-      logger.error('Image preprocessing failed', { error });
-      throw new Error('Failed to preprocess image');
-    }
-  }
-
-  private buildPrompt(userPrompt: string): string {
-    const basePrompt = `
-You are an expert AI photo editor specializing in creating high-quality, professional images for dating profiles. 
-
-The user has provided the following scenario request: "${userPrompt}"
-
-Please analyze the input image and generate a new, enhanced version that:
-1. Maintains the person's facial features and identity
-2. Implements the requested scenario naturally and believably
-3. Ensures professional photo quality with good lighting and composition
-4. Keeps the person as the main focus
-5. Creates an attractive, authentic-looking result suitable for dating profiles
-
-Important guidelines:
-- Preserve the person's unique facial characteristics
-- Ensure natural lighting and realistic shadows
-- Maintain high image quality and resolution
-- Create a believable, non-artificial looking result
-- Follow the scenario while keeping it tasteful and appropriate
-
-Generate the enhanced image following these specifications.
-    `;
-
-    return basePrompt.trim();
-  }
-
-  async processImage({
-    originalImageS3Key,
-    prompt,
-    userId,
-    jobId,
-  }: ImageProcessingRequest): Promise<ImageProcessingResult> {
-    const startTime = Date.now();
+  async generateContent(request: GeminiGenerationRequest): Promise<GeminiGenerationResponse> {
+    const requestId = this.generateRequestId();
     
     try {
-      logger.info('Starting image processing', {
-        jobId,
-        userId,
-        originalImageS3Key,
-        prompt,
+      logger.info('Starting Gemini content generation', {
+        requestId,
+        scenario: request.scenario,
+        hasImage: !!request.imageUrl,
       });
 
-      // Download original image from S3
-      const originalBuffer = await s3Service.downloadBuffer(originalImageS3Key);
-      
-      // Preprocess image
-      const preprocessedBuffer = await this.preprocessImage(originalBuffer);
-
-      // Convert to base64 for Gemini
-      const base64Image = preprocessedBuffer.toString('base64');
-      const mimeType = 'image/jpeg';
-
-      // Build enhanced prompt
-      const enhancedPrompt = this.buildPrompt(prompt);
-
-      // Call Gemini Vision API
-      const result = await this.model.generateContent([
-        enhancedPrompt,
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType,
-          },
-        },
-      ]);
-
+      const result = await this.model.generateContent(request.prompt);
       const response = await result.response;
-      
-      if (!response) {
-        throw new Error('No response from Gemini API');
-      }
+      const generatedContent = response.text();
 
-      // Note: Gemini Vision API doesn't directly return processed images
-      // This is a conceptual implementation - in practice, you might need to:
-      // 1. Use a different Google AI service that supports image generation
-      // 2. Use the text response to guide another image processing service
-      // 3. Integrate with other AI image generation APIs
-
-      // For now, we'll simulate the process and return the original image
-      // In production, you'd implement actual image generation here
-      
-      const processedImageS3Key = s3Service.generateS3Key(
-        userId, 
-        `processed_${Date.now()}.jpg`, 
-        'processed'
-      );
-
-      // Upload processed image to S3
-      // In a real implementation, this would be the actual processed image
-      await s3Service.uploadBuffer(
-        preprocessedBuffer,
-        processedImageS3Key,
-        'image/jpeg',
-        {
-          userId,
-          jobId,
-          originalImageS3Key,
-          prompt,
-          processedAt: new Date().toISOString(),
-          geminiResponse: response.text(),
-        }
-      );
-
-      const processedImageUrl = s3Service.getPublicUrl(processedImageS3Key);
-      const processingTime = Date.now() - startTime;
-
-      logger.info('Image processing completed', {
-        jobId,
-        userId,
-        processedImageS3Key,
-        processingTime,
+      logger.info('Gemini content generation completed', {
+        requestId,
+        contentLength: generatedContent?.length || 0,
       });
 
       return {
-        processedImageS3Key,
-        processedImageUrl,
-        processingTime,
-        geminiRequestId: jobId, // Use jobId as request identifier
+        requestId,
+        generatedContent,
       };
-
     } catch (error) {
-      const processingTime = Date.now() - startTime;
-      
-      logger.error('Image processing failed', {
-        error,
-        jobId,
-        userId,
-        originalImageS3Key,
-        processingTime,
+      logger.error('Gemini content generation failed', {
+        requestId,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
       });
 
-      throw error;
+      return {
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 
-  async validateImageContent(imageBuffer: Buffer): Promise<boolean> {
-    try {
-      const base64Image = imageBuffer.toString('base64');
-      
-      const result = await this.model.generateContent([
-        `Analyze this image and determine if it contains:
-        1. A clear human face (primary subject)
-        2. Appropriate content suitable for a dating profile
-        3. No inappropriate, violent, or explicit content
-        
-        Respond with only "APPROVED" or "REJECTED" followed by a brief reason.`,
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: 'image/jpeg',
-          },
-        },
-      ]);
+  async generateImagePrompt(scenario: string, userDescription?: string): Promise<string> {
+    const basePrompts: Record<string, string> = {
+      photoshoot: 'Professional portrait photography session with studio lighting and modern backdrop',
+      nature: 'Outdoor nature setting with natural lighting and scenic landscape background',
+      gym: 'Athletic fitness setting with gym equipment and dynamic lighting',
+      beach: 'Beach setting with golden hour lighting and ocean backdrop',
+      rooftop: 'Urban rooftop setting with city skyline and sunset lighting',
+      casual: 'Casual everyday setting with natural lighting and comfortable environment',
+    };
 
-      const response = await result.response;
-      const text = response.text().toUpperCase();
-      
-      const isApproved = text.includes('APPROVED');
-      
-      logger.info('Image content validation completed', {
-        isApproved,
-        response: text.substring(0, 100), // Log first 100 chars
+    const basePrompt = basePrompts[scenario] || basePrompts.casual;
+    
+    if (userDescription) {
+      return `${basePrompt}. Additional details: ${userDescription}. Create a photorealistic, high-quality image with professional composition.`;
+    }
+
+    return `${basePrompt}. Create a photorealistic, high-quality image with professional composition.`;
+  }
+
+  async processImageWithScenario(
+    originalImageUrl: string,
+    scenario: string,
+    customPrompt?: string
+  ): Promise<GeminiGenerationResponse> {
+    const requestId = this.generateRequestId();
+
+    try {
+      logger.info('Starting Gemini image processing', {
+        requestId,
+        scenario,
+        originalImageUrl,
+        hasCustomPrompt: !!customPrompt,
       });
 
-      return isApproved;
+      const prompt = customPrompt || await this.generateImagePrompt(scenario);
+      
+      // For now, we'll generate a text description
+      // In a full implementation, you'd integrate with image generation APIs
+      const fullPrompt = `
+        Transform the person in this image into the following scenario: ${prompt}
+        
+        Maintain the person's facial features and appearance while adapting them to the new environment and lighting conditions.
+        Provide a detailed description of how the person would look in this new scenario.
+      `;
+
+      return await this.generateContent({
+        prompt: fullPrompt,
+        imageUrl: originalImageUrl,
+        scenario,
+      });
     } catch (error) {
-      logger.error('Image content validation failed', { error });
-      // Default to rejecting if validation fails
+      logger.error('Gemini image processing failed', {
+        requestId,
+        error: error instanceof Error ? error.message : error,
+      });
+
+      return {
+        requestId,
+        error: error instanceof Error ? error.message : 'Image processing failed',
+      };
+    }
+  }
+
+  async generateAndUploadImage(
+    originalImageUrl: string,
+    scenario: string,
+    customPrompt?: string,
+    s3UploadUrl?: string
+  ): Promise<GeminiImageGenerationResponse> {
+    const requestId = this.generateRequestId();
+
+    try {
+      logger.info('Starting Gemini image generation and upload', {
+        requestId,
+        scenario,
+        originalImageUrl,
+        hasCustomPrompt: !!customPrompt,
+        hasUploadUrl: !!s3UploadUrl,
+      });
+
+      const prompt = customPrompt || await this.generateImagePrompt(scenario);
+
+      // NOTE: Google Gemini currently doesn't support image generation
+      // This is a placeholder implementation that would need to be replaced
+      // with an actual image generation service like:
+      // - DALL-E (OpenAI)
+      // - Midjourney API
+      // - Stable Diffusion
+      // - Or another image generation service
+
+      // For now, we'll simulate image generation
+      logger.warn('Image generation not implemented - using placeholder', {
+        requestId,
+        service: 'gemini',
+        note: 'Replace with actual image generation service',
+      });
+
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // In a real implementation, you would:
+      // 1. Call the image generation API with the original image and prompt
+      // 2. Download the generated image
+      // 3. Upload it to S3 using the provided presigned URL
+      // 4. Return the final S3 URL
+
+      if (s3UploadUrl) {
+        // Placeholder - would upload generated image to S3
+        logger.info('Would upload generated image to S3', {
+          requestId,
+          uploadUrl: s3UploadUrl,
+        });
+      }
+
+      return {
+        requestId,
+        error: 'Image generation not implemented - placeholder response',
+      };
+    } catch (error) {
+      logger.error('Gemini image generation failed', {
+        requestId,
+        error: error instanceof Error ? error.message : error,
+      });
+
+      return {
+        requestId,
+        error: error instanceof Error ? error.message : 'Image generation failed',
+      };
+    }
+  }
+
+  private generateRequestId(): string {
+    return `gemini_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      const result = await this.model.generateContent('Hello, this is a health check.');
+      await result.response;
+      return true;
+    } catch (error) {
+      logger.error('Gemini health check failed', error);
       return false;
-    }
-  }
-
-  async analyzeImageForPromptSuggestions(imageBuffer: Buffer): Promise<string[]> {
-    try {
-      const base64Image = imageBuffer.toString('base64');
-      
-      const result = await this.model.generateContent([
-        `Analyze this image and suggest 5 different photo scenarios that would work well for enhancing this person's dating profile. 
-        
-        Consider the person's features, current setting, and what scenarios would be most appealing. 
-        
-        Suggest scenarios like: professional headshot, casual outdoor, fitness/gym, beach/vacation, formal event, etc.
-        
-        Respond with exactly 5 scenarios, one per line, in this format:
-        - Scenario name: Brief description`,
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: 'image/jpeg',
-          },
-        },
-      ]);
-
-      const response = await result.response;
-      const suggestions = response.text()
-        .split('\n')
-        .filter(line => line.trim().startsWith('-'))
-        .map(line => line.replace(/^-\s*/, '').trim())
-        .slice(0, 5);
-
-      logger.info('Generated prompt suggestions', {
-        suggestionsCount: suggestions.length,
-      });
-
-      return suggestions;
-    } catch (error) {
-      logger.error('Failed to analyze image for suggestions', { error });
-      
-      // Return default suggestions if analysis fails
-      return [
-        'Professional business portrait: Clean, confident headshot in business attire',
-        'Casual outdoor setting: Natural lighting in a park or outdoor location',
-        'Fitness/active lifestyle: Gym or sports setting showcasing health-conscious lifestyle',
-        'Beach vacation vibes: Relaxed, travel-inspired setting with good lighting',
-        'Smart casual social: Coffee shop or urban setting for approachable, social vibe',
-      ];
     }
   }
 }
 
 export const geminiService = new GeminiService();
+export default geminiService;

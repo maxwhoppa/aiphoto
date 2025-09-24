@@ -26,13 +26,11 @@ The project is split into two main directories:
 
 1. **Landing Page** - Introduction and app benefits pitch
 2. **Photo Upload** - Users upload photos of themselves
-3. **Scenario Selection** - Choose from photoshoot, nature, gym, beach, etc.
+3. **Scenario Selection** - Choose from photoshoot, nature, gym, beach, rooftop, etc.
 4. **Loading Screen** - Progress updates with additional pitch content
-5. **Preview Gallery** - Small, watermarked preview images
-6. **Paywall** - $99.99 payment prompt to access full-resolution photos
-7. **Photo Curation** - Review and select favorite photos by scenario (50-60 total)
-8. **Final Gallery** - Curated collection of selected photos
-9. **Repeat Purchase** - Additional $99.99 for new generation cycles
+5. **Paywall** - $99.99 payment prompt to access full-resolution photos using stripe webview
+6. **Photo Curation** - Review and select favorite photos by scenario (50-60 total)
+7. **Final Gallery** - Curated collection of selected photos, within the final gallery a user can instigate a second round for another 1x payment
 
 ## Technical Requirements
 

@@ -1,13 +1,10 @@
-import { defineConfig } from 'drizzle-kit';
-import { config } from './src/utils/config';
+import type { Config } from 'drizzle-kit';
 
-export default defineConfig({
+export default {
   schema: './src/db/schema.ts',
   out: './drizzle',
   driver: 'pg',
   dbCredentials: {
-    connectionString: config.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL!,
   },
-  verbose: true,
-  strict: true,
-});
+} satisfies Config;

@@ -1,27 +1,10 @@
-import { pgTable, uuid, varchar, timestamp, text, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, text, boolean, integer } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-
-export const jobStatusEnum = pgEnum('job_status', ['pending', 'processing', 'completed', 'failed']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   cognitoId: varchar('cognito_id', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export const imageProcessingJobs = pgTable('image_processing_jobs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  originalImageUrl: text('original_image_url').notNull(),
-  processedImageUrl: text('processed_image_url'),
-  prompt: text('prompt').notNull(),
-  status: jobStatusEnum('status').notNull().default('pending'),
-  errorMessage: text('error_message'),
-  geminiRequestId: varchar('gemini_request_id', { length: 255 }),
-  processingStartedAt: timestamp('processing_started_at'),
-  processingCompletedAt: timestamp('processing_completed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -37,29 +20,59 @@ export const userImages = pgTable('user_images', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const generatedImages = pgTable('generated_images', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  originalImageId: uuid('original_image_id').notNull().references(() => userImages.id, { onDelete: 'cascade' }),
+  scenario: varchar('scenario', { length: 100 }).notNull(),
+  prompt: text('prompt').notNull(),
+  s3Key: varchar('s3_key', { length: 512 }).notNull(),
+  s3Url: text('s3_url').notNull(),
+  geminiRequestId: varchar('gemini_request_id', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const scenarios = pgTable('scenarios', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  prompt: text('prompt').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
-  imageProcessingJobs: many(imageProcessingJobs),
   userImages: many(userImages),
+  generatedImages: many(generatedImages),
 }));
 
-export const imageProcessingJobsRelations = relations(imageProcessingJobs, ({ one }) => ({
-  user: one(users, {
-    fields: [imageProcessingJobs.userId],
-    references: [users.id],
-  }),
-}));
-
-export const userImagesRelations = relations(userImages, ({ one }) => ({
+export const userImagesRelations = relations(userImages, ({ one, many }) => ({
   user: one(users, {
     fields: [userImages.userId],
     references: [users.id],
+  }),
+  generatedImages: many(generatedImages),
+}));
+
+export const generatedImagesRelations = relations(generatedImages, ({ one }) => ({
+  user: one(users, {
+    fields: [generatedImages.userId],
+    references: [users.id],
+  }),
+  originalImage: one(userImages, {
+    fields: [generatedImages.originalImageId],
+    references: [userImages.id],
   }),
 }));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type ImageProcessingJob = typeof imageProcessingJobs.$inferSelect;
-export type NewImageProcessingJob = typeof imageProcessingJobs.$inferInsert;
 export type UserImage = typeof userImages.$inferSelect;
 export type NewUserImage = typeof userImages.$inferInsert;
+export type GeneratedImage = typeof generatedImages.$inferSelect;
+export type NewGeneratedImage = typeof generatedImages.$inferInsert;
+export type Scenario = typeof scenarios.$inferSelect;
+export type NewScenario = typeof scenarios.$inferInsert;

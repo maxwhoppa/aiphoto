@@ -1,31 +1,30 @@
-import { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
-import { AuthContext } from '@/types';
-import { logger } from '@/utils/logger';
+import { Request, Response } from 'express';
 
-export interface Context {
-  user?: AuthContext;
-  requestId: string;
+interface CognitoTokenPayload {
+  sub: string;
+  email?: string;
+  username?: string;
+  'cognito:username'?: string;
+  aud: string;
+  iss: string;
+  token_use: string;
+  exp: number;
+  iat: number;
 }
 
-export async function createContext({
-  req,
-  res,
-}: CreateFastifyContextOptions): Promise<Context> {
-  const requestId = req.headers['x-request-id'] as string || 
-    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+export interface Context {
+  req: Request;
+  res: Response;
+  user?: CognitoTokenPayload;
+}
 
-  // Add request ID to response headers for tracking
-  res.header('x-request-id', requestId);
-
-  logger.info('Request received', {
-    requestId,
-    method: req.method,
-    url: req.url,
-    userAgent: req.headers['user-agent'],
-  });
+export function createTRPCContext({ req, res }: { req: Request; res: Response }): Context {
+  // Get user from auth middleware if available
+  const user = (req as any).user as CognitoTokenPayload | undefined;
 
   return {
-    requestId,
-    // User will be set by auth middleware
+    req,
+    res,
+    user,
   };
 }

@@ -1,113 +1,178 @@
-name: Deploy
+name: Deploy AI Photo Server
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'server/**'
-      - '.github/workflows/**'
-  workflow_dispatch:
-    inputs:
-      stage:
-        description: 'Deployment stage'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-        - dev
-        - staging
-        - prod
+    branches: [ main, production ]
+  pull_request:
+    branches: [ main ]
 
-concurrency:
-  group: deploy-${{ github.event.inputs.stage || 'dev' }}
-  cancel-in-progress: false
+env:
+  NODE_VERSION: '22'
+  AWS_REGION: 'us-east-1'
 
 jobs:
-  deploy:
-    name: Deploy to ${{ github.event.inputs.stage || 'dev' }}
+  test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./server
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aiphoto_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
 
       - name: Install dependencies
+        working-directory: ./server
         run: npm ci
+
+      - name: Run type checking
+        working-directory: ./server
+        run: npm run typecheck
+
+      - name: Run linting
+        working-directory: ./server
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: ./server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aiphoto_test
+          NODE_ENV: test
+          GOOGLE_GEMINI_API_KEY: test-key
+          COGNITO_USER_POOL_ID: test-pool
+          COGNITO_REGION: us-east-1
+          S3_BUCKET_NAME: test-bucket
+        run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Build application
+        working-directory: ./server
+        run: npm run build
+
+      - name: Create deployment package
+        working-directory: ./server
+        run: |
+          # Create deployment package with all necessary files
+          mkdir -p deployment-package
+          
+          # Copy built application
+          cp -r dist deployment-package/
+          cp package.json package-lock.json deployment-package/
+          cp -r drizzle deployment-package/
+          
+          # Copy CodeDeploy files
+          cp appspec.yml deployment-package/
+          cp -r scripts deployment-package/
+          
+          # Create tar file
+          cd deployment-package
+          tar -czf ../deployment-package.tar.gz .
+          cd ..
+          
+          # Also create ZIP for CodeDeploy
+          cd deployment-package
+          zip -r ../deployment-package.zip .
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: |
+            server/deployment-package.tar.gz
+            server/deployment-package.zip
+          retention-days: 30
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/production'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Store secrets in AWS Parameter Store
+      - name: Deploy CloudFormation Stack
         run: |
-          aws ssm put-parameter --name "/aiphoto/${{ github.event.inputs.stage || 'dev' }}/google-gemini-api-key" --value "${{ secrets.GOOGLE_GEMINI_API_KEY }}" --type "SecureString" --overwrite || true
-          aws ssm put-parameter --name "/aiphoto/${{ github.event.inputs.stage || 'dev' }}/sentry-dsn" --value "${{ secrets.SENTRY_DSN }}" --type "SecureString" --overwrite || true
+          # Deploy with minimal required secrets - add more to GitHub secrets as needed
+          aws cloudformation deploy \
+            --template-file server/cloudformation/infrastructure.yaml \
+            --stack-name aiphoto-production \
+            --parameter-overrides \
+              Environment=production \
+              InstanceType=t3.medium \
+              KeyPairName="${{ secrets.KEY_PAIR_NAME || 'aiphoto-production' }}" \
+              DatabaseUrl="${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/aiphoto' }}" \
+              RedisUrl="${{ secrets.REDIS_URL || 'redis://localhost:6379' }}" \
+              CognitoUserPoolId="${{ secrets.COGNITO_USER_POOL_ID || 'us-east-1_64yfVC7J5' }}" \
+              CognitoRegion="${{ secrets.COGNITO_REGION || 'us-east-1' }}" \
+              GeminiApiKey="${{ secrets.GOOGLE_GEMINI_API_KEY }}" \
+              S3BucketName="${{ secrets.S3_BUCKET_NAME || 'aiphoto-images-dev' }}" \
+              CorsOrigin="${{ secrets.CORS_ORIGIN || 'http://localhost:3000,http://localhost:19006' }}" \
+              GitHubRepo="${{ github.repository }}" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }}
 
-      - name: Deploy to dev
-        if: ${{ github.event.inputs.stage == 'dev' || (github.event.inputs.stage == '' && github.ref == 'refs/heads/main') }}
-        run: |
-          npx cdk bootstrap --require-approval never || true
-          npx cdk deploy --require-approval never
-
-      - name: Deploy to staging
-        if: ${{ github.event.inputs.stage == 'staging' }}
-        run: |
-          npx cdk bootstrap --require-approval never || true
-          npx cdk deploy --require-approval never --context stage=staging
-
-      - name: Deploy to production
-        if: ${{ github.event.inputs.stage == 'prod' }}
-        run: |
-          npx cdk bootstrap --require-approval never || true
-          npx cdk deploy --require-approval never --context stage=prod
-
-      - name: Run smoke tests
-        if: ${{ github.event.inputs.stage == 'prod' }}
-        run: |
-          npm run test:smoke
-        env:
-          API_ENDPOINT: ${{ steps.deploy.outputs.ApiEndpoint }}
-
-      - name: Notify Slack on success
-        if: success()
-        uses: 8398a7/action-slack@v3
+      - name: Download deployment package
+        uses: actions/download-artifact@v4
         with:
-          status: success
-          channel: '#deployments'
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          name: deployment-package
 
-      - name: Notify Slack on failure
-        if: failure()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: failure
-          channel: '#deployments'
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      - name: Create Sentry release
-        if: ${{ github.event.inputs.stage == 'prod' && success() }}
-        uses: getsentry/action-release@v1
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: aiphoto-server
-        with:
-          environment: production
-          version: ${{ github.sha }}
+      - name: Upload to S3 and Deploy via CodeDeploy
+        run: |
+          # Upload deployment package to S3
+          aws s3 cp deployment-package.zip s3://aiphoto-codedeploy-bucket/aiphoto-production/deployment-package-${{ github.sha }}.zip
+          
+          # Get deployment group info
+          APP_NAME=$(aws cloudformation describe-stacks --stack-name aiphoto-production --query 'Stacks[0].Outputs[?OutputKey==`CodeDeployApplicationName`].OutputValue' --output text)
+          DEPLOYMENT_GROUP=$(aws cloudformation describe-stacks --stack-name aiphoto-production --query 'Stacks[0].Outputs[?OutputKey==`CodeDeployDeploymentGroupName`].OutputValue' --output text)
+          
+          # Create deployment
+          aws deploy create-deployment \
+            --application-name $APP_NAME \
+            --deployment-group-name $DEPLOYMENT_GROUP \
+            --s3-location bucket=aiphoto-codedeploy-bucket,key=aiphoto-production/deployment-package-${{ github.sha }}.zip,bundleType=zip

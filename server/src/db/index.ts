@@ -1,53 +1,33 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { config } from '@/utils/config';
-import * as schema from './schema';
-import { logger } from '@/utils/logger';
+import * as schema from './schema.js';
+import { config } from '../utils/config.js';
 
-let connection: postgres.Sql | undefined;
-let db: ReturnType<typeof drizzle> | undefined;
-
-export function createConnection() {
-  if (connection && db) {
-    return { connection, db };
-  }
-
-  try {
-    connection = postgres(config.DATABASE_URL, {
-      max: config.NODE_ENV === 'production' ? 20 : 5,
-      idle_timeout: 20,
-      connect_timeout: 10,
-      prepare: false,
-    });
-
-    db = drizzle(connection, { schema });
-
-    logger.info('Database connection established');
-    
-    return { connection, db };
-  } catch (error) {
-    logger.error('Failed to connect to database', { error });
-    throw error;
-  }
-}
+let connection: postgres.Sql<{}> | null = null;
+let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getDb() {
   if (!db) {
-    const result = createConnection();
-    return result.db;
+    if (!connection) {
+      connection = postgres(config.DATABASE_URL, {
+        max: 10,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+    }
+    
+    db = drizzle(connection, { schema });
   }
+  
   return db;
 }
 
-export async function closeConnection() {
+export async function closeDb() {
   if (connection) {
     await connection.end();
-    logger.info('Database connection closed');
+    connection = null;
+    db = null;
   }
 }
 
-// Initialize connection
-createConnection();
-
-export { db };
-export * from './schema';
+export * from './schema.js';

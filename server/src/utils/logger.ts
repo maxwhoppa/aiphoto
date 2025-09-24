@@ -1,14 +1,21 @@
-import { Logger } from '@aws-lambda-powertools/logger';
-import { config } from './config';
+import winston from 'winston';
+import { config } from './config.js';
 
-export const logger = new Logger({
-  logLevel: config.NODE_ENV === 'development' ? 'DEBUG' : 'INFO',
-  serviceName: 'aiphoto-server',
-  environment: config.NODE_ENV,
+const logger = winston.createLogger({
+  level: config.NODE_ENV === 'development' ? 'debug' : 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    config.NODE_ENV === 'development'
+      ? winston.format.combine(
+          winston.format.colorize(),
+          winston.format.simple()
+        )
+      : winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+  ],
 });
 
-export function createLogger(context: string) {
-  return logger.createChild({
-    persistentLogAttributes: { context }
-  });
-}
+export { logger };

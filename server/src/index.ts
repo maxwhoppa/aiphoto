@@ -1,152 +1,106 @@
-import Fastify from 'fastify';
-import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
-import { config } from '@/utils/config';
-import { logger } from '@/utils/logger';
-import { registerMiddleware } from '@/middleware';
-import { createContext } from '@/trpc/context';
-import { appRouter } from '@/routes';
-import { authMiddleware } from '@/middleware/auth';
-import { MonitoringService } from '@/utils/monitoring';
-import { createConnection } from '@/db';
-import { createRedisConnection } from '@/services/redis';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { createExpressMiddleware } from '@trpc/server/adapters/express';
+import { appRouter } from './trpc/root.js';
+import { createTRPCContext } from './trpc/context.js';
+import { authMiddleware, optionalAuthMiddleware } from './middleware/auth.js';
+import { config } from './utils/config.js';
+import { logger } from './utils/logger.js';
 
-async function createServer() {
-  const fastify = Fastify({
-    logger: {
-      level: config.NODE_ENV === 'development' ? 'debug' : 'info',
-    },
+const app = express();
+
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+app.use(cors({
+  origin: config.CORS_ORIGIN.split(',').map(origin => origin.trim()),
+  credentials: true,
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Health check endpoint (no auth required)
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: config.NODE_ENV,
+  });
+});
+
+// Public tRPC endpoints (no auth required)
+app.use('/trpc/health.check', createExpressMiddleware({
+  router: appRouter,
+  createContext: createTRPCContext,
+}));
+
+// Protected tRPC endpoints (auth required)
+app.use('/trpc', authMiddleware, createExpressMiddleware({
+  router: appRouter,
+  createContext: createTRPCContext,
+  onError: ({ error, path, input }) => {
+    logger.error('tRPC Error:', {
+      error: error.message,
+      path,
+      input,
+      stack: error.stack,
+    });
+  },
+}));
+
+// Optional auth for some endpoints (user context added if available)
+app.use('/trpc-optional', optionalAuthMiddleware, createExpressMiddleware({
+  router: appRouter,
+  createContext: createTRPCContext,
+}));
+
+// Error handling middleware
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Express Error:', {
+    error: err.message,
+    path: req.path,
+    method: req.method,
+    stack: err.stack,
   });
 
-  try {
-    // Initialize database connection
-    createConnection();
-    logger.info('Database connection initialized');
+  res.status(500).json({
+    error: 'Internal server error',
+    message: config.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
 
-    // Initialize Redis connection
-    createRedisConnection();
-    logger.info('Redis connection initialized');
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    path: req.originalUrl,
+  });
+});
 
-    // Register middleware
-    await registerMiddleware(fastify);
+// Start server
+const port = config.PORT;
 
-    // Request tracking middleware
-    fastify.addHook('preHandler', async (request, _reply) => {
-      const requestId = request.headers['x-request-id'] as string || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Add context for monitoring
-      MonitoringService.addAnnotation('requestId', requestId);
-      MonitoringService.addAnnotation('method', request.method);
-      MonitoringService.addAnnotation('path', request.url);
-    });
+app.listen(port, () => {
+  logger.info(`Server running on port ${port}`, {
+    environment: config.NODE_ENV,
+    port,
+    cors: config.CORS_ORIGIN,
+  });
+});
 
-    // Auth middleware for protected routes
-    fastify.addHook('preHandler', async (request, reply) => {
-      // Skip auth for health checks and public routes
-      if (request.url.includes('/health') || request.method === 'OPTIONS') {
-        return;
-      }
+// Graceful shutdown
+process.on('SIGINT', () => {
+  logger.info('Received SIGINT, shutting down gracefully');
+  process.exit(0);
+});
 
-      // Skip auth for tRPC introspection in development
-      if (config.NODE_ENV === 'development' && request.url.includes('trpc')) {
-        return;
-      }
+process.on('SIGTERM', () => {
+  logger.info('Received SIGTERM, shutting down gracefully');
+  process.exit(0);
+});
 
-      try {
-        await authMiddleware(request, reply);
-      } catch (error) {
-        // Let tRPC handle auth errors for tRPC routes
-        if (request.url.includes('/trpc')) {
-          return;
-        }
-        throw error;
-      }
-    });
-
-    // Register tRPC
-    await fastify.register(fastifyTRPCPlugin, {
-      prefix: '/trpc',
-      trpcOptions: {
-        router: appRouter,
-        createContext,
-        onError: ({ error, type, path, input, ctx }: {
-          error: Error;
-          type: 'query' | 'mutation' | 'subscription' | 'unknown';
-          path: string | undefined;
-          input: unknown;
-          ctx: { user?: { userId?: string }; requestId?: string };
-        }) => {
-          MonitoringService.captureError(error, {
-            type,
-            path,
-            input: JSON.stringify(input),
-            userId: ctx?.user?.userId,
-            requestId: ctx?.requestId,
-          });
-        },
-      },
-    });
-
-    // Global error handler
-    fastify.setErrorHandler(async (error, request, reply) => {
-      const statusCode = error.statusCode || 500;
-      
-      MonitoringService.captureError(error, {
-        url: request.url,
-        method: request.method,
-        statusCode,
-        userId: (request as { user?: { userId?: string } }).user?.userId,
-      });
-
-      logger.error('Request error', {
-        error,
-        url: request.url,
-        method: request.method,
-        statusCode,
-      });
-
-      const response = {
-        error: {
-          message: statusCode >= 500 ? 'Internal server error' : error.message,
-          statusCode,
-        },
-        requestId: request.headers['x-request-id'],
-      };
-
-      reply.status(statusCode).send(response);
-    });
-
-    return fastify;
-  } catch (error) {
-    logger.error('Failed to create server', { error });
-    throw error;
-  }
-}
-
-async function startServer() {
-  try {
-    const server = await createServer();
-    
-    const address = await server.listen({
-      port: config.PORT,
-      host: '0.0.0.0',
-    });
-
-    logger.info(`Server listening at ${address}`);
-    
-    // Publish any pending metrics
-    await MonitoringService.publishMetrics();
-
-    return server;
-  } catch (error) {
-    logger.error('Failed to start server', { error });
-    MonitoringService.captureError(error as Error);
-    process.exit(1);
-  }
-}
-
-// Start server if not imported
-if (require.main === module) {
-  startServer();
-}
-
-export { createServer, startServer };
+export default app;

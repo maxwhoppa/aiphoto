@@ -1,0 +1,468 @@
+{
+	"info": {
+		"_postman_id": "aiphoto-server-collection",
+		"name": "AI Photo Server API",
+		"description": "Complete API collection for AI Photo Express tRPC Server",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{cognito_bearer_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "cognito_bearer_token",
+			"value": "your_cognito_jwt_token_here",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Basic Health Check",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Detailed Health Check (tRPC)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/health.check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"health.check"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Images - Upload Flow",
+			"item": [
+				{
+					"name": "1. Get S3 Upload URLs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save upload URLs for next requests",
+									"const response = pm.response.json();",
+									"if (response.result?.data?.uploadUrls) {",
+									"    pm.collectionVariables.set('upload_urls', JSON.stringify(response.result.data.uploadUrls));",
+									"    pm.collectionVariables.set('first_upload_url', response.result.data.uploadUrls[0].uploadUrl);",
+									"    pm.collectionVariables.set('first_s3_key', response.result.data.uploadUrls[0].s3Key);",
+									"    pm.collectionVariables.set('first_s3_url', response.result.data.uploadUrls[0].s3Url);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"files\": [\n    {\n      \"fileName\": \"test-photo-1.jpg\",\n      \"contentType\": \"image/jpeg\",\n      \"sizeBytes\": 1024000\n    },\n    {\n      \"fileName\": \"test-photo-2.jpg\",\n      \"contentType\": \"image/jpeg\",\n      \"sizeBytes\": 2048000\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getUploadUrls",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getUploadUrls"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Upload to S3 (Example - Replace with actual file)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "image/jpeg"
+							}
+						],
+						"body": {
+							"mode": "file",
+							"file": {
+								"src": ""
+							}
+						},
+						"url": {
+							"raw": "{{first_upload_url}}",
+							"host": [
+								"{{first_upload_url}}"
+							]
+						},
+						"description": "Replace the URL with the uploadUrl from step 1 and add your actual image file"
+					},
+					"response": []
+				},
+				{
+					"name": "3. Record Uploaded Images",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save image IDs for generation requests",
+									"const response = pm.response.json();",
+									"if (response.result?.data?.images) {",
+									"    const imageIds = response.result.data.images.map(img => img.id);",
+									"    pm.collectionVariables.set('uploaded_image_ids', JSON.stringify(imageIds));",
+									"    pm.collectionVariables.set('first_image_id', imageIds[0]);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"images\": [\n    {\n      \"fileName\": \"test-photo-1.jpg\",\n      \"contentType\": \"image/jpeg\",\n      \"sizeBytes\": 1024000,\n      \"s3Key\": \"{{first_s3_key}}\",\n      \"s3Url\": \"{{first_s3_url}}\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.recordUploadedImages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.recordUploadedImages"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Images - AI Processing",
+			"item": [
+				{
+					"name": "Generate AI Images",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageIds\": [\"{{first_image_id}}\"],\n  \"scenarios\": [\"photoshoot\", \"nature\", \"gym\"],\n  \"customPrompts\": {\n    \"photoshoot\": \"Professional studio lighting with modern backdrop\",\n    \"nature\": \"Golden hour outdoor setting with mountains in background\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.generateImages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.generateImages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Scenarios",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getScenarios",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getScenarios"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Images - Retrieval",
+			"item": [
+				{
+					"name": "Get My Original Images",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getMyImages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getMyImages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Generated Images",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getGeneratedImages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getGeneratedImages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Generated Images by Original Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"originalImageId\": \"{{first_image_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getGeneratedImages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getGeneratedImages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Generated Images by Scenario",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"scenario\": \"photoshoot\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getGeneratedImages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getGeneratedImages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Specific Generated Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"generatedImageId\": \"generated-image-uuid-here\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.getGeneratedImage",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.getGeneratedImage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Images - Management",
+			"item": [
+				{
+					"name": "Delete Original Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageId\": \"image-uuid-here\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.deleteImage",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.deleteImage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Generated Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"generatedImageId\": \"generated-image-uuid-here\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/trpc/images.deleteGeneratedImage",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trpc",
+								"images.deleteGeneratedImage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

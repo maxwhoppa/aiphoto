@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '@/trpc';
+import { router, protectedProcedure, publicProcedure } from '@/trpc';
 import { s3Service } from '@/services/s3';
 import { sqsService } from '@/services/sqs';
 import { geminiService } from '@/services/gemini';
@@ -100,13 +100,6 @@ export const imagesRouter = router({
 
         // Download and validate image content
         const imageBuffer = await s3Service.downloadBuffer(s3Key);
-        const isValid = await geminiService.validateImageContent(imageBuffer);
-        
-        if (!isValid) {
-          // Delete the invalid image from S3
-          await s3Service.deleteObject(s3Key);
-          throw new ValidationError('Image content is not appropriate or does not contain a clear human face');
-        }
 
         const db = getDb();
         
@@ -374,5 +367,14 @@ export const imagesRouter = router({
         });
         throw error;
       }
+    }),
+
+  // Test endpoint without authentication
+  test: publicProcedure
+    .query(async () => {
+      return {
+        message: 'Test endpoint working!',
+        timestamp: new Date().toISOString(),
+      };
     }),
 });

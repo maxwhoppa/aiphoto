@@ -1,16 +1,14 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-client';
-import { config } from '@/utils/config';
-import { AuthenticationError, AuthorizationError } from '@/utils/errors';
-import { logger } from '@/utils/logger';
-import { getDb, users } from '@/db';
-import { eq } from 'drizzle-orm';
+import { Request, Response, NextFunction } from 'express';
+import { jwtVerify, createRemoteJWKSet } from 'jose';
+import { config } from '../utils/config.js';
+import { AuthenticationError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 
 interface CognitoTokenPayload {
   sub: string;
-  email: string;
-  'cognito:username': string;
+  email?: string;
+  username?: string;
+  'cognito:username'?: string;
   aud: string;
   iss: string;
   token_use: string;
@@ -18,58 +16,45 @@ interface CognitoTokenPayload {
   iat: number;
 }
 
+interface AuthenticatedRequest extends Request {
+  user?: CognitoTokenPayload;
+}
+
 class CognitoJWTVerifier {
-  private client: ReturnType<typeof jwksClient>;
+  private jwks: ReturnType<typeof createRemoteJWKSet>;
   private issuer: string;
 
   constructor() {
     this.issuer = `https://cognito-idp.${config.COGNITO_REGION}.amazonaws.com/${config.COGNITO_USER_POOL_ID}`;
-    this.client = jwksClient({
-      jwksUri: `${this.issuer}/.well-known/jwks.json`,
-      cache: true,
-      cacheMaxAge: 86400000, // 24 hours
-      rateLimit: true,
-      jwksRequestsPerMinute: 10,
+    this.jwks = createRemoteJWKSet(
+      new URL(`${this.issuer}/.well-known/jwks.json`),
+      {
+        timeoutDuration: 5000,
+        cooldownDuration: 30000,
+      }
+    );
+    
+    logger.info('JWT Verifier initialized', {
+      issuer: this.issuer,
+      jwksUrl: `${this.issuer}/.well-known/jwks.json`,
+      region: config.COGNITO_REGION,
+      userPoolId: config.COGNITO_USER_POOL_ID,
     });
-  }
-
-  private async getSigningKey(kid: string): Promise<string> {
-    try {
-      const key = await this.client.getSigningKey(kid);
-      return key.getPublicKey();
-    } catch (error) {
-      logger.error('Failed to get signing key', { error, kid });
-      throw new AuthenticationError('Invalid token signature');
-    }
   }
 
   async verifyToken(token: string): Promise<CognitoTokenPayload> {
     try {
-      // Decode token header to get key ID
-      const decoded = jwt.decode(token, { complete: true });
-      if (!decoded || !decoded.header.kid) {
-        throw new AuthenticationError('Invalid token format');
-      }
-
-      // Get signing key
-      const signingKey = await this.getSigningKey(decoded.header.kid);
-
-      // Verify token
-      const payload = jwt.verify(token, signingKey, {
-        algorithms: ['RS256'],
+      const { payload } = await jwtVerify(token, this.jwks, {
         issuer: this.issuer,
-      }) as CognitoTokenPayload;
+        algorithms: ['RS256'],
+      });
 
       // Additional validations
       if (payload.token_use !== 'access') {
         throw new AuthenticationError('Invalid token type');
       }
 
-      if (Date.now() >= payload.exp * 1000) {
-        throw new AuthenticationError('Token expired');
-      }
-
-      return payload;
+      return payload as unknown as CognitoTokenPayload;
     } catch (error) {
       if (error instanceof AuthenticationError) {
         throw error;
@@ -84,11 +69,12 @@ class CognitoJWTVerifier {
 const jwtVerifier = new CognitoJWTVerifier();
 
 export async function authMiddleware(
-  request: FastifyRequest,
-  _reply: FastifyReply
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
 ) {
   try {
-    const authHeader = request.headers.authorization;
+    const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new AuthenticationError('Missing or invalid authorization header');
@@ -97,62 +83,42 @@ export async function authMiddleware(
     const token = authHeader.substring(7);
     const payload = await jwtVerifier.verifyToken(token);
 
-    // Get or create user in database
-    const db = getDb();
-    const userResults = await db.select().from(users).where(eq(users.cognitoId, payload.sub)).limit(1);
-    let user = userResults[0];
-
-    if (!user) {
-      // Create new user
-      const [newUser] = await db.insert(users).values({
-        cognitoId: payload.sub,
-        email: payload.email,
-      }).returning();
-      
-      if (!newUser) {
-        throw new AuthenticationError('Failed to create user');
-      }
-      
-      user = newUser;
-      logger.info('New user created', { userId: newUser.id, email: newUser.email });
-    }
-
-    // Ensure user exists
-    if (!user) {
-      throw new AuthenticationError('Failed to retrieve or create user');
-    }
-
-    // Attach user to request context
-    (request as FastifyRequest & { user: { userId: string; cognitoId: string; email: string } }).user = {
-      userId: user.id,
-      cognitoId: user.cognitoId,
-      email: user.email,
-    };
-
+    // Attach JWT payload directly to request
+    req.user = payload;
     logger.debug('User authenticated', { 
-      userId: user.id, 
-      cognitoId: user.cognitoId 
+      cognitoId: payload.sub,
+      email: payload.email 
     });
 
+    next();
   } catch (error) {
-    if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
-      throw error;
+    if (error instanceof AuthenticationError) {
+      return res.status(401).json({
+        error: error.message
+      });
     }
     
     logger.error('Authentication middleware error', { error });
-    throw new AuthenticationError('Authentication failed');
+    return res.status(500).json({
+      error: 'Internal server error'
+    });
   }
 }
 
-// Optional middleware for routes that don't require auth
+
 export async function optionalAuthMiddleware(
-  request: FastifyRequest,
-  reply: FastifyReply
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
 ) {
   try {
-    await authMiddleware(request, reply);
+    await authMiddleware(req, res, () => {});
   } catch (error) {
-    // Silently continue without authentication
-    logger.debug('Optional auth failed', { error: error instanceof Error ? error.message : error });
+    logger.debug('Optional auth failed', { 
+      error: error instanceof Error ? error.message : error 
+    });
   }
+  next();
 }
+
+export type { AuthenticatedRequest };

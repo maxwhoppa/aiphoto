@@ -2,14 +2,20 @@ import { z } from 'zod';
 
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().default('3000').transform(Number),
+  PORT: z.string().transform((val) => parseInt(val, 10)).default('3000'),
+  
+  // Database
   DATABASE_URL: z.string(),
-  REDIS_URL: z.string(),
+  
+  // Redis
+  REDIS_URL: z.string().optional(),
   
   // AWS
   AWS_REGION: z.string().default('us-east-1'),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
   S3_BUCKET_NAME: z.string(),
-  SQS_QUEUE_URL: z.string(),
+  SQS_QUEUE_URL: z.string().optional(),
   
   // Cognito
   COGNITO_USER_POOL_ID: z.string(),
@@ -18,24 +24,10 @@ const configSchema = z.object({
   // Google Gemini
   GOOGLE_GEMINI_API_KEY: z.string(),
   
-  // App Config
+  // CORS
   CORS_ORIGIN: z.string().default('*'),
-  
-  // Monitoring
-  SENTRY_DSN: z.string().optional(),
 });
 
-function loadConfig() {
-  const result = configSchema.safeParse(process.env);
-  
-  if (!result.success) {
-    console.error('❌ Invalid environment variables:');
-    console.error(result.error.flatten().fieldErrors);
-    throw new Error('Invalid environment variables');
-  }
-  
-  return result.data;
-}
+export const config = configSchema.parse(process.env);
 
-export const config = loadConfig();
-export type Config = typeof config;
+export type Config = z.infer<typeof configSchema>;
