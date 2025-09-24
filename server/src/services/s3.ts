@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../utils/config';
 import { logger } from '../utils/logger';
@@ -163,6 +163,39 @@ class S3Service {
 
   getPublicUrl(s3Key: string): string {
     return `https://${this.bucketName}.s3.${config.AWS_REGION}.amazonaws.com/${s3Key}`;
+  }
+
+  async checkFileExists(s3Key: string): Promise<boolean> {
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.bucketName,
+        Key: s3Key,
+      });
+
+      await this.s3Client.send(command);
+      
+      logger.debug('S3 file exists', {
+        s3Key,
+        bucket: this.bucketName,
+      });
+
+      return true;
+    } catch (error: any) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+        logger.debug('S3 file not found', {
+          s3Key,
+          bucket: this.bucketName,
+        });
+        return false;
+      }
+      
+      logger.error('Failed to check S3 file existence', {
+        s3Key,
+        bucket: this.bucketName,
+        error: error instanceof Error ? error.message : error,
+      });
+      throw error;
+    }
   }
 }
 

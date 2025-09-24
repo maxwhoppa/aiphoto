@@ -70,8 +70,39 @@ export const imagesRouter = router({
         user = newUser;
       }
 
-      const uploadedImages = await Promise.all(
+      // Validate that files exist in S3
+      const validatedImages = await Promise.all(
         input.images.map(async (imageData) => {
+          try {
+            const exists = await s3Service.checkFileExists(imageData.s3Key);
+            if (!exists) {
+              logger.warn('S3 file does not exist', {
+                s3Key: imageData.s3Key,
+                cognitoUserId: ctx.user.sub,
+              });
+              return { ...imageData, valid: false, error: 'File not found in S3' };
+            }
+            return { ...imageData, valid: true };
+          } catch (error) {
+            logger.error('S3 validation error', {
+              s3Key: imageData.s3Key,
+              error,
+            });
+            return { ...imageData, valid: false, error: 'Failed to validate S3 file' };
+          }
+        })
+      );
+
+      // Only record valid images
+      const validImages = validatedImages.filter(img => img.valid);
+      const invalidImages = validatedImages.filter(img => !img.valid);
+
+      if (validImages.length === 0) {
+        throw new Error('No valid images found in S3');
+      }
+
+      const uploadedImages = await Promise.all(
+        validImages.map(async (imageData) => {
           const [newImage] = await db
             .insert(userImages)
             .values({
@@ -90,10 +121,17 @@ export const imagesRouter = router({
 
       logger.info('Images recorded', {
         cognitoUserId: ctx.user.sub,
-        imageCount: uploadedImages.length,
+        validCount: uploadedImages.length,
+        invalidCount: invalidImages.length,
       });
 
-      return { images: uploadedImages };
+      return { 
+        images: uploadedImages,
+        skipped: invalidImages.map(img => ({
+          fileName: img.fileName,
+          error: img.error,
+        })),
+      };
     }),
 
   // Generate AI images for multiple scenarios
