@@ -104,15 +104,24 @@ jobs:
             echo "Key pair already exists"
           fi
 
-      - name: Create CodeDeploy S3 Bucket if needed
+      - name: Create S3 Buckets if needed
         run: |
           # Create S3 bucket for CodeDeploy if it doesn't exist
           if ! aws s3 ls s3://aiphoto-codedeploy-bucket >/dev/null 2>&1; then
             echo "Creating CodeDeploy S3 bucket..."
             aws s3 mb s3://aiphoto-codedeploy-bucket --region ${{ env.AWS_REGION }}
-            echo "S3 bucket created"
+            echo "CodeDeploy S3 bucket created"
           else
-            echo "S3 bucket already exists"
+            echo "CodeDeploy S3 bucket already exists"
+          fi
+          
+          # Create S3 bucket for image storage if it doesn't exist
+          if ! aws s3 ls s3://aiphoto-images-dev >/dev/null 2>&1; then
+            echo "Creating images S3 bucket..."
+            aws s3 mb s3://aiphoto-images-dev --region ${{ env.AWS_REGION }}
+            echo "Images S3 bucket created"
+          else
+            echo "Images S3 bucket already exists"
           fi
 
       - name: Clean up failed stack if needed
@@ -157,7 +166,7 @@ jobs:
         if: failure()
         run: |
           echo "CloudFormation deployment failed. Here are the stack events:"
-          aws cloudformation describe-stack-events --stack-name aiphoto-production --region ${{ env.AWS_REGION }} --max-items 20
+          aws cloudformation describe-stack-events --stack-name aiphoto-production --region ${{ env.AWS_REGION }} --max-items 50 | jq -r '.StackEvents[] | select(.ResourceStatus | contains("FAILED")) | {Timestamp, LogicalResourceId, ResourceStatus, ResourceStatusReason}'
 
       - name: Download deployment package
         uses: actions/download-artifact@v4
