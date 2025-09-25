@@ -218,9 +218,22 @@ export const imagesRouter = router({
         scenarioCount: input.scenarios.length,
       });
 
-      // Process all combinations in parallel
-      const results = await Promise.allSettled(
-        processingTasks.map(async (task) => {
+      // Process in smaller batches to avoid quota limits
+      const BATCH_SIZE = 3; // Process 3 images at a time to avoid quota limits
+      const results: any[] = [];
+      
+      for (let i = 0; i < processingTasks.length; i += BATCH_SIZE) {
+        const batch = processingTasks.slice(i, i + BATCH_SIZE);
+        
+        logger.info('Processing batch', {
+          cognitoUserId: ctx.user.sub,
+          batchNumber: Math.floor(i / BATCH_SIZE) + 1,
+          totalBatches: Math.ceil(processingTasks.length / BATCH_SIZE),
+          batchSize: batch.length,
+        });
+
+        const batchResults = await Promise.allSettled(
+          batch.map(async (task) => {
           try {
             const customPrompt = task.customPrompt;
             const prompt = customPrompt || await geminiService.generateImagePrompt(task.scenario);
@@ -310,6 +323,19 @@ export const imagesRouter = router({
           }
         })
       );
+
+      // Add batch results to overall results
+      results.push(...batchResults);
+      
+      // Add delay between batches to respect rate limits
+      if (i + BATCH_SIZE < processingTasks.length) {
+        logger.info('Waiting between batches to respect rate limits', {
+          cognitoUserId: ctx.user.sub,
+          waitTimeMs: 2000,
+        });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
 
       // Extract results from Promise.allSettled
       const processedResults = results.map(result => 

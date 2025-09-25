@@ -22,6 +22,10 @@ export interface GeminiImageGenerationResponse {
 
 class GeminiService {
   private ai: GoogleGenAI;
+  private requestQueue: Array<() => Promise<any>> = [];
+  private isProcessingQueue = false;
+  private lastRequestTime = 0;
+  private minRequestInterval = 1000; // 1 second between requests
 
   constructor() {
     this.ai = new GoogleGenAI({
@@ -29,6 +33,53 @@ class GeminiService {
     });
     
     logger.info('Gemini service initialized with gemini-2.5-flash-image-preview (nano banana model)');
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries = 3,
+    baseDelay = 1000
+  ): Promise<T> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Rate limiting: ensure minimum interval between requests
+        const now = Date.now();
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        if (timeSinceLastRequest < this.minRequestInterval) {
+          await this.sleep(this.minRequestInterval - timeSinceLastRequest);
+        }
+        this.lastRequestTime = Date.now();
+
+        return await operation();
+      } catch (error: any) {
+        const isRateLimitError = error.message?.includes('429') || error.message?.includes('quota');
+        const isLastAttempt = attempt === maxRetries - 1;
+
+        if (isRateLimitError && !isLastAttempt) {
+          // Extract retry delay from error if available
+          const retryDelayMatch = error.message?.match(/retry in ([\d.]+)s/);
+          const suggestedDelay = retryDelayMatch ? parseFloat(retryDelayMatch[1]) * 1000 : baseDelay * Math.pow(2, attempt);
+          
+          logger.warn(`Rate limit hit, retrying in ${suggestedDelay}ms`, {
+            attempt: attempt + 1,
+            maxRetries,
+            error: error.message,
+          });
+
+          await this.sleep(suggestedDelay);
+          continue;
+        }
+
+        if (isLastAttempt || !isRateLimitError) {
+          throw error;
+        }
+      }
+    }
+    throw new Error('Max retries exceeded');
   }
 
   async generateContent(request: GeminiGenerationRequest): Promise<GeminiGenerationResponse> {
@@ -41,9 +92,11 @@ class GeminiService {
         hasImage: !!request.imageUrl,
       });
 
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
-        contents: [{ text: request.prompt }],
+      const response = await this.withRetry(async () => {
+        return await this.ai.models.generateContent({
+          model: 'gemini-2.5-flash-image-preview',
+          contents: [{ text: request.prompt }],
+        });
       });
 
       const candidates = response.candidates;
@@ -192,9 +245,11 @@ Generate a new image following these specifications.`;
         },
       ];
 
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
-        contents: promptContent,
+      const response = await this.withRetry(async () => {
+        return await this.ai.models.generateContent({
+          model: 'gemini-2.5-flash-image-preview',
+          contents: promptContent,
+        });
       });
 
       // Check if the response contains generated image data
@@ -274,9 +329,11 @@ Generate a new image following these specifications.`;
 
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
-        contents: [{ text: 'Hello, this is a health check.' }],
+      const response = await this.withRetry(async () => {
+        return await this.ai.models.generateContent({
+          model: 'gemini-2.5-flash-image-preview',
+          contents: [{ text: 'Hello, this is a health check.' }],
+        });
       });
       return !!(response.candidates && response.candidates.length > 0);
     } catch (error) {
