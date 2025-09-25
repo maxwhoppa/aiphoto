@@ -15,6 +15,13 @@
       "when": 1758666380000,
       "tag": "0001_add_unique_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1758666381000,
+      "tag": "0002_create_missing_tables",
+      "breakpoints": true
     }
   ]
 }
