@@ -3,6 +3,12 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import path from 'path';
 
+// Load .env file in development (or when NODE_ENV is undefined)
+if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+  const { config } = require('dotenv');
+  config();
+}
+
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   

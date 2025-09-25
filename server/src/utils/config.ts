@@ -1,3 +1,9 @@
+// Load .env file in development (or when NODE_ENV is undefined)
+if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+  const { config } = require('dotenv');
+  config();
+}
+
 import { z } from 'zod';
 
 const configSchema = z.object({

@@ -1,4 +1,3 @@
-version: '3.8'
 
 # Local development environment with PostgreSQL and Redis
 # 
@@ -42,7 +41,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:15-alpine
+    image: postgres:13
     environment:
       POSTGRES_DB: aiphoto
       POSTGRES_USER: postgres
@@ -53,7 +52,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -65,8 +64,8 @@ services:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 5s
       retries: 5
 
 

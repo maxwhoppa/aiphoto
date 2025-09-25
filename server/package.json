@@ -23,6 +23,7 @@
     "@google/genai": "^0.8.0",
     "@trpc/server": "^10.45.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "drizzle-orm": "^0.29.3",
     "express": "^4.19.2",
     "helmet": "^7.1.0",
