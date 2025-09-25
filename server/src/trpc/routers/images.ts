@@ -388,7 +388,30 @@ export const imagesRouter = router({
 
       const images = await query.orderBy(desc(generatedImages.createdAt));
 
-      return images;
+      // Generate pre-signed download URLs for all images
+      const imagesWithPresignedUrls = await Promise.all(
+        images.map(async (image) => {
+          try {
+            const downloadUrlData = await s3Service.generateDownloadUrl(image.s3Key, 604800); // 7 days (max expiry)
+            return {
+              ...image,
+              downloadUrl: downloadUrlData.downloadUrl,
+            };
+          } catch (error) {
+            logger.warn('Failed to generate download URL', {
+              imageId: image.id,
+              s3Key: image.s3Key,
+              error,
+            });
+            return {
+              ...image,
+              downloadUrl: null,
+            };
+          }
+        })
+      );
+
+      return imagesWithPresignedUrls;
     }),
 
   // Get generated image by ID
@@ -420,7 +443,24 @@ export const imagesRouter = router({
         throw new Error('Generated image not found');
       }
 
-      return generatedImage;
+      // Generate pre-signed download URL
+      try {
+        const downloadUrlData = await s3Service.generateDownloadUrl(generatedImage.s3Key, 604800); // 7 days (max expiry)
+        return {
+          ...generatedImage,
+          downloadUrl: downloadUrlData.downloadUrl,
+        };
+      } catch (error) {
+        logger.warn('Failed to generate download URL for single image', {
+          imageId: generatedImage.id,
+          s3Key: generatedImage.s3Key,
+          error,
+        });
+        return {
+          ...generatedImage,
+          downloadUrl: null,
+        };
+      }
     }),
 
   // Delete image
@@ -478,7 +518,30 @@ export const imagesRouter = router({
         .where(eq(userImages.userId, user.id))
         .orderBy(desc(userImages.createdAt));
 
-      return images;
+      // Generate pre-signed download URLs for all user images
+      const imagesWithPresignedUrls = await Promise.all(
+        images.map(async (image) => {
+          try {
+            const downloadUrlData = await s3Service.generateDownloadUrl(image.s3Key, 604800); // 7 days (max expiry)
+            return {
+              ...image,
+              downloadUrl: downloadUrlData.downloadUrl,
+            };
+          } catch (error) {
+            logger.warn('Failed to generate download URL for user image', {
+              imageId: image.id,
+              s3Key: image.s3Key,
+              error,
+            });
+            return {
+              ...image,
+              downloadUrl: null,
+            };
+          }
+        })
+      );
+
+      return imagesWithPresignedUrls;
     }),
 
   // Get available scenarios
