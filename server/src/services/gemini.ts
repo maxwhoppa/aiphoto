@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { config } from '../utils/config';
 import { logger } from '../utils/logger';
+import { s3Service } from './s3';
 
 export interface GeminiGenerationRequest {
   prompt: string;
@@ -150,7 +151,7 @@ class GeminiService {
   }
 
   async processImageWithScenario(
-    originalImageUrl: string,
+    originalImageS3Key: string,
     scenario: string,
     customPrompt?: string
   ): Promise<GeminiGenerationResponse> {
@@ -160,7 +161,7 @@ class GeminiService {
       logger.info('Starting Gemini image processing', {
         requestId,
         scenario,
-        originalImageUrl,
+        originalImageS3Key,
         hasCustomPrompt: !!customPrompt,
       });
 
@@ -177,7 +178,7 @@ class GeminiService {
 
       return await this.generateContent({
         prompt: fullPrompt,
-        imageUrl: originalImageUrl,
+        imageUrl: originalImageS3Key, // This is now an S3 key, not URL
         scenario,
       });
     } catch (error) {
@@ -194,7 +195,7 @@ class GeminiService {
   }
 
   async generateAndUploadImage(
-    originalImageUrl: string,
+    originalImageS3Key: string,
     scenario: string,
     customPrompt?: string,
     s3UploadUrl?: string
@@ -205,15 +206,18 @@ class GeminiService {
       logger.info('Starting Gemini 2.0 Flash image generation', {
         requestId,
         scenario,
-        originalImageUrl,
+        originalImageS3Key,
         hasCustomPrompt: !!customPrompt,
         hasUploadUrl: !!s3UploadUrl,
       });
 
       const prompt = customPrompt || await this.generateImagePrompt(scenario);
 
-      // Download the original image
-      const imageResponse = await fetch(originalImageUrl);
+      // Generate pre-signed download URL for the original image
+      const downloadUrlData = await s3Service.generateDownloadUrl(originalImageS3Key, 3600); // 1 hour expiry
+      
+      // Download the original image using pre-signed URL
+      const imageResponse = await fetch(downloadUrlData.downloadUrl);
       if (!imageResponse.ok) {
         throw new Error(`Failed to download original image: ${imageResponse.statusText}`);
       }

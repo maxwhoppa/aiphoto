@@ -240,7 +240,7 @@ export const imagesRouter = router({
 
             // Process with Gemini
             const result = await geminiService.processImageWithScenario(
-              task.image.s3Url,
+              task.image.s3Key,
               task.scenario,
               customPrompt
             );
@@ -263,7 +263,7 @@ export const imagesRouter = router({
 
             // Process with Gemini and get the generated image
             const generatedImageResult = await geminiService.generateAndUploadImage(
-              task.image.s3Url,
+              task.image.s3Key,
               task.scenario,
               customPrompt,
               uploadData.uploadUrl
