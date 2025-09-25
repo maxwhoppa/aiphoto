@@ -1,18 +1,37 @@
 version: '3.8'
 
+# Local development environment with PostgreSQL and Redis
+# 
+# To use with real AWS services:
+# 1. Copy .env.example to .env
+# 2. Fill in your actual AWS credentials and service URLs
+# 3. Run: docker-compose up
+#
+# The app will use local PostgreSQL/Redis but connect to real AWS services
+# (S3, Cognito, Gemini) for full functionality
+
 services:
   app:
     build: .
     ports:
-      - "80:80"
+      - "3000:3000"
     environment:
       - NODE_ENV=development
-      - PORT=80
+      - PORT=3000
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/aiphoto
       - REDIS_URL=redis://redis:6379
       - AWS_REGION=us-east-1
       - COGNITO_REGION=us-east-1
-      - CORS_ORIGIN=http://localhost,http://localhost:19006
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:19006,http://localhost:8081
+      # AWS Credentials (set these in .env or override)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-aiphoto-images-dev}
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL:-}
+      # Cognito (use your actual values)
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-us-east-1_vT51duDCY}
+      # Google Gemini API Key (required)
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
