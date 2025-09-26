@@ -42,6 +42,16 @@ Parameters:
     NoEcho: true
     Description: Google Gemini API key
 
+  StripeSecretKey:
+    Type: String
+    NoEcho: true
+    Description: Stripe secret key for payment processing
+
+  StripeWebhookSecret:
+    Type: String
+    NoEcho: true
+    Description: Stripe webhook secret for webhook verification
+
   S3BucketName:
     Type: String
     Description: S3 bucket for image storage
@@ -71,6 +81,16 @@ Conditions:
     - !Not [!Equals [!Ref DomainName, '']]
 
 Resources:
+  # SSL Certificate
+  SSLCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-aiphoto-ssl-cert'
+
   # VPC and Networking
   VPC:
     Type: AWS::EC2::VPC
@@ -292,6 +312,8 @@ Resources:
             COGNITO_USER_POOL_ID=${CognitoUserPoolId}
             COGNITO_REGION=${CognitoRegion}
             GOOGLE_GEMINI_API_KEY=${GeminiApiKey}
+            STRIPE_SECRET_KEY=${StripeSecretKey}
+            STRIPE_WEBHOOK_SECRET=${StripeWebhookSecret}
             CORS_ORIGIN=${CorsOrigin}
             EOF
 
@@ -387,6 +409,18 @@ Resources:
       Port: 80
       Protocol: HTTP
 
+  HTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificate
+
   # Route53 Record (if custom domain provided)
   DNSRecord:
     Type: AWS::Route53::RecordSet
@@ -443,10 +477,21 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-LoadBalancerURL'
 
+  LoadBalancerHTTPSURL:
+    Description: HTTPS URL of the load balancer
+    Value: !Sub 'https://${ApplicationLoadBalancer.DNSName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-LoadBalancerHTTPSURL'
+
   CustomDomainURL:
     Condition: HasCustomDomain
     Description: Custom domain URL
     Value: !Sub 'http://${DomainName}'
+
+  CustomDomainHTTPSURL:
+    Condition: HasCustomDomain
+    Description: Custom domain HTTPS URL
+    Value: !Sub 'https://${DomainName}'
     Export:
       Name: !Sub '${AWS::StackName}-CustomDomainURL'
 

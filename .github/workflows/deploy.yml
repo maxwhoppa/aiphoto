@@ -164,9 +164,12 @@ jobs:
               CognitoUserPoolId="${{ secrets.COGNITO_USER_POOL_ID || 'us-east-1_vT51duDCY' }}" \
               CognitoRegion="${{ secrets.COGNITO_REGION || 'us-east-1' }}" \
               GeminiApiKey="${{ secrets.GOOGLE_GEMINI_API_KEY }}" \
+              StripeSecretKey="${{ secrets.STRIPE_SECRET_KEY }}" \
+              StripeWebhookSecret="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
               S3BucketName="${{ secrets.S3_BUCKET_NAME || 'aiphoto-images-dev' }}" \
               CorsOrigin="${{ secrets.CORS_ORIGIN || 'http://localhost:3000,http://localhost:19006' }}" \
               GitHubRepo="${{ github.repository }}" \
+              DomainName="api.autorizz.app" \
             --capabilities CAPABILITY_NAMED_IAM \
             --region ${{ env.AWS_REGION }}
 
