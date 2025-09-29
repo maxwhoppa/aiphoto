@@ -54,7 +54,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       id: 'beach',
       name: 'Beach',
       description: 'Relaxed beach vibes',
-      icon: 'beach-outline',
+      icon: 'sunny-outline',
       isPopular: true,
     },
     {

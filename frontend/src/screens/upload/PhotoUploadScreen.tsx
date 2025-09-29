@@ -242,6 +242,27 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
     uploadPhotosToS3();
   };
 
+  const showPhotoOptions = () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose how you want to add a photo',
+      [
+        {
+          text: 'Choose from Gallery',
+          onPress: pickImage,
+        },
+        {
+          text: 'Take Photo Now',
+          onPress: takePhoto,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
   const tips = [
     {
       icon: 'bulb-outline',
@@ -280,57 +301,60 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
           </Text>
         </View>
 
-        {/* Tips Section */}
-        <View style={styles.tipsContainer}>
-          <View style={styles.tipsTitleContainer}>
-            <Ionicons name="camera-outline" size={20} color={colors.primary} />
-            <Text style={[styles.tipsTitle, { color: colors.text }]}>
-              Photo Tips for Best Results
-            </Text>
-          </View>
-          {tips.map((tip, index) => (
-            <View key={index} style={[styles.tipCard, { backgroundColor: colors.surface }]}>
-              <View style={styles.tipIconContainer}>
-                <Ionicons name={tip.icon as any} size={24} color={colors.primary} />
-              </View>
-              <View style={styles.tipContent}>
-                <Text style={[styles.tipTitle, { color: colors.text }]}>
-                  {tip.title}
-                </Text>
-                <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
-                  {tip.description}
+        {/* Tips Section - Only show when no photos selected */}
+        {selectedPhotos.length === 0 && (
+          <>
+            <View style={styles.tipsContainer}>
+              <View style={styles.tipsTitleContainer}>
+                <Ionicons name="camera-outline" size={20} color={colors.primary} />
+                <Text style={[styles.tipsTitle, { color: colors.text }]}>
+                  Photo Tips for Best Results
                 </Text>
               </View>
+              {tips.map((tip, index) => (
+                <View key={index} style={[styles.tipCard, { backgroundColor: colors.surface }]}>
+                  <View style={styles.tipIconContainer}>
+                    <Ionicons name={tip.icon as any} size={24} color={colors.primary} />
+                  </View>
+                  <View style={styles.tipContent}>
+                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                      {tip.title}
+                    </Text>
+                    <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
+                      {tip.description}
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
 
-        {/* Upload Buttons */}
-        <View style={styles.uploadButtonsContainer}>
-          <TouchableOpacity
-            style={[styles.uploadButton, { backgroundColor: colors.primary }]}
-            onPress={pickImage}
-          >
-            <View style={styles.uploadButtonContent}>
-              <Ionicons name="images-outline" size={20} color={colors.background} />
-              <Text style={[styles.uploadButtonText, { color: colors.background }]}>
-                Choose from Gallery
-              </Text>
+            {/* Upload Buttons */}
+            <View style={styles.uploadButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.uploadButton, { backgroundColor: colors.primary }]}
+                onPress={pickImage}
+              >
+                <View style={styles.uploadButtonContent}>
+                  <Ionicons name="images-outline" size={20} color={colors.background} />
+                  <Text style={[styles.uploadButtonText, { color: colors.background }]}>
+                    Choose from Gallery
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.uploadButton, { backgroundColor: colors.secondary }]}
+                onPress={takePhoto}
+              >
+                <View style={styles.uploadButtonContent}>
+                  <Ionicons name="camera-outline" size={20} color={colors.background} />
+                  <Text style={[styles.uploadButtonText, { color: colors.background }]}>
+                    Take Photo Now
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.uploadButton, { backgroundColor: colors.secondary }]}
-            onPress={takePhoto}
-          >
-            <View style={styles.uploadButtonContent}>
-              <Ionicons name="camera-outline" size={20} color={colors.background} />
-              <Text style={[styles.uploadButtonText, { color: colors.background }]}>
-                Take Photo Now
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+          </>
+        )}
 
         {/* Selected Photos Grid */}
         {selectedPhotos.length > 0 && (
@@ -338,6 +362,19 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
             <Text style={[styles.photosTitle, { color: colors.text }]}>
               Selected Photos ({selectedPhotos.length}/10)
             </Text>
+
+            {/* Summarized Photo Tips */}
+            <View style={[styles.summaryTipsContainer, { backgroundColor: colors.surface }]}>
+              <View style={styles.summaryTipsHeader}>
+                <Ionicons name="bulb-outline" size={16} color={colors.primary} />
+                <Text style={[styles.summaryTipsTitle, { color: colors.text }]}>
+                  Photo Tips
+                </Text>
+              </View>
+              <Text style={[styles.summaryTipsText, { color: colors.textSecondary }]}>
+                Good lighting • Clear face • Different poses • Variety of shots
+              </Text>
+            </View>
             
             <View style={styles.photosGrid}>
               {selectedPhotos.map((photo, index) => (
@@ -370,7 +407,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
                       borderColor: colors.border,
                     }
                   ]}
-                  onPress={pickImage}
+                  onPress={showPhotoOptions}
                 >
                   <Text style={[styles.addMoreText, { color: colors.textSecondary }]}>
                     +
@@ -383,8 +420,9 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
 
       </ScrollView>
 
-      {/* Next Button */}
-      <View style={styles.buttonContainer}>
+      {/* Next Button - Only show when photos are selected */}
+      {selectedPhotos.length > 0 && (
+        <View style={styles.buttonContainer}>
         {isUploading && (
           <View style={styles.uploadProgressContainer}>
             <View style={[styles.uploadProgressBar, { backgroundColor: colors.border }]}>
@@ -430,6 +468,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
           )}
         </TouchableOpacity>
       </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -522,6 +561,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 15,
   },
+  summaryTipsContainer: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  summaryTipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  summaryTipsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  summaryTipsText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
   photosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -564,7 +622,8 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 60,
+    paddingTop: 20,
   },
   nextButton: {
     height: 56,
