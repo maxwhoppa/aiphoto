@@ -22,6 +22,13 @@
       "when": 1758666381000,
       "tag": "0002_create_missing_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1759143420687,
+      "tag": "0003_large_vampiro",
+      "breakpoints": true
     }
   ]
 }

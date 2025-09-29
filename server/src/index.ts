@@ -7,6 +7,7 @@ import { createTRPCContext } from './trpc/context';
 import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
 import { config } from './utils/config';
 import { logger } from './utils/logger';
+import stripeWebhookRouter from './routes/stripe-webhook';
 
 const app = express();
 
@@ -19,7 +20,11 @@ app.use(cors({
   credentials: true,
 }));
 
-// Body parsing middleware
+// Stripe webhook routes MUST come before body parsing middleware
+// Stripe requires the raw body for signature verification
+app.use('/webhooks', stripeWebhookRouter);
+
+// Body parsing middleware (for all other routes)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

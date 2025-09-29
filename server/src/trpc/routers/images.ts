@@ -179,13 +179,12 @@ export const imagesRouter = router({
         user = newUser;
       }
 
-      // Get all user's images
+      // Get user's images that match the requested IDs
       const images = await db
         .select()
         .from(userImages)
         .where(and(
-          eq(userImages.userId, user.id),
-          // Only include requested image IDs
+          eq(userImages.userId, user.id)
         ));
 
       const userImageIds = images.map(img => img.id);
@@ -219,7 +218,7 @@ export const imagesRouter = router({
       });
 
       // Process in smaller batches to avoid quota limits
-      const BATCH_SIZE = 3; // Process 3 images at a time to avoid quota limits
+      const BATCH_SIZE = 30; // Process 10 images at a time to avoid quota limits
       const results: any[] = [];
       
       for (let i = 0; i < processingTasks.length; i += BATCH_SIZE) {
@@ -326,15 +325,6 @@ export const imagesRouter = router({
 
       // Add batch results to overall results
       results.push(...batchResults);
-      
-      // Add delay between batches to respect rate limits
-      if (i + BATCH_SIZE < processingTasks.length) {
-        logger.info('Waiting between batches to respect rate limits', {
-          cognitoUserId: ctx.user.sub,
-          waitTimeMs: 2000,
-        });
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
     }
 
       // Extract results from Promise.allSettled

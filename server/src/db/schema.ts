@@ -45,10 +45,22 @@ export const scenarios = pgTable('scenarios', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+export const payments = pgTable('payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  stripeSessionId: varchar('stripe_session_id', { length: 255 }).notNull().unique(),
+  amount: varchar('amount', { length: 20 }).notNull(), // Amount in cents as string
+  currency: varchar('currency', { length: 3 }).notNull().default('usd'),
+  redeemed: boolean('redeemed').notNull().default(false), // Has the user used this payment to generate photos
+  paidAt: timestamp('paid_at').notNull().defaultNow(), // When payment was confirmed by Stripe
+  redeemedAt: timestamp('redeemed_at'), // When user generated photos using this payment
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userImages: many(userImages),
   generatedImages: many(generatedImages),
+  payments: many(payments),
 }));
 
 export const userImagesRelations = relations(userImages, ({ one, many }) => ({
@@ -70,6 +82,13 @@ export const generatedImagesRelations = relations(generatedImages, ({ one }) => 
   }),
 }));
 
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  user: one(users, {
+    fields: [payments.userId],
+    references: [users.id],
+  }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type UserImage = typeof userImages.$inferSelect;
@@ -78,3 +97,5 @@ export type GeneratedImage = typeof generatedImages.$inferSelect;
 export type NewGeneratedImage = typeof generatedImages.$inferInsert;
 export type Scenario = typeof scenarios.$inferSelect;
 export type NewScenario = typeof scenarios.$inferInsert;
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;

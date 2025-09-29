@@ -30,6 +30,13 @@ const configSchema = z.object({
   // Google Gemini
   GOOGLE_GEMINI_API_KEY: z.string(),
   
+  // Stripe
+  STRIPE_SECRET_KEY: z.string(),
+  STRIPE_WEBHOOK_SECRET: z.string(),
+  
+  // App
+  APP_URL: z.string().default('http://localhost:3000'),
+  
   // CORS
   CORS_ORIGIN: z.string().default('*'),
 });
