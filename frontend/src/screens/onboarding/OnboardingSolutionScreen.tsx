@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
 
@@ -42,7 +43,7 @@ export const OnboardingSolutionScreen: React.FC<OnboardingSolutionScreenProps> =
         <View style={styles.videoContainer}>
           <View style={[styles.videoPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.playButton, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.playIcon, { color: colors.background }]}>▶</Text>
+              <Ionicons name="play" size={32} color={colors.background} />
             </View>
             <Text style={[styles.videoText, { color: colors.textSecondary }]}>
               Demo Video Placeholder

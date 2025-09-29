@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import { getUploadUrls, recordUploadedImages, generateImages, getGeneratedImages, redeemPayment } from '../../services/api';
 
 interface LoadingScreenProps {
@@ -39,27 +40,27 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     {
       title: "Analyzing Your Photos",
       subtitle: "Our AI is studying your facial features and style preferences",
-      tip: "💡 Tip: Good lighting in your original photos leads to better AI results"
+      tip: "Good lighting in your original photos leads to better AI results"
     },
     {
       title: "Generating Scenarios",
       subtitle: `Creating ${imageIds.length * selectedScenarios.length} professional photos across ${selectedScenarios.length} scenarios`,
-      tip: "🎨 Did you know? Each scenario uses different AI models for optimal results"
+      tip: "Each scenario uses different AI models for optimal results"
     },
     {
       title: "Enhancing Quality",
       subtitle: "Applying professional-grade enhancements and lighting corrections",
-      tip: "📸 Professional photographers charge $200-500 for similar results"
+      tip: "Professional photographers charge $200-500 for similar results"
     },
     {
       title: "Adding Final Touches",
       subtitle: "Optimizing photos for dating apps and social media",
-      tip: "📱 Studies show professional photos get 3x more matches"
+      tip: "Studies show professional photos get 3x more matches"
     },
     {
       title: "Almost Ready!",
       subtitle: "Preparing your photo gallery for download",
-      tip: "🚀 You're about to join the top 10% of men on dating apps"
+      tip: "You're about to join the top 10% of men on dating apps"
     }
   ];
 
@@ -216,7 +217,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         {/* AI Visualization */}
         <View style={styles.visualContainer}>
           <View style={[styles.aiContainer, { borderColor: colors.primary }]}>
-            <Text style={styles.aiIcon}>🤖</Text>
+            <Ionicons name="hardware-chip-outline" size={48} color={colors.primary} />
             <View style={styles.processingIndicator}>
               {[...Array(8)].map((_, index) => (
                 <Animated.View
@@ -309,9 +310,12 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
         {/* Tip */}
         <View style={[styles.tipContainer, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-            {currentMsg.tip}
-          </Text>
+          <View style={styles.tipContent}>
+            <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} style={styles.tipIcon} />
+            <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+              {currentMsg.tip}
+            </Text>
+          </View>
         </View>
 
         {/* Marketing messages during wait */}
@@ -456,6 +460,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     fontStyle: 'italic',
+    flex: 1,
+    marginLeft: 8,
+  },
+  tipContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  tipIcon: {
+    marginTop: 2,
   },
   marketingContainer: {
     flex: 1,

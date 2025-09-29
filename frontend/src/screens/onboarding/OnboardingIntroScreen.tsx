@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
@@ -45,18 +46,19 @@ export const OnboardingIntroScreen: React.FC<OnboardingIntroScreenProps> = ({
         <View style={styles.imageContainer}>
           <View style={[styles.phoneMockup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.phoneScreen, { backgroundColor: colors.background }]}>
-              <Text style={[styles.phoneText, { color: colors.text }]}>
-                📱 Hinge Matches
-              </Text>
+              <View style={styles.phoneHeader}>
+                <Ionicons name="phone-portrait-outline" size={16} color={colors.text} />
+                <Text style={[styles.phoneText, { color: colors.text }]}>
+                  Hinge Matches
+                </Text>
+              </View>
               <View style={styles.matchesContainer}>
                 {[1, 2, 3, 4].map((match) => (
                   <View
                     key={match}
                     style={[styles.matchItem, { backgroundColor: colors.success }]}
                   >
-                    <Text style={[styles.matchText, { color: colors.background }]}>
-                      ✓
-                    </Text>
+                    <Ionicons name="checkmark" size={16} color={colors.background} />
                   </View>
                 ))}
               </View>
@@ -130,10 +132,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  phoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 30,
+  },
   phoneText: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 30,
   },
   matchesContainer: {
     flexDirection: 'row',

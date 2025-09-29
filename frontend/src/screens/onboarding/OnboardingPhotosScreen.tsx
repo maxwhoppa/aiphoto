@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
 
@@ -40,7 +41,7 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
 
         <View style={styles.problemsContainer}>
           <View style={[styles.problemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.problemIcon, { color: colors.error }]}>📸</Text>
+            <Ionicons name="camera-outline" size={40} color={colors.error} />
             <Text style={[styles.problemTitle, { color: colors.text }]}>Poor Quality Photos</Text>
             <Text style={[styles.problemDescription, { color: colors.textSecondary }]}>
               Bad lighting, poor angles, and outdated selfies
@@ -48,7 +49,7 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
           </View>
 
           <View style={[styles.problemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.problemIcon, { color: colors.warning }]}>💰</Text>
+            <Ionicons name="cash-outline" size={40} color={colors.warning} />
             <Text style={[styles.problemTitle, { color: colors.text }]}>Expensive Photographers</Text>
             <Text style={[styles.problemDescription, { color: colors.textSecondary }]}>
               Professional shoots cost $200-500+ and require scheduling
@@ -56,7 +57,7 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
           </View>
 
           <View style={[styles.problemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.problemIcon, { color: colors.textSecondary }]}>⏰</Text>
+            <Ionicons name="time-outline" size={40} color={colors.textSecondary} />
             <Text style={[styles.problemTitle, { color: colors.text }]}>Time Consuming</Text>
             <Text style={[styles.problemDescription, { color: colors.textSecondary }]}>
               Finding locations, coordinating shoots, and editing photos
@@ -122,7 +123,6 @@ const styles = StyleSheet.create({
     zIndex: 10, // Above particles
   },
   problemIcon: {
-    fontSize: 40,
     marginBottom: 12,
   },
   problemTitle: {

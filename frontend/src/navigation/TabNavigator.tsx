@@ -2,6 +2,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import { ProfileViewScreen } from '../screens/gallery/ProfileViewScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { PhotoUploadScreen } from '../screens/upload/PhotoUploadScreen';
@@ -198,7 +199,7 @@ export function TabNavigator({ existingImages, onRegenerateFlow }: TabNavigatorP
         options={{
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>👤</Text>
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       >
@@ -216,7 +217,7 @@ export function TabNavigator({ existingImages, onRegenerateFlow }: TabNavigatorP
         options={{
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color }}>⚙️</Text>
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />

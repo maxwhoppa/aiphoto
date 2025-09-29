@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
 
@@ -105,9 +106,12 @@ export const OnboardingStatsScreen: React.FC<OnboardingStatsScreenProps> = ({
           </View>
 
           <View style={styles.insight}>
-            <Text style={[styles.insightText, { color: colors.textSecondary }]}>
-              💡 The top 10% of men receive 70% of all likes and matches
-            </Text>
+            <View style={styles.insightContent}>
+              <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} style={styles.insightIcon} />
+              <Text style={[styles.insightText, { color: colors.textSecondary }]}>
+                The top 10% of men receive 70% of all likes and matches
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -203,6 +207,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     fontStyle: 'italic',
+    flex: 1,
+    marginLeft: 8,
+  },
+  insightContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  insightIcon: {
+    marginTop: 4,
   },
   bottomText: {
     alignItems: 'center',

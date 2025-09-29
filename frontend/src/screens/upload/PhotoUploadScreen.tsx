@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
 import { getUploadUrls, recordUploadedImages } from '../../services/api';
@@ -243,22 +244,22 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
 
   const tips = [
     {
-      icon: '💡',
+      icon: 'bulb-outline',
       title: 'Good Lighting',
       description: 'Natural light works best - near a window or outdoors',
     },
     {
-      icon: '👤',
+      icon: 'person-outline',
       title: 'Clear Face',
       description: 'Make sure your face is clearly visible and not blurry',
     },
     {
-      icon: '📐',
+      icon: 'grid-outline',
       title: 'Different Poses',
       description: 'Include variety - front facing, side profile, full body',
     },
     {
-      icon: '🏠',
+      icon: 'home-outline',
       title: 'Take at Home',
       description: 'You can take all photos right now if you don\'t have any',
     },
@@ -281,12 +282,17 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
 
         {/* Tips Section */}
         <View style={styles.tipsContainer}>
-          <Text style={[styles.tipsTitle, { color: colors.text }]}>
-            📸 Photo Tips for Best Results
-          </Text>
+          <View style={styles.tipsTitleContainer}>
+            <Ionicons name="camera-outline" size={20} color={colors.primary} />
+            <Text style={[styles.tipsTitle, { color: colors.text }]}>
+              Photo Tips for Best Results
+            </Text>
+          </View>
           {tips.map((tip, index) => (
             <View key={index} style={[styles.tipCard, { backgroundColor: colors.surface }]}>
-              <Text style={styles.tipIcon}>{tip.icon}</Text>
+              <View style={styles.tipIconContainer}>
+                <Ionicons name={tip.icon as any} size={24} color={colors.primary} />
+              </View>
               <View style={styles.tipContent}>
                 <Text style={[styles.tipTitle, { color: colors.text }]}>
                   {tip.title}
@@ -305,18 +311,24 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
             style={[styles.uploadButton, { backgroundColor: colors.primary }]}
             onPress={pickImage}
           >
-            <Text style={[styles.uploadButtonText, { color: colors.background }]}>
-              📱 Choose from Gallery
-            </Text>
+            <View style={styles.uploadButtonContent}>
+              <Ionicons name="images-outline" size={20} color={colors.background} />
+              <Text style={[styles.uploadButtonText, { color: colors.background }]}>
+                Choose from Gallery
+              </Text>
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={[styles.uploadButton, { backgroundColor: colors.secondary }]}
             onPress={takePhoto}
           >
-            <Text style={[styles.uploadButtonText, { color: colors.background }]}>
-              📷 Take Photo Now
-            </Text>
+            <View style={styles.uploadButtonContent}>
+              <Ionicons name="camera-outline" size={20} color={colors.background} />
+              <Text style={[styles.uploadButtonText, { color: colors.background }]}>
+                Take Photo Now
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -369,26 +381,6 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
           </View>
         )}
 
-        {/* Progress Indicator */}
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: colors.primary,
-                  width: `${Math.min((selectedPhotos.length / 5) * 100, 100)}%`,
-                }
-              ]}
-            />
-          </View>
-          <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-            {selectedPhotos.length < 5
-              ? `${5 - selectedPhotos.length} more photos needed`
-              : `${selectedPhotos.length} photos selected`
-            }
-          </Text>
-        </View>
       </ScrollView>
 
       {/* Next Button */}
@@ -469,10 +461,15 @@ const styles = StyleSheet.create({
   tipsContainer: {
     marginBottom: 30,
   },
+  tipsTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 15,
+  },
   tipsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 15,
   },
   tipCard: {
     flexDirection: 'row',
@@ -480,8 +477,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
   },
-  tipIcon: {
-    fontSize: 24,
+  tipIconContainer: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 15,
   },
   tipContent: {
@@ -505,6 +504,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  uploadButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   uploadButtonText: {
     fontSize: 16,
@@ -557,23 +561,6 @@ const styles = StyleSheet.create({
   addMoreText: {
     fontSize: 32,
     fontWeight: '300',
-  },
-  progressContainer: {
-    marginBottom: 30,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    textAlign: 'center',
   },
   buttonContainer: {
     paddingHorizontal: 20,

@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
 
@@ -39,95 +40,95 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       id: 'photoshoot',
       name: 'Photoshoot',
       description: 'Professional studio photos',
-      icon: '📸',
+      icon: 'camera-outline',
       isPopular: true,
     },
     {
       id: 'gym',
       name: 'Gym',
       description: 'Athletic and fit lifestyle',
-      icon: '💪',
+      icon: 'barbell-outline',
       isPopular: true,
     },
     {
       id: 'beach',
       name: 'Beach',
       description: 'Relaxed beach vibes',
-      icon: '🏖️',
+      icon: 'beach-outline',
       isPopular: true,
     },
     {
       id: 'rooftop',
       name: 'Rooftop',
       description: 'Urban city views',
-      icon: '🏙️',
+      icon: 'business-outline',
       isPopular: true,
     },
     {
       id: 'nature',
       name: 'Nature',
       description: 'Outdoor adventure',
-      icon: '🌲',
+      icon: 'leaf-outline',
     },
     {
       id: 'coffee',
       name: 'Coffee Shop',
       description: 'Casual coffee date',
-      icon: '☕',
+      icon: 'cafe-outline',
     },
     {
       id: 'formal',
       name: 'Formal',
       description: 'Business professional',
-      icon: '🤵',
+      icon: 'shirt-outline',
     },
     {
       id: 'casual',
       name: 'Casual',
       description: 'Everyday comfortable',
-      icon: '👕',
+      icon: 'shirt-outline',
     },
     {
       id: 'travel',
       name: 'Travel',
       description: 'Adventure explorer',
-      icon: '✈️',
+      icon: 'airplane-outline',
     },
     {
       id: 'restaurant',
       name: 'Restaurant',
       description: 'Fine dining experience',
-      icon: '🍽️',
+      icon: 'restaurant-outline',
     },
     {
       id: 'art',
       name: 'Art Gallery',
       description: 'Cultural and sophisticated',
-      icon: '🎨',
+      icon: 'color-palette-outline',
     },
     {
       id: 'music',
       name: 'Music Event',
       description: 'Concert or festival vibes',
-      icon: '🎵',
+      icon: 'musical-notes-outline',
     },
     {
       id: 'sports',
       name: 'Sports',
       description: 'Athletic activities',
-      icon: '⚽',
+      icon: 'football-outline',
     },
     {
       id: 'home',
       name: 'At Home',
       description: 'Comfortable home setting',
-      icon: '🏠',
+      icon: 'home-outline',
     },
     {
       id: 'winter',
       name: 'Winter',
       description: 'Cozy winter activities',
-      icon: '❄️',
+      icon: 'snow-outline',
     },
   ];
 
@@ -179,7 +180,13 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
         
 
         <View style={styles.scenarioContent}>
-          <Text style={styles.scenarioIcon}>{scenario.icon}</Text>
+          <View style={styles.scenarioIconContainer}>
+            <Ionicons
+              name={scenario.icon as any}
+              size={32}
+              color={isSelected ? colors.background : colors.primary}
+            />
+          </View>
           <Text
             style={[
               styles.scenarioName,
@@ -200,7 +207,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
 
         {isSelected && (
           <View style={[styles.selectedIndicator, { backgroundColor: colors.background }]}>
-            <Text style={[styles.selectedText, { color: colors.primary }]}>✓</Text>
+            <Ionicons name="checkmark" size={16} color={colors.primary} />
           </View>
         )}
       </TouchableOpacity>
@@ -226,9 +233,12 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.info}>
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            💡 Professional photoshoot is recommended for the best results
-          </Text>
+          <View style={styles.infoContent}>
+            <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+              Professional photoshoot is recommended for the best results
+            </Text>
+          </View>
         </View>
 
         <View style={styles.scenariosGrid}>
@@ -308,6 +318,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 25,
   },
+  infoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   infoText: {
     fontSize: 14,
     textAlign: 'center',
@@ -357,8 +373,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scenarioIcon: {
-    fontSize: 32,
+  scenarioIconContainer: {
     marginBottom: 8,
   },
   scenarioName: {
@@ -381,10 +396,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  selectedText: {
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   fatigueTip: {
     marginTop: 30,

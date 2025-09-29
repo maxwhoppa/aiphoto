@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import * as SecureStore from 'expo-secure-store';
@@ -57,7 +58,9 @@ export const SettingsScreen: React.FC = () => {
             onPress={handleSignOut}
           >
             <View style={styles.settingContent}>
-              <Text style={styles.settingIcon}>🚪</Text>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="log-out-outline" size={24} color={colors.error} />
+              </View>
               <View style={styles.settingTextContainer}>
                 <Text style={[styles.settingTitle, { color: colors.error }]}>Sign Out</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
@@ -73,7 +76,9 @@ export const SettingsScreen: React.FC = () => {
 
           <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.settingContent}>
-              <Text style={styles.settingIcon}>ℹ️</Text>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="information-circle-outline" size={24} color={colors.textSecondary} />
+              </View>
               <View style={styles.settingTextContainer}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Version</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
@@ -133,8 +138,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  settingIcon: {
-    fontSize: 24,
+  settingIconContainer: {
+    width: 40,
+    alignItems: 'center',
     marginRight: 15,
   },
   settingTextContainer: {

@@ -18,6 +18,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useTheme } from '../../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 // Optimized image component with expo-image for better performance
 const OptimizedImage: React.FC<{
@@ -343,9 +344,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
         {/* Saved checkmark overlay */}
         {isSaved && (
           <View style={styles.savedOverlay}>
-            <Text style={[styles.savedText, { color: colors.background }]}>
-              ✓
-            </Text>
+            <Ionicons name="checkmark" size={18} color={colors.background} />
           </View>
         )}
       </View>
@@ -453,18 +452,24 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           style={[styles.actionBarButton, { backgroundColor: colors.secondary }]}
           onPress={downloadAllPhotos}
         >
-          <Text style={[styles.actionBarButtonText, { color: colors.background }]}>
-            💾 Download All ({displayPhotos.length})
-          </Text>
+          <View style={styles.actionButtonContent}>
+            <Ionicons name="download-outline" size={16} color={colors.background} />
+            <Text style={[styles.actionBarButtonText, { color: colors.background }]}>
+              Download All ({displayPhotos.length})
+            </Text>
+          </View>
         </TouchableOpacity>
         
         <TouchableOpacity
           style={[styles.actionBarButton, { backgroundColor: colors.accent }]}
           onPress={onGenerateAgain}
         >
-          <Text style={[styles.actionBarButtonText, { color: colors.background }]}>
-            🔄 Generate Again
-          </Text>
+          <View style={styles.actionButtonContent}>
+            <Ionicons name="refresh-outline" size={16} color={colors.background} />
+            <Text style={[styles.actionBarButtonText, { color: colors.background }]}>
+              Generate Again
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -492,9 +497,12 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
               <View>
                 {/* Tips */}
                 <View style={[styles.tipsContainer, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.tipsTitle, { color: colors.text }]}>
-                    📱 Using Your Photos
-                  </Text>
+                  <View style={styles.tipsHeaderContent}>
+                    <Ionicons name="phone-portrait-outline" size={20} color={colors.text} />
+                    <Text style={[styles.tipsTitle, { color: colors.text }]}>
+                      Using Your Photos
+                    </Text>
+                  </View>
                   <View style={styles.tips}>
                     <Text style={[styles.tip, { color: colors.textSecondary }]}>
                       • Save all photos to your device for easy access
@@ -540,7 +548,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
                 style={[styles.imageViewerButton, { backgroundColor: colors.surface }]}
                 onPress={() => setImageViewerVisible(false)}
               >
-                <Text style={[styles.imageViewerButtonText, { color: colors.text }]}>✕</Text>
+                <Ionicons name="close" size={18} color={colors.text} />
               </TouchableOpacity>
 
               <View style={styles.imageViewerCounter}>
@@ -569,9 +577,11 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
                     color={colors.text}
                   />
                 ) : (
-                  <Text style={[styles.imageViewerButtonText, { color: colors.background }]}>
-                    {isCurrentPhotoSaved ? '✓' : '💾'}
-                  </Text>
+                  <Ionicons
+                    name={isCurrentPhotoSaved ? "checkmark" : "download-outline"}
+                    size={18}
+                    color={colors.background}
+                  />
                 )}
               </TouchableOpacity>
             </View>
@@ -627,6 +637,18 @@ const styles = StyleSheet.create({
   actionBarButtonText: {
     fontSize: 14,
     fontWeight: '600',
+    marginLeft: 6,
+  },
+  actionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipsHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   content: {
     flex: 1,
@@ -735,7 +757,7 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 12,
+    marginLeft: 8,
   },
   tips: {
     gap: 8,

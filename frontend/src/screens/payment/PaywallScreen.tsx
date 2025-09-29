@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequestJson } from '../../services/authHandler';
@@ -41,32 +42,32 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
 
   const features = [
     {
-      icon: '📸',
+      icon: 'camera-outline',
       title: 'High-Resolution Photos',
       description: `Get ${totalPhotos} professional-quality photos in full resolution`,
     },
     {
-      icon: '🎨',
+      icon: 'color-palette-outline',
       title: 'Multiple Scenarios',
       description: `${selectedScenarios.length} different scenarios to showcase your personality`,
     },
     {
-      icon: '⚡',
+      icon: 'flash-outline',
       title: 'Instant Download',
       description: 'Download all photos immediately after generation',
     },
     {
-      icon: '💎',
+      icon: 'diamond-outline',
       title: 'Premium Quality',
       description: 'AI-enhanced photos that get you more matches',
     },
     {
-      icon: '🔄',
+      icon: 'refresh-outline',
       title: 'Generate Again Option',
       description: 'Option to generate new photos with different scenarios',
     },
     {
-      icon: '📱',
+      icon: 'phone-portrait-outline',
       title: 'Mobile Optimized',
       description: 'Photos optimized for dating apps and social media',
     },
@@ -236,7 +237,9 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
           
           {features.map((feature, index) => (
             <View key={index} style={[styles.featureCard, { backgroundColor: colors.surface }]}>
-              <Text style={styles.featureIcon}>{feature.icon}</Text>
+              <View style={styles.featureIconContainer}>
+                <Ionicons name={feature.icon as any} size={24} color={colors.primary} />
+              </View>
               <View style={styles.featureContent}>
                 <Text style={[styles.featureTitle, { color: colors.text }]}>
                   {feature.title}
@@ -250,18 +253,24 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
         </View>
 
         <View style={styles.guarantee}>
-          <Text style={[styles.guaranteeTitle, { color: colors.success }]}>
-            💯 Satisfaction Guaranteed
-          </Text>
+          <View style={styles.guaranteeHeader}>
+            <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
+            <Text style={[styles.guaranteeTitle, { color: colors.success }]}>
+              Satisfaction Guaranteed
+            </Text>
+          </View>
           <Text style={[styles.guaranteeText, { color: colors.textSecondary }]}>
             Not happy with your photos? Get a full refund within 30 days.
           </Text>
         </View>
 
         <View style={styles.security}>
-          <Text style={[styles.securityText, { color: colors.textSecondary }]}>
-            🔒 Secure payment powered by Stripe
-          </Text>
+          <View style={styles.securityContainer}>
+            <Ionicons name="lock-closed-outline" size={16} color={colors.textSecondary} />
+            <Text style={[styles.securityText, { color: colors.textSecondary }]}>
+              Secure payment powered by Stripe
+            </Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -387,8 +396,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
-  featureIcon: {
-    fontSize: 24,
+  featureIconContainer: {
+    width: 40,
+    alignItems: 'center',
     marginRight: 16,
   },
   featureContent: {
@@ -408,10 +418,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 20,
   },
+  guaranteeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   guaranteeTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
   },
   guaranteeText: {
     fontSize: 14,
@@ -421,6 +436,11 @@ const styles = StyleSheet.create({
   security: {
     alignItems: 'center',
     marginBottom: 20,
+  },
+  securityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   securityText: {
     fontSize: 14,
