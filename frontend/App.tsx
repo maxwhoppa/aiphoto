@@ -15,6 +15,7 @@ import { LoadingScreen } from './src/screens/generation/LoadingScreen';
 import { ProfileViewScreen } from './src/screens/gallery/ProfileViewScreen';
 import { ThemeSelector } from './src/components/ThemeSelector';
 import { ParticleBackground } from './src/components/ParticleBackground';
+import { TabNavigator } from './src/navigation/TabNavigator';
 import { getGeneratedImages, checkPaymentAccess } from './src/services/api';
 
 interface GeneratedPhoto {
@@ -32,24 +33,45 @@ type RootStackParamList = {
   Paywall: { selectedScenarios: string[]; imageIds: string[] };
   Loading: { selectedScenarios: string[]; imageIds: string[]; paymentId?: string };
   ProfileView: { generatedPhotos: GeneratedPhoto[]; selectedScenarios: string[] };
+  MainTabs: undefined;
   ThemeSettings: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasPaymentAccess, setHasPaymentAccess] = useState(false);
   const [hasGeneratedImages, setHasGeneratedImages] = useState(false);
   const [isCheckingImages, setIsCheckingImages] = useState(false);
   const [existingImages, setExistingImages] = useState<GeneratedPhoto[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Check onboarding completion status on app start
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
+
+  // Clear image state when user changes or signs out
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Clear all image-related state when user signs out
+      setHasGeneratedImages(false);
+      setExistingImages([]);
+      setHasPaymentAccess(false);
+      setIsCheckingImages(false);
+      setCurrentUserId(null);
+    } else if (user && user.sub !== currentUserId) {
+      // Different user signed in - clear previous user's data
+      setHasGeneratedImages(false);
+      setExistingImages([]);
+      setHasPaymentAccess(false);
+      setIsCheckingImages(false);
+      setCurrentUserId(user.sub);
+    }
+  }, [isAuthenticated, user, currentUserId]);
 
   // Check for existing generated images when user is authenticated
   useEffect(() => {
@@ -176,148 +198,18 @@ function AppNavigator() {
             )}
           </Stack.Screen>
         ) : hasGeneratedImages ? (
-          // User has existing images - show ProfileView as main screen
-          <>
-            <Stack.Screen
-              name="ProfileView"
-              options={{ headerShown: false }}
-            >
-              {({ navigation }) => (
-                <ProfileViewScreen
-                  generatedPhotos={existingImages}
-                  selectedScenarios={Array.from(new Set(existingImages.map(img => img.scenario)))}
-                  onGenerateAgain={() => handleRegenerateFlow(navigation)}
-                />
-              )}
-            </Stack.Screen>
-
-            <Stack.Screen
-              name="PhotoUpload"
-              options={{ headerShown: false }}
-            >
-              {({ navigation, route }) => (
-                <PhotoUploadScreen
-                  onNext={(imageIds) => {
-                    navigation.navigate('ScenarioSelection', { imageIds });
-                  }}
-                  isRegenerateFlow={route.params?.isRegenerateFlow}
-                  navigation={navigation}
-                />
-              )}
-            </Stack.Screen>
-
-            <Stack.Screen
-              name="ScenarioSelection"
-              options={{ headerShown: false }}
-            >
-              {({ navigation, route }) => (
-                <ScenarioSelectionScreen
-                  photos={route.params.imageIds || []} // Pass the actual image IDs for count
-                  navigation={navigation}
-                  onNext={async (selectedScenarios) => {
-                    // Double-check payment status before proceeding
-                    try {
-                      const paymentResponse = await checkPaymentAccess();
-
-                      if (paymentResponse?.result?.data?.hasUnredeemedPayment) {
-                        // User has valid payment, proceed to generation
-                        navigation.navigate('Loading', {
-                          selectedScenarios,
-                          imageIds: route.params.imageIds,
-                          paymentId: paymentResponse.result.data.paymentId,
-                        });
-                      } else {
-                        // User needs to pay
-                        navigation.navigate('Paywall', {
-                          selectedScenarios,
-                          imageIds: route.params.imageIds,
-                        });
-                      }
-                    } catch (error) {
-                      console.error('Error checking payment in scenario selection:', error);
-                      // Default to paywall if we can't verify payment
-                      navigation.navigate('Paywall', {
-                        selectedScenarios,
-                        imageIds: route.params.imageIds,
-                      });
-                    }
-                  }}
-                />
-              )}
-            </Stack.Screen>
-
-            <Stack.Screen
-              name="Paywall"
-              options={{ headerShown: false }}
-            >
-              {({ navigation, route }) => (
-                <PaywallScreen
-                  selectedScenarios={route.params.selectedScenarios}
-                  photoCount={route.params.imageIds.length}
-                  navigation={navigation}
-                  onPaymentSuccess={(paymentId) => {
-                    setHasPaymentAccess(true);
-                    navigation.navigate('Loading', {
-                      selectedScenarios: route.params.selectedScenarios,
-                      imageIds: route.params.imageIds,
-                      paymentId,
-                    });
-                  }}
-                  onPaymentCancel={() => {
-                    navigation.goBack();
-                  }}
-                />
-              )}
-            </Stack.Screen>
-
-            <Stack.Screen
-              name="Loading"
-              options={{ headerShown: false }}
-            >
-              {({ navigation, route }) => (
-                <LoadingScreen
-                  selectedScenarios={route.params.selectedScenarios}
-                  imageIds={route.params.imageIds}
-                  paymentId={route.params.paymentId}
-                  onComplete={(generatedImages) => {
-                    // Convert generated images to the format expected by ProfileView
-                    const generatedPhotos: GeneratedPhoto[] = generatedImages.map((img: any) => ({
-                      id: img.id,
-                      uri: img.downloadUrl || img.s3Url,
-                      scenario: img.scenario,
-                      downloadUrl: img.downloadUrl,
-                    }));
-                    
-                    // Update app state to show they now have images (replace with fresh data)
-                    setExistingImages(generatedImages.map((img: any) => ({
-                      id: img.id,
-                      uri: img.downloadUrl || img.s3Url,
-                      scenario: img.scenario,
-                      downloadUrl: img.downloadUrl,
-                    })));
-                    setHasGeneratedImages(true);
-                    
-                    // Reset to ProfileView as the main screen (replace the entire stack)
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ 
-                        name: 'ProfileView', 
-                        params: {
-                          generatedPhotos: generatedImages.map((img: any) => ({
-                            id: img.id,
-                            uri: img.downloadUrl || img.s3Url,
-                            scenario: img.scenario,
-                            downloadUrl: img.downloadUrl,
-                          })),
-                          selectedScenarios: Array.from(new Set(generatedImages.map((img: any) => img.scenario))),
-                        }
-                      }],
-                    });
-                  }}
-                />
-              )}
-            </Stack.Screen>
-          </>
+          // User has existing images - show TabNavigator with ProfileView and Settings
+          <Stack.Screen
+            name="MainTabs"
+            options={{ headerShown: false }}
+          >
+            {({ navigation }) => (
+              <TabNavigator
+                existingImages={existingImages}
+                onRegenerateFlow={handleRegenerateFlow}
+              />
+            )}
+          </Stack.Screen>
         ) : (
           // User has no existing images - show upload flow
           <>
@@ -402,7 +294,10 @@ function AppNavigator() {
 
             <Stack.Screen
               name="Loading"
-              options={{ headerShown: false }}
+              options={{
+                headerShown: false,
+                gestureEnabled: false, // Disable swipe back on iOS
+              }}
             >
               {({ navigation, route }) => (
                 <LoadingScreen
@@ -417,19 +312,19 @@ function AppNavigator() {
                       scenario: img.scenario,
                       downloadUrl: img.downloadUrl,
                     }));
-                    
+
                     // Update app state to show they now have images
                     setExistingImages(generatedPhotos);
                     setHasGeneratedImages(true);
-                    
-                    // Reset to ProfileView as the main screen (replace the entire stack)
+
+                    // Navigate to ProfileView first (in current stack), then app state will switch to MainTabs
                     navigation.reset({
                       index: 0,
-                      routes: [{ 
-                        name: 'ProfileView', 
+                      routes: [{
+                        name: 'ProfileView',
                         params: {
-                          generatedPhotos,
-                          selectedScenarios: route.params.selectedScenarios,
+                          generatedPhotos: generatedPhotos,
+                          selectedScenarios: Array.from(new Set(generatedImages.map((img: any) => img.scenario))),
                         }
                       }],
                     });

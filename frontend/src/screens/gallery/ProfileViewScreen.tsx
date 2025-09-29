@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Dimensions,
   Alert,
@@ -12,6 +11,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import ImageViewing from 'react-native-image-viewing';
 import * as MediaLibrary from 'expo-media-library';
@@ -408,14 +408,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          Your AI Photos
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {displayPhotos.length} professional photos ready
-        </Text>
-      </View>
+      {/* Header removed */}
 
       {/* Tabs */}
       <ScrollView
@@ -599,21 +592,6 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-    header: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
   },
   tabsContainer: {
     maxHeight: 50,

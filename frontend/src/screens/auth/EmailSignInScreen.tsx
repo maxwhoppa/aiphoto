@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { BackButton } from '../../components/BackButton';
@@ -31,7 +31,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<'signin' | 'signup' | 'verify'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'verify'>('signup');
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -254,6 +254,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                           backgroundColor: colors.surface,
                           borderColor: colors.border,
                           color: colors.text,
+                          letterSpacing: 0,
                         },
                       ]}
                       value={confirmPassword}

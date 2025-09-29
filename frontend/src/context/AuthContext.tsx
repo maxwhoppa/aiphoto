@@ -165,10 +165,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Sign out from Cognito
       cognitoSignOut();
-      
+
       // Clear tokens using authHandler
       await authHandler.clearTokens();
-      
+
       setUser(null);
       setToken(null);
     } catch (error) {
