@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../context/ThemeContext';
+import { BackButton } from '../../components/BackButton';
 import { getUploadUrls, recordUploadedImages } from '../../services/api';
 
 // Simple UUID v4 generator
@@ -28,12 +29,14 @@ interface PhotoUploadScreenProps {
   onNext: (imageIds: string[]) => void; // Now passes uploaded image IDs instead of URIs
   existingPhotos?: string[];
   isRegenerateFlow?: boolean;
+  navigation?: any;
 }
 
 export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   onNext,
   existingPhotos = [],
   isRegenerateFlow = false,
+  navigation,
 }) => {
   const { colors } = useTheme();
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>(existingPhotos);
@@ -263,6 +266,9 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {isRegenerateFlow && navigation && (
+        <BackButton onPress={() => navigation.goBack()} />
+      )}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>

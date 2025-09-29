@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { BackButton } from '../../components/BackButton';
 
 interface Scenario {
   id: string;
@@ -22,11 +23,13 @@ interface Scenario {
 interface ScenarioSelectionScreenProps {
   onNext: (selectedScenarios: string[]) => void;
   photos: string[];
+  navigation?: any;
 }
 
 export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = ({
   onNext,
   photos,
+  navigation,
 }) => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
@@ -37,7 +40,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       name: 'Photoshoot',
       description: 'Professional studio photos',
       icon: '📸',
-      isForceSelected: true,
+      isPopular: true,
     },
     {
       id: 'gym',
@@ -128,17 +131,10 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
     },
   ];
 
-  // Force select photoshoot and initialize with it
+  // Default select photoshoot but allow deselection
   const [selectedScenarios, setSelectedScenarios] = useState<string[]>(['photoshoot']);
 
   const toggleScenario = (scenarioId: string) => {
-    const scenario = scenarios.find(s => s.id === scenarioId);
-    
-    // Can't deselect force-selected scenarios
-    if (scenario?.isForceSelected && selectedScenarios.includes(scenarioId)) {
-      return;
-    }
-
     setSelectedScenarios(prev => {
       if (prev.includes(scenarioId)) {
         return prev.filter(id => id !== scenarioId);
@@ -181,13 +177,6 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
           </View>
         )}
         
-        {scenario.isForceSelected && (
-          <View style={[styles.forceBadge, { backgroundColor: colors.success }]}>
-            <Text style={[styles.forceText, { color: colors.background }]}>
-              INCLUDED
-            </Text>
-          </View>
-        )}
 
         <View style={styles.scenarioContent}>
           <Text style={styles.scenarioIcon}>{scenario.icon}</Text>
@@ -220,6 +209,9 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {navigation && (
+        <BackButton onPress={() => navigation.goBack()} />
+      )}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>
           Choose Your Scenarios
@@ -235,7 +227,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.info}>
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            💡 Professional photoshoot is automatically included for the best results
+            💡 Professional photoshoot is recommended for the best results
           </Text>
         </View>
 

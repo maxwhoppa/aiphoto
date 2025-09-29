@@ -180,13 +180,7 @@ function AppNavigator() {
           <>
             <Stack.Screen
               name="ProfileView"
-              options={{ 
-                headerShown: true,
-                title: 'Your Photos',
-                headerBackTitleVisible: false,
-                headerLeft: () => null, // Remove back button
-                gestureEnabled: false, // Disable swipe back on iOS
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation }) => (
                 <ProfileViewScreen
@@ -199,11 +193,7 @@ function AppNavigator() {
 
             <Stack.Screen
               name="PhotoUpload"
-              options={{ 
-                headerShown: true,
-                title: 'Upload New Photos',
-                headerBackTitleVisible: false,
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <PhotoUploadScreen
@@ -211,21 +201,19 @@ function AppNavigator() {
                     navigation.navigate('ScenarioSelection', { imageIds });
                   }}
                   isRegenerateFlow={route.params?.isRegenerateFlow}
+                  navigation={navigation}
                 />
               )}
             </Stack.Screen>
 
             <Stack.Screen
               name="ScenarioSelection"
-              options={{ 
-                headerShown: true,
-                title: 'Choose Scenarios',
-                headerBackTitleVisible: false,
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <ScenarioSelectionScreen
                   photos={route.params.imageIds || []} // Pass the actual image IDs for count
+                  navigation={navigation}
                   onNext={async (selectedScenarios) => {
                     // Double-check payment status before proceeding
                     try {
@@ -260,16 +248,13 @@ function AppNavigator() {
 
             <Stack.Screen
               name="Paywall"
-              options={{ 
-                headerShown: true,
-                title: 'Unlock Photos',
-                headerBackTitleVisible: false,
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <PaywallScreen
                   selectedScenarios={route.params.selectedScenarios}
                   photoCount={route.params.imageIds.length}
+                  navigation={navigation}
                   onPaymentSuccess={(paymentId) => {
                     setHasPaymentAccess(true);
                     navigation.navigate('Loading', {
@@ -338,12 +323,7 @@ function AppNavigator() {
           <>
             <Stack.Screen
               name="PhotoUpload"
-              options={{ 
-                headerShown: true,
-                title: 'Upload Photos',
-                headerBackTitleVisible: false,
-                headerLeft: () => null, // Remove back button since this is the starting point
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <PhotoUploadScreen
@@ -351,21 +331,19 @@ function AppNavigator() {
                     navigation.navigate('ScenarioSelection', { imageIds });
                   }}
                   isRegenerateFlow={route.params?.isRegenerateFlow}
+                  navigation={navigation}
                 />
               )}
             </Stack.Screen>
 
             <Stack.Screen
               name="ScenarioSelection"
-              options={{ 
-                headerShown: true,
-                title: 'Choose Scenarios',
-                headerBackTitleVisible: false,
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <ScenarioSelectionScreen
                   photos={route.params.imageIds || []} // Pass the actual image IDs for count
+                  navigation={navigation}
                   onNext={async (selectedScenarios) => {
                     // Double-check payment status before proceeding
                     try {
@@ -400,16 +378,13 @@ function AppNavigator() {
 
             <Stack.Screen
               name="Paywall"
-              options={{ 
-                headerShown: true,
-                title: 'Unlock Photos',
-                headerBackTitleVisible: false,
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <PaywallScreen
                   selectedScenarios={route.params.selectedScenarios}
                   photoCount={route.params.imageIds.length}
+                  navigation={navigation}
                   onPaymentSuccess={(paymentId) => {
                     setHasPaymentAccess(true);
                     navigation.navigate('Loading', {
@@ -465,13 +440,7 @@ function AppNavigator() {
 
             <Stack.Screen
               name="ProfileView"
-              options={{ 
-                headerShown: true,
-                title: 'Your Photos',
-                headerBackTitleVisible: false,
-                headerLeft: () => null, // Remove back button - this is now the main screen
-                gestureEnabled: false, // Disable swipe back on iOS
-              }}
+              options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
                 <ProfileViewScreen
@@ -484,11 +453,7 @@ function AppNavigator() {
 
             <Stack.Screen
               name="ThemeSettings"
-              options={{ 
-                headerShown: true,
-                title: 'Theme Settings',
-                headerBackTitleVisible: false,
-              }}
+              options={{ headerShown: false }}
               component={ThemeSelector}
             />
           </>

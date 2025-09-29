@@ -10,8 +10,13 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
+import { BackButton } from './BackButton';
 
-export const ThemeSelector: React.FC = () => {
+interface ThemeSelectorProps {
+  navigation?: any;
+}
+
+export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ navigation }) => {
   const { currentScheme, colors, availableSchemes, setColorScheme, updateColor } = useTheme();
   const [showColorEditor, setShowColorEditor] = useState(false);
   const [editingColor, setEditingColor] = useState<keyof ColorScheme | null>(null);
@@ -46,7 +51,11 @@ export const ThemeSelector: React.FC = () => {
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.wrapper, { backgroundColor: colors.background }]}>
+      {navigation && (
+        <BackButton onPress={() => navigation.goBack()} />
+      )}
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.title, { color: colors.text }]}>Theme Settings</Text>
       
       {/* Scheme Selector */}
@@ -168,11 +177,15 @@ export const ThemeSelector: React.FC = () => {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     padding: 20,

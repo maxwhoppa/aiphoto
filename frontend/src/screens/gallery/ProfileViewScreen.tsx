@@ -403,7 +403,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     }
   }, [generatedPhotos, selectedTab]);
 
-  // Transform photos for ImageViewing component
+  // Transform photos for ImageViewing component - always use full-size images
   const imageViewerImages = displayPhotos.map(photo => ({ uri: photo.uri }));
 
   return (
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+    header: {
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 40,

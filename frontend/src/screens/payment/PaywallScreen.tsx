@@ -13,12 +13,14 @@ import { WebView } from 'react-native-webview';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequestJson } from '../../services/authHandler';
+import { BackButton } from '../../components/BackButton';
 
 interface PaywallScreenProps {
   onPaymentSuccess: (paymentId?: string) => void;
   onPaymentCancel: () => void;
   selectedScenarios: string[];
   photoCount: number;
+  navigation?: any;
 }
 
 export const PaywallScreen: React.FC<PaywallScreenProps> = ({
@@ -26,6 +28,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
   onPaymentCancel,
   selectedScenarios,
   photoCount,
+  navigation,
 }) => {
   const { colors } = useTheme();
   const { isAuthenticated } = useAuth();
@@ -184,6 +187,9 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {navigation && (
+        <BackButton onPress={() => navigation.goBack()} />
+      )}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>

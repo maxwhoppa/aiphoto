@@ -29,8 +29,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   const [currentMessage, setCurrentMessage] = useState(0);
   const [dots, setDots] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isOvertime, setIsOvertime] = useState(false);
 
-  const progressAnim = new Animated.Value(0);
+  const progressAnim = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get('window').width;
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -70,11 +71,11 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     try {
       console.log('Starting image generation process...');
 
-      // Start the fake progress that takes 40 seconds to reach 99%
+      // Start the fake progress that takes 60 seconds to reach 99%
       const startTime = Date.now();
       progressIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - startTime;
-        const progressPercent = Math.min(99, (elapsed / 40000) * 99); // 99% over 40 seconds
+        const progressPercent = Math.min(99, (elapsed / 60000) * 99); // 99% over 60 seconds
         setProgress(progressPercent);
 
         // Update messages based on progress
@@ -93,6 +94,11 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             clearInterval(progressIntervalRef.current);
             progressIntervalRef.current = null;
           }
+        }
+
+        // Check if we've exceeded 60 seconds
+        if (elapsed > 60000) {
+          setIsOvertime(true);
         }
       }, 100); // Update every 100ms for smooth animation
 
@@ -200,7 +206,10 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             Creating Your Photos{dots}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            This usually takes about 30 seconds
+            {isOvertime
+              ? "Taking longer than usual due to high traffic"
+              : "This usually takes about 60 seconds"
+            }
           </Text>
         </View>
 
