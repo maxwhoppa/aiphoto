@@ -291,7 +291,11 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
       {isRegenerateFlow && navigation && (
         <BackButton onPress={() => navigation.goBack()} />
       )}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
             {isRegenerateFlow ? 'Upload New Photos' : 'Upload Your Photos'}
@@ -621,9 +625,14 @@ const styles = StyleSheet.create({
     fontWeight: '300',
   },
   buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 60,
-    paddingTop: 20,
+    paddingBottom: 20,
+    paddingTop: 10,
+    backgroundColor: 'transparent',
   },
   nextButton: {
     height: 56,

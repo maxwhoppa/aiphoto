@@ -231,7 +231,11 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
         </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.info}>
           <View style={styles.infoContent}>
             <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
@@ -416,8 +420,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 20,
+    paddingTop: 10,
+    backgroundColor: 'transparent',
   },
   generateButton: {
     height: 56,

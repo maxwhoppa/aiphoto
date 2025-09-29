@@ -191,7 +191,11 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
       {navigation && (
         <BackButton onPress={() => navigation.goBack()} />
       )}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
             Unlock Your Photos
@@ -292,15 +296,6 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
               </Text>
             </>
           )}
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.cancelPaymentButton}
-          onPress={onPaymentCancel}
-        >
-          <Text style={[styles.cancelPaymentText, { color: colors.textSecondary }]}>
-            Maybe Later
-          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -446,8 +441,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 20,
+    paddingTop: 10,
+    backgroundColor: 'transparent',
   },
   payButton: {
     height: 64,
@@ -464,14 +465,6 @@ const styles = StyleSheet.create({
   payButtonSubtext: {
     fontSize: 12,
     opacity: 0.9,
-  },
-  cancelPaymentButton: {
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelPaymentText: {
-    fontSize: 16,
   },
   webViewHeader: {
     alignItems: 'center',
