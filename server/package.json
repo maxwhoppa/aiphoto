@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.901.0",
     "@aws-sdk/client-s3": "^3.511.0",
     "@aws-sdk/client-sqs": "^3.511.0",
     "@aws-sdk/s3-request-presigner": "^3.511.0",

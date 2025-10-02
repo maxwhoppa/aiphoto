@@ -1,6 +1,30 @@
 // API service for the DreamBoat AI app
 import { authHandler, apiRequest, apiRequestJson } from './authHandler';
 
+// Auth API calls (public - no authentication required)
+export async function confirmSocialUser(email: string, provider: 'apple' | 'google') {
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+  const url = `${baseUrl}/trpc/auth.confirmSocialUser`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      provider,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to confirm social user: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
 // Payment API calls
 export async function createCheckoutSession() {
   return apiRequestJson('/trpc/payments.getOrCreateCheckout', {

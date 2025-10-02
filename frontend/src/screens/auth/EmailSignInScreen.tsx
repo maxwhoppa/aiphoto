@@ -9,11 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { BackButton } from '../../components/BackButton';
+import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 interface EmailSignInScreenProps {
   onSuccess: () => void;
@@ -25,13 +28,14 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
   onBack,
 }) => {
   const { colors } = useTheme();
-  const { signIn, signUp, confirmSignUp } = useAuth();
+  const { signIn, signUp, confirmSignUp, signInWithApple, isAppleSignInAvailable } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup' | 'verify'>('signup');
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -107,7 +111,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
     try {
       await confirmSignUp(email, verificationCode);
       Alert.alert(
-        'Success!', 
+        'Success!',
         'Your account has been verified and you are now signed in.',
         [{ text: 'OK', onPress: onSuccess }]
       );
@@ -117,6 +121,21 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
       setIsLoading(false);
     }
   };
+
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithApple();
+      onSuccess();
+    } catch (error: any) {
+      if (error.message !== 'Apple Sign-In was cancelled') {
+        Alert.alert('Error', error.message || 'Failed to sign in with Apple');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -135,12 +154,12 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.text }]}>
-                {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Verify Email'}
+                {mode === 'verify' ? 'Verify Email' : showEmailForm ? (mode === 'signin' ? 'Sign In' : 'Create Account') : 'Welcome'}
               </Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                {mode === 'signin' ? 'Welcome back! Sign in to your account' : 
-                 mode === 'signup' ? 'Create a new account to get started' :
-                 `Enter the verification code sent to ${email}`}
+                {mode === 'verify' ? `Enter the verification code sent to ${email}` :
+                 showEmailForm ? (mode === 'signin' ? 'Welcome back! Sign in to your account' : 'Create a new account to get started') :
+                 'Sign in to continue'}
               </Text>
             </View>
 
@@ -194,6 +213,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     onPress={() => {
                       setMode('signup');
                       setVerificationCode('');
+                      setShowEmailForm(false);
                     }}
                   >
                     <Text style={[styles.linkText, { color: colors.primary }]}>
@@ -201,7 +221,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     </Text>
                   </TouchableOpacity>
                 </>
-              ) : (
+              ) : showEmailForm ? (
                 <>
                   <TextInput
                     style={[
@@ -310,6 +330,47 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                       {mode === 'signin' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
                     </Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.linkButton}
+                    onPress={() => setShowEmailForm(false)}
+                  >
+                    <Text style={[styles.linkText, { color: colors.textSecondary }]}>
+                      Back to sign in options
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                // Social Sign-In Options (Default View)
+                <>
+                  {/* Apple Sign-In Button */}
+                  {isAppleSignInAvailable && (
+                    <AppleAuthentication.AppleAuthenticationButton
+                      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                      cornerRadius={12}
+                      style={styles.appleButton}
+                      onPress={handleAppleSignIn}
+                    />
+                  )}
+
+
+                  <View style={styles.divider}>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                    <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                  </View>
+
+                  {/* Email Sign-In Option */}
+                  <TouchableOpacity
+                    style={[styles.button, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
+                    onPress={() => setShowEmailForm(true)}
+                  >
+                    <Ionicons name="mail-outline" size={20} color={colors.text} style={{ marginRight: 10 }} />
+                    <Text style={[styles.buttonText, { color: colors.text }]}>
+                      Continue with Email
+                    </Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -399,5 +460,26 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  appleButton: {
+    width: '100%',
+    height: 56,
+  },
+  socialButton: {
+    height: 56,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  socialButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 10,
+  },
+  socialIconContainer: {
+    position: 'absolute',
+    left: 20,
   },
 });

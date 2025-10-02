@@ -7,6 +7,10 @@ import {
   signOut as cognitoSignOut,
 } from '../services/cognito';
 import { authHandler } from '../services/authHandler';
+import {
+  signInWithApple as socialSignInWithApple,
+  isAppleSignInAvailable,
+} from '../services/socialAuth';
 
 interface User {
   sub: string;
@@ -20,8 +24,10 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   confirmSignUp: (email: string, code: string) => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
   token: string | null;
+  isAppleSignInAvailable: boolean;
   // Authenticated request methods
   makeAuthenticatedRequest: (url: string, options?: RequestInit) => Promise<Response>;
   getValidAccessToken: () => Promise<string | null>;
@@ -39,10 +45,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [pendingPassword, setPendingPassword] = useState<string | null>(null);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
 
   useEffect(() => {
     loadStoredAuth();
+    checkAppleSignIn();
   }, []);
+
+  const checkAppleSignIn = async () => {
+    const available = await isAppleSignInAvailable();
+    setAppleSignInAvailable(available);
+  };
 
   const loadStoredAuth = async () => {
     try {
@@ -161,10 +174,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signInWithApple = async () => {
+    try {
+      console.log('Signing in with Apple...');
+
+      const { user: appleUser, tokens } = await socialSignInWithApple();
+
+      // Store tokens using authHandler
+      await authHandler.storeTokens({
+        accessToken: tokens.accessToken,
+        idToken: tokens.idToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+      });
+
+      const userData: User = {
+        sub: appleUser.sub,
+        email: appleUser.email,
+      };
+
+      setUser(userData);
+      setToken(tokens.idToken);
+
+      console.log('Successfully signed in with Apple');
+    } catch (error: any) {
+      console.error('Failed to sign in with Apple:', error);
+      throw error;
+    }
+  };
+
+
   const signOut = async () => {
     try {
       // Sign out from Cognito
       cognitoSignOut();
+
 
       // Clear tokens using authHandler
       await authHandler.clearTokens();
@@ -186,8 +230,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         signIn,
         signUp,
         confirmSignUp,
+        signInWithApple,
         signOut,
         token,
+        isAppleSignInAvailable: appleSignInAvailable,
         // Provide access to authHandler methods
         makeAuthenticatedRequest: authHandler.makeAuthenticatedRequest.bind(authHandler),
         getValidAccessToken: authHandler.getValidAccessToken.bind(authHandler),
