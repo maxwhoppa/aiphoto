@@ -10,6 +10,7 @@ import { ScenarioSelectionScreen } from '../screens/scenarios/ScenarioSelectionS
 import { PaywallScreen } from '../screens/payment/PaywallScreen';
 import { LoadingScreen } from '../screens/generation/LoadingScreen';
 import { useTheme } from '../context/ThemeContext';
+import { checkPaymentAccess } from '../services/api';
 
 interface GeneratedPhoto {
   id: string;
@@ -84,7 +85,6 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow }: ProfileStac
             photos={route.params.imageIds || []}
             navigation={navigation}
             onNext={async (selectedScenarios) => {
-              const { checkPaymentAccess } = await import('../services/api');
               try {
                 const paymentResponse = await checkPaymentAccess();
 

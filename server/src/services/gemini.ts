@@ -133,12 +133,21 @@ class GeminiService {
 
   async generateImagePrompt(scenario: string, userDescription?: string): Promise<string> {
     const basePrompts: Record<string, string> = {
-      photoshoot: 'Professional portrait photography session with studio lighting and modern backdrop',
-      nature: 'Outdoor nature setting with natural lighting and scenic landscape background',
-      gym: 'Athletic fitness setting with gym equipment and dynamic lighting',
-      beach: 'Beach setting with golden hour lighting and ocean backdrop',
-      rooftop: 'Urban rooftop setting with city skyline and sunset lighting',
-      casual: 'Casual everyday setting with natural lighting and comfortable environment',
+      photoshoot: 'Change the photo so that it is a professional photoshoot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      nature: 'Change the photo so that it is a nature shot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      gym: 'Change the photo so that it is a gym photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      beach: 'Change the photo so that it is a beach photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      rooftop: 'Change the photo so that it is a rooftop photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      casual: 'Change the photo so that it is a casual photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      coffee: 'Change the photo so that it is a coffee shop photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      formal: 'Change the photo so that it is a formal photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      travel: 'Change the photo so that it is a travel photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      restaurant: 'Change the photo so that it is a restaurant photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      art: 'Change the photo so that it is an art gallery photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      music: 'Change the photo so that it is a music event photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      sports: 'Change the photo so that it is a sports photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      home: 'Change the photo so that it is a home photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      winter: 'Change the photo so that it is a winter photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
     };
 
     const basePrompt = basePrompts[scenario] || basePrompts.casual;

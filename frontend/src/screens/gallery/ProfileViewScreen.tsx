@@ -10,10 +10,11 @@ import {
   Share,
   FlatList,
   ActivityIndicator,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import ImageViewing from 'react-native-image-viewing';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -26,23 +27,52 @@ const OptimizedImage: React.FC<{
   size: number;
   onPress: () => void;
   colors: any;
-}> = ({ photo, size, onPress, colors }) => {
+  index?: number;
+  isLoaded: boolean;
+  onImageLoad: (photoId: string) => void;
+}> = ({ photo, size, onPress, colors, index = 0, isLoaded, onImageLoad }) => {
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(isLoaded);
+
+  // Prioritize first 6 visible images, deprioritize the rest
+  const priority = index < 6 ? 'high' : 'low';
+
+  // Once loaded, always stay loaded (images are cached)
+  const canClick = isLoaded || hasLoadedOnce;
+
   return (
     <TouchableOpacity
       style={[styles.photoContainer, { width: size, height: size }]}
-      onPress={onPress}
-      activeOpacity={0.8}
+      onPress={canClick ? onPress : undefined}
+      activeOpacity={canClick ? 0.8 : 1}
+      disabled={!canClick}
     >
       <Image
         source={{ uri: photo.uri }}
         style={styles.photo}
         contentFit="cover"
-        priority="normal"
+        priority={priority}
         cachePolicy="memory-disk"
         transition={{ duration: 150 }}
         placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
         recyclingKey={photo.id}
+        onLoad={() => {
+          // onLoad fires when image loads (from cache or network)
+          setHasLoadedOnce(true);
+          onImageLoad(photo.id);
+        }}
+        onLoadEnd={() => {
+          // Also handle onLoadEnd as fallback
+          setHasLoadedOnce(true);
+          onImageLoad(photo.id);
+        }}
       />
+
+      {/* Loading overlay for unloaded images */}
+      {!canClick && (
+        <View style={styles.thumbnailLoadingOverlay}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
 
       <View style={[styles.scenarioTag, { backgroundColor: colors.background }]}>
         <Text style={[styles.scenarioText, { color: colors.text }]}>
@@ -77,6 +107,8 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   const [savedPhotos, setSavedPhotos] = useState<Set<string>>(new Set());
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set());
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 2; // 2 photos per row with spacing
 
@@ -142,12 +174,44 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     }
   };
 
-  const openImageViewer = (photo: GeneratedPhoto) => {
+  const openImageViewer = useCallback(async (photo: GeneratedPhoto) => {
     const displayPhotos = getDisplayPhotos();
     const index = displayPhotos.findIndex(p => p.id === photo.id);
+
+    // Validate that we found the photo
+    if (index === -1 || !displayPhotos[index]) {
+      console.warn('Photo not found in current display photos');
+      return;
+    }
+
     setCurrentImageIndex(index);
+
+    // Show modal immediately with already-loaded image
     setImageViewerVisible(true);
-  };
+
+    // After modal is open, preload only adjacent images (not the current one)
+    setTimeout(() => {
+      const preloadAdjacent = async () => {
+        // Only preload next and previous
+        const nextIndex = (index + 1) % displayPhotos.length;
+        const prevIndex = index > 0 ? index - 1 : displayPhotos.length - 1;
+
+        const adjacentPhotos = [
+          displayPhotos[nextIndex],
+          displayPhotos[prevIndex]
+        ].filter(Boolean);
+
+        for (const photoToPreload of adjacentPhotos) {
+          if (!preloadedImages.has(photoToPreload.id)) {
+            const uri = photoToPreload.downloadUrl || photoToPreload.uri;
+            Image.prefetch(uri, { cachePolicy: 'memory-disk' }).catch(() => {});
+          }
+        }
+      };
+
+      preloadAdjacent();
+    }, 500); // Delay adjacent preloading
+  }, [preloadedImages, selectedTab, generatedPhotos, photosByScenario]);
 
   const downloadPhoto = async (photo: GeneratedPhoto) => {
     console.log('Starting download for photo:', photo.id);
@@ -312,9 +376,10 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     }
   };
 
-  const renderPhoto = useCallback(({ item: photo }: { item: GeneratedPhoto }) => {
+  const renderPhoto = useCallback(({ item: photo, index }: { item: GeneratedPhoto; index: number }) => {
     const isDownloading = downloadingPhotos.has(photo.id);
     const isSaved = savedPhotos.has(photo.id);
+    const isLoaded = loadedImages.has(photo.id);
 
     return (
       <View style={styles.photoWrapper}>
@@ -323,6 +388,11 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           size={photoSize}
           onPress={() => openImageViewer(photo)}
           colors={colors}
+          index={index}
+          isLoaded={isLoaded}
+          onImageLoad={(photoId) => {
+            setLoadedImages(prev => new Set(prev).add(photoId));
+          }}
         />
 
         {/* Download indicator overlay */}
@@ -349,23 +419,34 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
         )}
       </View>
     );
-  }, [photoSize, colors, downloadingPhotos, savedPhotos]);
+  }, [photoSize, colors, downloadingPhotos, savedPhotos, openImageViewer, loadedImages]);
 
   const displayPhotos = getDisplayPhotos();
 
-  // Optimized preloading: delay initial preload to not interfere with thumbnail rendering
+
+  // Close modal when switching tabs but keep loaded images
   useEffect(() => {
+    setImageViewerVisible(false);
+    // Don't clear loaded images - they're already cached
+  }, [selectedTab]);
+
+  // Smart preloading that pauses when modal is open
+  useEffect(() => {
+    // Don't preload when modal is open - let modal images have priority
+    if (imageViewerVisible) {
+      return;
+    }
+
     const preloadImages = async () => {
       const displayedPhotos = getDisplayPhotos();
-      const visibleCount = 6; // Reduce initial batch size
-      const batchSize = 4; // Smaller batch sizes
+      const visibleCount = 4; // Only preload first 4 visible
+      const batchSize = 2; // Very small batches
 
-      // Delay preloading to let thumbnails render first
+      // Much longer delay to avoid competing with user interactions
       setTimeout(async () => {
-        // First, gently preload a few visible images
+        // Only preload thumbnails (not full res) for grid view
         const visibleUris = displayedPhotos.slice(0, visibleCount).map(photo => photo.uri);
         if (visibleUris.length > 0) {
-          // Don't await this - let it happen in background
           Promise.allSettled(
             visibleUris.map(uri =>
               Image.prefetch(uri, { cachePolicy: 'memory' }).catch(() => {})
@@ -373,37 +454,15 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           );
         }
 
-        // Then preload remaining images with longer delays
-        const remainingUris = displayedPhotos.slice(visibleCount).map(photo => photo.uri);
-        if (remainingUris.length > 0) {
-          setTimeout(async () => {
-            for (let i = 0; i < remainingUris.length; i += batchSize) {
-              const batch = remainingUris.slice(i, i + batchSize);
-
-              // Non-blocking batch preload with disk cache only
-              Promise.allSettled(
-                batch.map(uri =>
-                  Image.prefetch(uri, { cachePolicy: 'disk' }).catch(() => {})
-                )
-              );
-
-              // Longer delay between batches
-              if (i + batchSize < remainingUris.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-              }
-            }
-          }, 500); // Longer initial delay
-        }
-      }, 300); // Give thumbnails time to render first
+        // Skip preloading the rest - load on demand instead
+      }, 1000); // Much longer delay
     };
 
     if (generatedPhotos.length > 0) {
       preloadImages();
     }
-  }, [generatedPhotos, selectedTab]);
+  }, [generatedPhotos, selectedTab, imageViewerVisible]);
 
-  // Transform photos for ImageViewing component - always use full-size images
-  const imageViewerImages = displayPhotos.map(photo => ({ uri: photo.uri }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -532,69 +591,116 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
       </View>
 
       {/* Native Image Viewer */}
-      <ImageViewing
-        images={imageViewerImages}
-        imageIndex={currentImageIndex}
+      <Modal
         visible={imageViewerVisible}
+        transparent={true}
+        animationType="fade"
         onRequestClose={() => setImageViewerVisible(false)}
-        HeaderComponent={({ imageIndex }) => {
-          const currentPhoto = displayPhotos[imageIndex];
-          const isCurrentPhotoDownloading = currentPhoto && downloadingPhotos.has(currentPhoto.id);
-          const isCurrentPhotoSaved = currentPhoto && savedPhotos.has(currentPhoto.id);
+      >
+        <TouchableWithoutFeedback onPress={() => setImageViewerVisible(false)}>
+          <View style={styles.modalContainer}>
+            {displayPhotos && displayPhotos.length > 0 && displayPhotos[currentImageIndex] ? (
+              <TouchableWithoutFeedback>
+                <View style={{ flex: 1 }}>
+                  {/* Header */}
+                  <View style={styles.imageViewerHeader}>
+                    <TouchableOpacity
+                      style={[styles.imageViewerButton, { backgroundColor: colors.surface }]}
+                      onPress={() => setImageViewerVisible(false)}
+                    >
+                      <Ionicons name="close" size={18} color={colors.text} />
+                    </TouchableOpacity>
 
-          return (
-            <View style={styles.imageViewerHeader}>
-              <TouchableOpacity
-                style={[styles.imageViewerButton, { backgroundColor: colors.surface }]}
-                onPress={() => setImageViewerVisible(false)}
-              >
-                <Ionicons name="close" size={18} color={colors.text} />
-              </TouchableOpacity>
+                    <View style={styles.imageViewerCounter}>
+                      <Text style={[styles.imageViewerCounterText, { color: colors.background }]}>
+                        {currentImageIndex + 1} / {displayPhotos.length}
+                      </Text>
+                    </View>
 
-              <View style={styles.imageViewerCounter}>
-                <Text style={[styles.imageViewerCounterText, { color: colors.background }]}>
-                  {imageIndex + 1} / {displayPhotos.length}
-                </Text>
-              </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.imageViewerButton,
+                        {
+                          backgroundColor: downloadingPhotos.has(displayPhotos[currentImageIndex].id) ? colors.surface : colors.primary
+                        }
+                      ]}
+                      onPress={() => {
+                        const currentPhoto = displayPhotos[currentImageIndex];
+                        if (currentPhoto && !downloadingPhotos.has(currentPhoto.id)) {
+                          downloadPhoto(currentPhoto);
+                        }
+                      }}
+                      disabled={downloadingPhotos.has(displayPhotos[currentImageIndex].id)}
+                    >
+                      {downloadingPhotos.has(displayPhotos[currentImageIndex].id) ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={colors.text}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={savedPhotos.has(displayPhotos[currentImageIndex].id) ? "checkmark" : "download-outline"}
+                          size={18}
+                          color={colors.background}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.imageViewerButton,
-                  {
-                    backgroundColor: isCurrentPhotoDownloading ? colors.surface : colors.primary
-                  }
-                ]}
-                onPress={() => {
-                  if (currentPhoto && !isCurrentPhotoDownloading) {
-                    downloadPhoto(currentPhoto);
-                  }
-                }}
-                disabled={isCurrentPhotoDownloading}
-              >
-                {isCurrentPhotoDownloading ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={colors.text}
-                  />
-                ) : (
-                  <Ionicons
-                    name={isCurrentPhotoSaved ? "checkmark" : "download-outline"}
-                    size={18}
-                    color={colors.background}
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
-          );
-        }}
-        FooterComponent={({ imageIndex }) => (
-          <View style={styles.imageViewerFooter}>
-            <Text style={[styles.imageViewerScenarioText, { color: colors.background }]}>
-              {displayPhotos[imageIndex]?.scenario}
-            </Text>
+                  {/* Image container - uses same URL as thumbnail so should be instant */}
+                  <TouchableWithoutFeedback>
+                    <View style={styles.imageContainer}>
+                      <Image
+                        key={`${displayPhotos[currentImageIndex].id}-${currentImageIndex}`}
+                        source={{ uri: displayPhotos[currentImageIndex].uri }}
+                        style={styles.fullScreenImage}
+                        contentFit="contain"
+                        priority="high"
+                        cachePolicy="memory-disk"
+                        transition={{ duration: 0 }}
+                        onLoadEnd={() => {
+                          // Preload high-res version if available
+                          if (displayPhotos[currentImageIndex].downloadUrl &&
+                              displayPhotos[currentImageIndex].downloadUrl !== displayPhotos[currentImageIndex].uri) {
+                            // Load high-res version in background
+                            Image.prefetch(displayPhotos[currentImageIndex].downloadUrl, {
+                              cachePolicy: 'memory-disk'
+                            }).catch(() => {});
+                          }
+
+                          // Preload adjacent images
+                          setTimeout(() => {
+                            const nextIndex = (currentImageIndex + 1) % displayPhotos.length;
+                            const prevIndex = currentImageIndex > 0 ? currentImageIndex - 1 : displayPhotos.length - 1;
+
+                            if (displayPhotos[nextIndex]) {
+                              Image.prefetch(displayPhotos[nextIndex].uri, {
+                                cachePolicy: 'memory-disk'
+                              }).catch(() => {});
+                            }
+                            if (displayPhotos[prevIndex]) {
+                              Image.prefetch(displayPhotos[prevIndex].uri, {
+                                cachePolicy: 'memory-disk'
+                              }).catch(() => {});
+                            }
+                          }, 300);
+                        }}
+                      />
+                    </View>
+                  </TouchableWithoutFeedback>
+
+                  {/* Footer */}
+                  <View style={styles.imageViewerFooter}>
+                    <Text style={[styles.imageViewerScenarioText, { color: colors.background }]}>
+                      {displayPhotos[currentImageIndex]?.scenario}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            ) : null}
           </View>
-        )}
-      />
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -739,6 +845,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  thumbnailLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -770,6 +886,19 @@ const styles = StyleSheet.create({
     height: 40,
   },
   // Image Viewer styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+  },
+  imageContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  fullScreenImage: {
+    flex: 1,
+    width: '100%',
+  },
   imageViewerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
