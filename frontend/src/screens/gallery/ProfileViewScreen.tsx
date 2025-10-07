@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Modal,
   TouchableWithoutFeedback,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -33,11 +34,11 @@ const OptimizedImage: React.FC<{
 }> = ({ photo, size, onPress, colors, index = 0, isLoaded, onImageLoad }) => {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(isLoaded);
 
-  // Prioritize first 6 visible images, deprioritize the rest
-  const priority = index < 6 ? 'high' : 'low';
+  // Prioritize first visible images
+  const priority = index < 10 ? 'high' : 'normal';
 
-  // Once loaded, always stay loaded (images are cached)
-  const canClick = isLoaded || hasLoadedOnce;
+  // Image is clickable once it has loaded at least once
+  const canClick = hasLoadedOnce;
 
   return (
     <TouchableOpacity
@@ -54,14 +55,14 @@ const OptimizedImage: React.FC<{
         cachePolicy="memory-disk"
         transition={{ duration: 150 }}
         placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-        recyclingKey={photo.id}
         onLoad={() => {
           // onLoad fires when image loads (from cache or network)
           setHasLoadedOnce(true);
           onImageLoad(photo.id);
         }}
-        onLoadEnd={() => {
-          // Also handle onLoadEnd as fallback
+        onError={(error) => {
+          console.error('Failed to load image:', photo.id, error);
+          // Still mark as loaded to remove spinner
           setHasLoadedOnce(true);
           onImageLoad(photo.id);
         }}
@@ -94,12 +95,14 @@ interface ProfileViewScreenProps {
   generatedPhotos: GeneratedPhoto[];
   selectedScenarios: string[];
   onGenerateAgain: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
 export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   generatedPhotos,
   selectedScenarios,
   onGenerateAgain,
+  onRefresh,
 }) => {
   const { colors } = useTheme();
   const [selectedTab, setSelectedTab] = useState<string>('all');
@@ -109,6 +112,8 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set());
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 2; // 2 photos per row with spacing
 
@@ -423,6 +428,49 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
   const displayPhotos = getDisplayPhotos();
 
+  // Handle pull-to-refresh - only triggers on release
+  const handleRefresh = useCallback(() => {
+    console.log('Pull-to-refresh released, starting refresh...');
+
+    if (!onRefresh || isRefreshing) {
+      console.log('Refresh blocked:', !onRefresh ? 'no handler' : 'already refreshing');
+      return;
+    }
+
+    // Set refreshing state immediately
+    setIsRefreshing(true);
+
+    // Perform the actual refresh asynchronously
+    (async () => {
+      // Minimum refresh duration for better UX
+      const minimumRefreshPromise = new Promise(resolve => setTimeout(resolve, 1000));
+
+      try {
+        // Run refresh and minimum duration in parallel
+        await Promise.all([
+          onRefresh(),
+          minimumRefreshPromise
+        ]);
+        console.log('Refresh completed successfully');
+      } catch (error) {
+        console.error('Error refreshing images:', error);
+        Alert.alert('Refresh Failed', 'Unable to refresh images. Please try again.');
+      } finally {
+        // End refresh state
+        setIsRefreshing(false);
+      }
+    })();
+  }, [onRefresh, isRefreshing]);
+
+  // Reset loaded images when photos change significantly
+  useEffect(() => {
+    // If we get completely new photos, clear the loaded cache
+    if (generatedPhotos.length > 0) {
+      // Don't clear on every render, only when photos actually change
+      setLoadedImages(new Set());
+    }
+  }, [generatedPhotos.length]); // Only reset when count changes
+
 
   // Close modal when switching tabs but keep loaded images
   useEffect(() => {
@@ -430,38 +478,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     // Don't clear loaded images - they're already cached
   }, [selectedTab]);
 
-  // Smart preloading that pauses when modal is open
-  useEffect(() => {
-    // Don't preload when modal is open - let modal images have priority
-    if (imageViewerVisible) {
-      return;
-    }
-
-    const preloadImages = async () => {
-      const displayedPhotos = getDisplayPhotos();
-      const visibleCount = 4; // Only preload first 4 visible
-      const batchSize = 2; // Very small batches
-
-      // Much longer delay to avoid competing with user interactions
-      setTimeout(async () => {
-        // Only preload thumbnails (not full res) for grid view
-        const visibleUris = displayedPhotos.slice(0, visibleCount).map(photo => photo.uri);
-        if (visibleUris.length > 0) {
-          Promise.allSettled(
-            visibleUris.map(uri =>
-              Image.prefetch(uri, { cachePolicy: 'memory' }).catch(() => {})
-            )
-          );
-        }
-
-        // Skip preloading the rest - load on demand instead
-      }, 1000); // Much longer delay
-    };
-
-    if (generatedPhotos.length > 0) {
-      preloadImages();
-    }
-  }, [generatedPhotos, selectedTab, imageViewerVisible]);
+  // Removed aggressive preloading - let images load naturally as they appear
 
 
   return (
@@ -547,6 +564,17 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
             maxToRenderPerBatch={10}
             windowSize={5}
             initialNumToRender={10}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+                  progressViewOffset={0}
+                />
+              ) : undefined
+            }
             getItemLayout={(data, index) => ({
               length: photoSize + 15, // photo height + margin
               offset: (photoSize + 15) * Math.floor(index / 2),

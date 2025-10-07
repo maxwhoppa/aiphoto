@@ -126,12 +126,40 @@ function AppNavigator() {
         if (!hasCompletedOnboarding) {
           await completeOnboarding();
         }
+
+        return generatedPhotos;
       }
+      return [];
     } catch (error) {
       console.log('No existing images found or error checking:', error);
       setHasGeneratedImages(false);
+      return [];
     } finally {
       setIsCheckingImages(false);
+    }
+  };
+
+  const refreshImages = async (): Promise<GeneratedPhoto[]> => {
+    try {
+      const response = await getGeneratedImages({});
+      const generatedImages = response?.result?.data || response?.data || response || [];
+
+      if (generatedImages.length > 0) {
+        // Convert to ProfileView format
+        const generatedPhotos: GeneratedPhoto[] = generatedImages.map((img: any) => ({
+          id: img.id,
+          uri: img.downloadUrl || img.s3Url,
+          scenario: img.scenario,
+          downloadUrl: img.downloadUrl,
+        }));
+
+        setExistingImages(generatedPhotos);
+        return generatedPhotos;
+      }
+      return existingImages; // Return current images if API fails
+    } catch (error) {
+      console.error('Error refreshing images:', error);
+      return existingImages; // Return current images on error
     }
   };
 
@@ -207,6 +235,7 @@ function AppNavigator() {
               <TabNavigator
                 existingImages={existingImages}
                 onRegenerateFlow={handleRegenerateFlow}
+                onRefreshImages={refreshImages}
               />
             )}
           </Stack.Screen>

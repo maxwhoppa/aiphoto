@@ -10,7 +10,7 @@ import { ScenarioSelectionScreen } from '../screens/scenarios/ScenarioSelectionS
 import { PaywallScreen } from '../screens/payment/PaywallScreen';
 import { LoadingScreen } from '../screens/generation/LoadingScreen';
 import { useTheme } from '../context/ThemeContext';
-import { checkPaymentAccess } from '../services/api';
+import { checkPaymentAccess, getGeneratedImages } from '../services/api';
 
 interface GeneratedPhoto {
   id: string;
@@ -38,9 +38,30 @@ const ProfileStack = createStackNavigator<ProfileStackParamList>();
 interface ProfileStackNavigatorProps {
   existingImages: GeneratedPhoto[];
   onRegenerateFlow: (navigation: any) => void;
+  onRefreshImages?: () => Promise<GeneratedPhoto[]>;
 }
 
-function ProfileStackNavigator({ existingImages, onRegenerateFlow }: ProfileStackNavigatorProps) {
+function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImages }: ProfileStackNavigatorProps) {
+  const [images, setImages] = React.useState<GeneratedPhoto[]>(existingImages);
+
+  // Update images when existingImages prop changes
+  React.useEffect(() => {
+    setImages(existingImages);
+  }, [existingImages]);
+
+  const handleRefresh = React.useCallback(async () => {
+    if (onRefreshImages) {
+      try {
+        const newImages = await onRefreshImages();
+        setImages(newImages);
+        return; // Let the refresh control handle the animation
+      } catch (error) {
+        console.error('Error refreshing images:', error);
+        throw error; // Let ProfileViewScreen handle the error
+      }
+    }
+  }, [onRefreshImages]);
+
   return (
     <ProfileStack.Navigator
       screenOptions={{
@@ -54,9 +75,10 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow }: ProfileStac
       >
         {({ navigation }) => (
           <ProfileViewScreen
-            generatedPhotos={existingImages}
-            selectedScenarios={Array.from(new Set(existingImages.map(img => img.scenario)))}
+            generatedPhotos={images}
+            selectedScenarios={Array.from(new Set(images.map(img => img.scenario)))}
             onGenerateAgain={() => onRegenerateFlow(navigation)}
+            onRefresh={handleRefresh}
           />
         )}
       </ProfileStack.Screen>
@@ -147,19 +169,25 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow }: ProfileStac
             selectedScenarios={route.params.selectedScenarios}
             imageIds={route.params.imageIds}
             paymentId={route.params.paymentId}
-            onComplete={(generatedImages) => {
-              // Navigate back to ProfileView with new images
+            onComplete={async (generatedImages) => {
+              // Convert and set the new images
+              const newPhotos = generatedImages.map((img: any) => ({
+                id: img.id,
+                uri: img.downloadUrl || img.s3Url,
+                scenario: img.scenario,
+                downloadUrl: img.downloadUrl,
+              }));
+
+              // Update the images in ProfileStackNavigator state
+              setImages(newPhotos);
+
+              // Navigate back to ProfileView
               navigation.reset({
                 index: 0,
                 routes: [{
                   name: 'ProfileView',
                   params: {
-                    generatedPhotos: generatedImages.map((img: any) => ({
-                      id: img.id,
-                      uri: img.downloadUrl || img.s3Url,
-                      scenario: img.scenario,
-                      downloadUrl: img.downloadUrl,
-                    })),
+                    generatedPhotos: newPhotos,
                     selectedScenarios: Array.from(new Set(generatedImages.map((img: any) => img.scenario))),
                   }
                 }],
@@ -176,9 +204,10 @@ interface TabNavigatorProps {
   existingImages: GeneratedPhoto[];
   onRegenerateFlow: (navigation: any) => void;
   onImagesUpdated?: (images: GeneratedPhoto[]) => void;
+  onRefreshImages?: () => Promise<GeneratedPhoto[]>;
 }
 
-export function TabNavigator({ existingImages, onRegenerateFlow }: TabNavigatorProps) {
+export function TabNavigator({ existingImages, onRegenerateFlow, onRefreshImages }: TabNavigatorProps) {
   const { colors } = useTheme();
 
   return (
@@ -207,6 +236,7 @@ export function TabNavigator({ existingImages, onRegenerateFlow }: TabNavigatorP
           <ProfileStackNavigator
             existingImages={existingImages}
             onRegenerateFlow={onRegenerateFlow}
+            onRefreshImages={onRefreshImages}
           />
         )}
       </Tab.Screen>
