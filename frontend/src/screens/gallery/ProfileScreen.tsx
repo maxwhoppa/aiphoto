@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { ProfileViewScreen } from './ProfileViewScreen';
 import { PhotoSelectionFlow } from './PhotoSelectionFlow';
 import { ProfilePreview } from './ProfilePreview';
+import { PhotoRanking } from './PhotoRanking';
 import { setSelectedProfilePhotos, getSelectedProfilePhotos } from '../../services/api';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -23,7 +24,7 @@ interface ProfileScreenProps {
   onRefresh?: () => Promise<void>;
 }
 
-type ViewMode = 'selection' | 'preview' | 'all';
+type ViewMode = 'selection' | 'ranking' | 'preview' | 'all';
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   generatedPhotos,
@@ -37,6 +38,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingPhotos, setDownloadingPhotos] = useState<Set<string>>(new Set());
+  const [photosToRank, setPhotosToRank] = useState<GeneratedPhoto[]>([]);
 
   // Group photos by scenario for selection flow
   const photosByScenario = generatedPhotos.reduce((acc, photo) => {
@@ -117,6 +119,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setIsSaving(false);
     }
   }, [generatedPhotos]);
+
+  const handleRankPhotos = useCallback((photos: GeneratedPhoto[]) => {
+    setPhotosToRank(photos);
+    setViewMode('ranking');
+  }, []);
 
   const handleReselect = useCallback(() => {
     Alert.alert(
@@ -256,8 +263,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           photosByScenario={photosByScenario}
           selectedScenarios={selectedScenarios}
           onComplete={handleSelectionComplete}
+          onRankPhotos={handleRankPhotos}
           onSkip={() => setViewMode('all')}
           onBack={selectedPhotos.length > 0 ? () => setViewMode('preview') : () => setViewMode('all')}
+        />
+      );
+
+    case 'ranking':
+      return (
+        <PhotoRanking
+          selectedPhotos={photosToRank}
+          onComplete={handleSelectionComplete}
+          onBack={() => setViewMode('selection')}
         />
       );
 

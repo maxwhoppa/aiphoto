@@ -25,6 +25,7 @@ interface PhotoSelectionFlowProps {
   photosByScenario: Record<string, GeneratedPhoto[]>;
   selectedScenarios: string[];
   onComplete: (selections: { generatedImageId: string; order: number }[]) => void;
+  onRankPhotos: (selectedPhotos: GeneratedPhoto[]) => void;
   onSkip: () => void;
   onBack?: () => void;
 }
@@ -33,6 +34,7 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
   photosByScenario,
   selectedScenarios,
   onComplete,
+  onRankPhotos,
   onSkip,
   onBack,
 }) => {
@@ -94,23 +96,14 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
 
-    // Compile all selections with order
-    const allSelections: { generatedImageId: string; order: number }[] = [];
-    let orderCounter = 1;
-
+    // Get all selected photos
+    const allSelectedPhotoIds: string[] = [];
     selectedScenarios.forEach(scenario => {
       const selections = selectedPhotosMap[scenario] || [];
-      selections.forEach(photoId => {
-        if (orderCounter <= 6) {
-          allSelections.push({
-            generatedImageId: photoId,
-            order: orderCounter++,
-          });
-        }
-      });
+      allSelectedPhotoIds.push(...selections);
     });
 
-    if (allSelections.length === 0) {
+    if (allSelectedPhotoIds.length === 0) {
       Alert.alert(
         'No Photos Selected',
         'Please select at least one photo for your profile.',
@@ -118,6 +111,40 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
       );
       return;
     }
+
+    // Check if we have more than 6 photos selected
+    if (allSelectedPhotoIds.length > 6) {
+      // Get the actual photo objects for ranking
+      const selectedPhotoObjects: GeneratedPhoto[] = [];
+      selectedScenarios.forEach(scenario => {
+        const scenarioPhotos = photosByScenario[scenario] || [];
+        const selectedIds = selectedPhotosMap[scenario] || [];
+        selectedIds.forEach(id => {
+          const photo = scenarioPhotos.find(p => p.id === id);
+          if (photo) {
+            selectedPhotoObjects.push(photo);
+          }
+        });
+      });
+
+      setIsSubmitting(false);
+      onRankPhotos(selectedPhotoObjects);
+      return;
+    }
+
+    // If 6 or fewer photos, proceed with normal completion
+    const allSelections: { generatedImageId: string; order: number }[] = [];
+    let orderCounter = 1;
+
+    selectedScenarios.forEach(scenario => {
+      const selections = selectedPhotosMap[scenario] || [];
+      selections.forEach(photoId => {
+        allSelections.push({
+          generatedImageId: photoId,
+          order: orderCounter++,
+        });
+      });
+    });
 
     if (allSelections.length < 4) {
       Alert.alert(
@@ -132,7 +159,7 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
     }
 
     onComplete(allSelections);
-  }, [selectedPhotosMap, selectedScenarios, onComplete]);
+  }, [selectedPhotosMap, selectedScenarios, onComplete, onRankPhotos, photosByScenario]);
 
   const getTotalSelections = () => {
     return Object.values(selectedPhotosMap).reduce((sum, selections) => sum + selections.length, 0);
