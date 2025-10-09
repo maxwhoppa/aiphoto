@@ -145,7 +145,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
 
   if (showWebView) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
         <View style={styles.webViewHeader}>
           <Text style={[styles.webViewTitle, { color: colors.text }]}>
             Secure Payment
@@ -187,7 +187,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {navigation && (
         <BackButton onPress={() => navigation.goBack()} />
       )}

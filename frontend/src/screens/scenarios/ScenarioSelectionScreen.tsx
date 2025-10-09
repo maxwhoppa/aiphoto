@@ -215,7 +215,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {navigation && (
         <BackButton onPress={() => navigation.goBack()} />
       )}

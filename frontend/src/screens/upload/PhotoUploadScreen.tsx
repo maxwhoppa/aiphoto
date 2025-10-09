@@ -287,7 +287,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {isRegenerateFlow && navigation && (
         <BackButton onPress={() => navigation.goBack()} />
       )}

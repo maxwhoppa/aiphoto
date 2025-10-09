@@ -133,7 +133,7 @@ class GeminiService {
 
   async generateImagePrompt(scenario: string, userDescription?: string): Promise<string> {
     const basePrompts: Record<string, string> = {
-      photoshoot: 'Change the photo so that it is a professional photoshoot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      photoshoot: 'change the photo so that it is a professional photoshoot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
       nature: 'Change the photo so that it is a nature shot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
       gym: 'Change the photo so that it is a gym photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
       beach: 'Change the photo so that it is a beach photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',

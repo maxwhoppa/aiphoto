@@ -199,7 +199,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   const currentMsg = messages[currentMessage];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

@@ -482,7 +482,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header removed */}
 
       {/* Tabs */}
@@ -580,34 +580,6 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
               offset: (photoSize + 15) * Math.floor(index / 2),
               index,
             })}
-            ListFooterComponent={() => (
-              <View>
-                {/* Tips */}
-                <View style={[styles.tipsContainer, { backgroundColor: colors.surface }]}>
-                  <View style={styles.tipsHeaderContent}>
-                    <Ionicons name="phone-portrait-outline" size={20} color={colors.text} />
-                    <Text style={[styles.tipsTitle, { color: colors.text }]}>
-                      Using Your Photos
-                    </Text>
-                  </View>
-                  <View style={styles.tips}>
-                    <Text style={[styles.tip, { color: colors.textSecondary }]}>
-                      • Save all photos to your device for easy access
-                    </Text>
-                    <Text style={[styles.tip, { color: colors.textSecondary }]}>
-                      • Use different scenarios for different dating apps
-                    </Text>
-                    <Text style={[styles.tip, { color: colors.textSecondary }]}>
-                      • Professional photoshoot photos work best as main profile pics
-                    </Text>
-                    <Text style={[styles.tip, { color: colors.textSecondary }]}>
-                      • Mix lifestyle photos (gym, beach) with professional ones
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.bottomSpacer} />
-              </View>
-            )}
           />
         ) : (
           <View style={styles.emptyState}>
@@ -778,12 +750,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tipsHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
   content: {
     flex: 1,
   },
@@ -892,26 +858,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     textAlign: 'center',
-  },
-  tipsContainer: {
-    marginTop: 30,
-    padding: 20,
-    borderRadius: 12,
-  },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  tips: {
-    gap: 8,
-  },
-  tip: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  bottomSpacer: {
-    height: 40,
   },
   // Image Viewer styles
   modalContainer: {
