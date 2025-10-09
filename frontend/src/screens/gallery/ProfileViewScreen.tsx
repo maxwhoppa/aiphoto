@@ -96,6 +96,9 @@ interface ProfileViewScreenProps {
   selectedScenarios: string[];
   onGenerateAgain: () => void;
   onRefresh?: () => Promise<void>;
+  onSelectProfilePhotos?: () => void;
+  onViewProfile?: () => void;
+  hasSelectedPhotos?: boolean;
 }
 
 export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
@@ -103,6 +106,9 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   selectedScenarios,
   onGenerateAgain,
   onRefresh,
+  onSelectProfilePhotos,
+  onViewProfile,
+  hasSelectedPhotos = false,
 }) => {
   const { colors } = useTheme();
   const [selectedTab, setSelectedTab] = useState<string>('all');
@@ -114,6 +120,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 2; // 2 photos per row with spacing
 
@@ -291,10 +298,11 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     if (!hasPermission) return;
 
     const photos = getDisplayPhotos();
+    const filterLabel = selectedTab === 'all' ? 'all' : selectedTab;
 
     Alert.alert(
-      'Download All Photos',
-      `Download ${photos.length} photos to your device?`,
+      'Download Photos',
+      `Download ${photos.length} ${filterLabel} photos to your device?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -483,69 +491,62 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header removed */}
-
-      {/* Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsContainer}
-        contentContainerStyle={styles.tabsContent}
-      >
-        {tabs.map((tab) => {
-          const isSelected = selectedTab === tab;
-          const tabLabel = tab === 'all' ? `All (${generatedPhotos.length})` : 
-                         `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${photosByScenario[tab]?.length || 0})`;
-          
-          return (
-            <TouchableOpacity
-              key={tab}
-              style={[
-                styles.tab,
-                {
-                  backgroundColor: isSelected ? colors.primary : colors.surface,
-                  borderColor: colors.border,
-                }
-              ]}
-              onPress={() => setSelectedTab(tab)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: isSelected ? colors.background : colors.text }
-                ]}
-              >
-                {tabLabel}
+      {/* Action Buttons - Moved to top */}
+      <View style={styles.topActionsContainer}>
+        {(onSelectProfilePhotos || onViewProfile) && (
+          <TouchableOpacity
+            style={[styles.topActionButton, { backgroundColor: colors.primary }]}
+            onPress={hasSelectedPhotos && onViewProfile ? onViewProfile : onSelectProfilePhotos}
+          >
+            <View style={styles.topActionButtonContent}>
+              <Ionicons
+                name={hasSelectedPhotos ? "person-outline" : "heart-outline"}
+                size={18}
+                color={colors.background}
+              />
+              <Text style={[styles.topActionButtonText, { color: colors.background }]}>
+                {hasSelectedPhotos ? "Profile" : "Select Profile"}
               </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+            </View>
+          </TouchableOpacity>
+        )}
 
-      {/* Action Buttons */}
-      <View style={styles.actionsContainer}>
         <TouchableOpacity
-          style={[styles.actionBarButton, { backgroundColor: colors.secondary }]}
+          style={[styles.topActionButton, { backgroundColor: colors.secondary }]}
           onPress={downloadAllPhotos}
         >
-          <View style={styles.actionButtonContent}>
-            <Ionicons name="download-outline" size={16} color={colors.background} />
-            <Text style={[styles.actionBarButtonText, { color: colors.background }]}>
-              Download All ({displayPhotos.length})
+          <View style={styles.topActionButtonContent}>
+            <Ionicons name="download-outline" size={18} color={colors.background} />
+            <Text style={[styles.topActionButtonText, { color: colors.background }]}>
+              Download ({displayPhotos.length})
             </Text>
           </View>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
-          style={[styles.actionBarButton, { backgroundColor: colors.accent }]}
+          style={[styles.topActionButton, { backgroundColor: colors.accent }]}
           onPress={onGenerateAgain}
         >
-          <View style={styles.actionButtonContent}>
-            <Ionicons name="refresh-outline" size={16} color={colors.background} />
-            <Text style={[styles.actionBarButtonText, { color: colors.background }]}>
+          <View style={styles.topActionButtonContent}>
+            <Ionicons name="refresh-outline" size={18} color={colors.background} />
+            <Text style={[styles.topActionButtonText, { color: colors.background }]}>
               Generate Again
             </Text>
           </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter Dropdown */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={() => setFilterModalVisible(true)}
+        >
+          <Text style={[styles.filterButtonText, { color: colors.text }]}>
+            {selectedTab === 'all' ? `All Photos (${generatedPhotos.length})` :
+             `${selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)} (${photosByScenario[selectedTab]?.length || 0})`}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -701,6 +702,63 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setFilterModalVisible(false)}>
+          <View style={styles.filterModalContainer}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.filterModalContent, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.filterModalTitle, { color: colors.text }]}>
+                  Filter Photos
+                </Text>
+
+                <ScrollView style={styles.filterOptionsContainer}>
+                  {tabs.map((tab) => {
+                    const isSelected = selectedTab === tab;
+                    const tabLabel = tab === 'all' ? `All Photos (${generatedPhotos.length})` :
+                                   `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${photosByScenario[tab]?.length || 0})`;
+
+                    return (
+                      <TouchableOpacity
+                        key={tab}
+                        style={[
+                          styles.filterOption,
+                          {
+                            backgroundColor: isSelected ? colors.primary : 'transparent',
+                            borderColor: colors.border,
+                          }
+                        ]}
+                        onPress={() => {
+                          setSelectedTab(tab);
+                          setFilterModalVisible(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.filterOptionText,
+                            { color: isSelected ? colors.background : colors.text }
+                          ]}
+                        >
+                          {tabLabel}
+                        </Text>
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={20} color={colors.background} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -709,6 +767,95 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // New top action button styles
+  topActionsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  topActionButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 0, // Allow flex shrinking
+  },
+  topActionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  topActionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+    textAlign: 'center',
+    flexShrink: 1, // Allow text to shrink if needed
+  },
+  // Filter dropdown styles
+  filterContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  filterButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  // Filter modal styles
+  filterModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  filterModalContent: {
+    borderRadius: 16,
+    padding: 20,
+    maxHeight: '60%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  filterModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  filterOptionsContainer: {
+    maxHeight: 300,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  filterOptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  // Legacy styles (keeping for now but removing unused ones later)
   tabsContainer: {
     maxHeight: 50,
     marginBottom: 15,
@@ -726,29 +873,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 10,
-  },
-  actionBarButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionBarButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  actionButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     flex: 1,

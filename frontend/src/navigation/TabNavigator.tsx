@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { ProfileViewScreen } from '../screens/gallery/ProfileViewScreen';
+import { ProfileScreen } from '../screens/gallery/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { PhotoUploadScreen } from '../screens/upload/PhotoUploadScreen';
 import { ScenarioSelectionScreen } from '../screens/scenarios/ScenarioSelectionScreen';
@@ -74,7 +74,7 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
         options={{ headerShown: false }}
       >
         {({ navigation }) => (
-          <ProfileViewScreen
+          <ProfileScreen
             generatedPhotos={images}
             selectedScenarios={Array.from(new Set(images.map(img => img.scenario)))}
             onGenerateAgain={() => onRegenerateFlow(navigation)}

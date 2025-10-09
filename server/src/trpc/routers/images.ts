@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../index';
 import { getDb, userImages, generatedImages, users, scenarios } from '../../db/index';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, isNotNull } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import { geminiService } from '../../services/gemini';
 import { s3Service } from '../../services/s3';
@@ -546,6 +546,166 @@ export const imagesRouter = router({
         .orderBy(scenarios.sortOrder);
 
       return availableScenarios;
+    }),
+
+  // Set selected profile photos
+  setSelectedProfilePhotos: protectedProcedure
+    .input(z.object({
+      selections: z.array(z.object({
+        generatedImageId: z.string().uuid(),
+        order: z.number().min(1).max(6),
+      })).max(6),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Start transaction to update all selections atomically
+      await db.transaction(async (tx) => {
+        // First, clear all existing selections for this user
+        await tx
+          .update(generatedImages)
+          .set({ selectedProfileOrder: null })
+          .where(eq(generatedImages.userId, user.id));
+
+        // Then set the new selections
+        for (const selection of input.selections) {
+          const result = await tx
+            .update(generatedImages)
+            .set({ selectedProfileOrder: selection.order })
+            .where(and(
+              eq(generatedImages.id, selection.generatedImageId),
+              eq(generatedImages.userId, user.id)
+            ))
+            .returning();
+
+          if (result.length === 0) {
+            throw new Error(`Image ${selection.generatedImageId} not found or not owned by user`);
+          }
+        }
+      });
+
+      logger.info('Profile photos selected', {
+        cognitoUserId: ctx.user.sub,
+        selections: input.selections.length,
+      });
+
+      return { success: true };
+    }),
+
+  // Get selected profile photos
+  getSelectedProfilePhotos: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        return [];
+      }
+
+      const selectedPhotos = await db
+        .select()
+        .from(generatedImages)
+        .where(and(
+          eq(generatedImages.userId, user.id),
+          isNotNull(generatedImages.selectedProfileOrder)
+        ))
+        .orderBy(generatedImages.selectedProfileOrder);
+
+      // Generate pre-signed download URLs for all selected photos
+      const photosWithUrls = await Promise.all(
+        selectedPhotos.map(async (photo) => {
+          try {
+            const downloadUrlData = await s3Service.generateDownloadUrl(photo.s3Key, 604800);
+            return {
+              ...photo,
+              downloadUrl: downloadUrlData.downloadUrl,
+            };
+          } catch (error) {
+            logger.warn('Failed to generate download URL for selected photo', {
+              imageId: photo.id,
+              s3Key: photo.s3Key,
+              error,
+            });
+            return {
+              ...photo,
+              downloadUrl: null,
+            };
+          }
+        })
+      );
+
+      return photosWithUrls;
+    }),
+
+  // Toggle single photo selection
+  toggleProfilePhotoSelection: protectedProcedure
+    .input(z.object({
+      generatedImageId: z.string().uuid(),
+      order: z.number().min(1).max(6).optional(), // If provided, set to this order; if not, remove from selection
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      if (input.order) {
+        // Check if another photo already has this order
+        const existingAtOrder = await db
+          .select()
+          .from(generatedImages)
+          .where(and(
+            eq(generatedImages.userId, user.id),
+            eq(generatedImages.selectedProfileOrder, input.order)
+          ))
+          .limit(1);
+
+        if (existingAtOrder.length > 0) {
+          // Clear the existing photo at this order
+          await db
+            .update(generatedImages)
+            .set({ selectedProfileOrder: null })
+            .where(eq(generatedImages.id, existingAtOrder[0].id));
+        }
+      }
+
+      // Update the selected photo
+      const result = await db
+        .update(generatedImages)
+        .set({ selectedProfileOrder: input.order || null })
+        .where(and(
+          eq(generatedImages.id, input.generatedImageId),
+          eq(generatedImages.userId, user.id)
+        ))
+        .returning();
+
+      if (result.length === 0) {
+        throw new Error('Image not found or not owned by user');
+      }
+
+      logger.info('Profile photo selection toggled', {
+        cognitoUserId: ctx.user.sub,
+        generatedImageId: input.generatedImageId,
+        order: input.order,
+      });
+
+      return { success: true, photo: result[0] };
     }),
 
   // Delete generated image

@@ -1,0 +1,2 @@
+ALTER TABLE "generated_images" ADD COLUMN "selected_profile_order" integer;--> statement-breakpoint
+ALTER TABLE "generated_images" ADD CONSTRAINT "generated_images_user_id_selected_profile_order_unique" UNIQUE("user_id","selected_profile_order");

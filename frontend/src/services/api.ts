@@ -131,6 +131,49 @@ export async function getMyImages() {
   return apiRequestJson('/trpc/images.getMyImages');
 }
 
+// Selected profile photos API calls
+export async function setSelectedProfilePhotos(selections: Array<{generatedImageId: string; order: number}>) {
+  console.log('setSelectedProfilePhotos called with:', selections);
+
+  const requestBody = { selections };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.setSelectedProfilePhotos', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Set selected photos response:', response);
+    return response;
+  } catch (error) {
+    console.error('setSelectedProfilePhotos error:', error);
+    throw error;
+  }
+}
+
+export async function getSelectedProfilePhotos() {
+  return apiRequestJson('/trpc/images.getSelectedProfilePhotos');
+}
+
+export async function toggleProfilePhotoSelection(generatedImageId: string, order?: number) {
+  console.log('toggleProfilePhotoSelection called with:', { generatedImageId, order });
+
+  const requestBody = { generatedImageId, order };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.toggleProfilePhotoSelection', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Toggle selection response:', response);
+    return response;
+  } catch (error) {
+    console.error('toggleProfilePhotoSelection error:', error);
+    throw error;
+  }
+}
+
 // Photo API calls
 export async function getProfile() {
   const response = await authHandler.makeAuthenticatedRequest('/api/profile');
