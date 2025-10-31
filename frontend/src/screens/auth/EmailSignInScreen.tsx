@@ -363,10 +363,10 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
 
                   {/* Email Sign-In Option */}
                   <TouchableOpacity
-                    style={[styles.button, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
+                    style={[styles.button, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, flexDirection: 'row' }]}
                     onPress={() => setShowEmailForm(true)}
                   >
-                    <Ionicons name="mail-outline" size={20} color={colors.text} style={{ marginRight: 10 }} />
+                    <Ionicons name="mail-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
                     <Text style={[styles.buttonText, { color: colors.text }]}>
                       Continue with Email
                     </Text>
@@ -480,6 +480,6 @@ const styles = StyleSheet.create({
   },
   socialIconContainer: {
     position: 'absolute',
-    left: 20,
+    left: 24,
   },
 });
