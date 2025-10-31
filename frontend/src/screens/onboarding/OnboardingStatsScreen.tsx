@@ -135,7 +135,7 @@ export const OnboardingStatsScreen: React.FC<OnboardingStatsScreenProps> = ({
               </Text>
             </View>
             <Text style={[styles.statDescription, { color: colors.text }]}>
-              Match rate for the Average man
+              of all matches
             </Text>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <Text style={[styles.statInsight, { color: colors.textSecondary }]}>
