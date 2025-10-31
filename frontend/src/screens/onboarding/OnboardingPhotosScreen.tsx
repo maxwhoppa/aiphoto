@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
-  ScrollView,
+  Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
@@ -21,61 +21,145 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
   onBack,
 }) => {
   const { colors } = useTheme();
+  const fadeAnim1 = useRef(new Animated.Value(0)).current;
+  const fadeAnim2 = useRef(new Animated.Value(0)).current;
+  const fadeAnim3 = useRef(new Animated.Value(0)).current;
+  const slideAnim1 = useRef(new Animated.Value(-200)).current; // From left
+  const slideAnim2 = useRef(new Animated.Value(200)).current;  // From right
+  const slideAnim3 = useRef(new Animated.Value(-200)).current; // From left
+
+  useEffect(() => {
+    // Staggered animations for cards
+    const animateCards = () => {
+      // First card animation
+      Animated.parallel([
+        Animated.timing(fadeAnim1, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim1, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Second card animation (delayed)
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim2, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim2, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 300);
+
+      // Third card animation (delayed)
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim3, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim3, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 600);
+    };
+
+    // Start animations immediately
+    const timer = setTimeout(animateCards, 100);
+
+    return () => clearTimeout(timer);
+  }, [fadeAnim1, fadeAnim2, fadeAnim3, slideAnim1, slideAnim2, slideAnim3]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {onBack && <BackButton onPress={onBack} />}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
             The Photo Problem
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Most men struggle with taking quality photos
+            Most struggle with taking photos
           </Text>
         </View>
 
-        <View style={styles.problemsContainer}>
-          <View style={[styles.problemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name="camera-outline" size={40} color={colors.error} />
-            <Text style={[styles.problemTitle, { color: colors.text }]}>Poor Quality Photos</Text>
-            <Text style={[styles.problemDescription, { color: colors.textSecondary }]}>
-              Bad lighting, poor angles, and outdated selfies
+        <View style={styles.statsContainer}>
+          <Animated.View
+            style={[
+              styles.statisticCard,
+              { backgroundColor: colors.primary, borderColor: colors.primary },
+              {
+                opacity: fadeAnim1,
+                transform: [{ translateX: slideAnim1 }],
+              }
+            ]}
+          >
+            <Ionicons name="eye-outline" size={24} color={colors.background} />
+            <Text style={[styles.statLabel, { color: colors.background }]}>
+              People Are Shallow On Dating Apps
             </Text>
-          </View>
+            <Text style={[styles.statDescription, { color: colors.background }]}>
+              Initial attraction is impulsive
+            </Text>
+          </Animated.View>
 
-          <View style={[styles.problemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name="cash-outline" size={40} color={colors.warning} />
-            <Text style={[styles.problemTitle, { color: colors.text }]}>Expensive Photographers</Text>
-            <Text style={[styles.problemDescription, { color: colors.textSecondary }]}>
-              Professional shoots cost $200-500+ and require scheduling
+          <Animated.View
+            style={[
+              styles.statisticCard,
+              { backgroundColor: colors.background, borderColor: colors.text },
+              {
+                opacity: fadeAnim2,
+                transform: [{ translateX: slideAnim2 }],
+              }
+            ]}
+          >
+            <Ionicons name="camera-outline" size={24} color={colors.text} />
+            <Text style={[styles.statLabel, { color: colors.text }]}>
+              Poor Quality Photos
             </Text>
-          </View>
+            <Text style={[styles.statDescription, { color: colors.text }]}>
+              Bad profiles are immediately dismissed
+            </Text>
+          </Animated.View>
 
-          <View style={[styles.problemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name="time-outline" size={40} color={colors.textSecondary} />
-            <Text style={[styles.problemTitle, { color: colors.text }]}>Time Consuming</Text>
-            <Text style={[styles.problemDescription, { color: colors.textSecondary }]}>
-              Finding locations, coordinating shoots, and editing photos
+          <Animated.View
+            style={[
+              styles.statisticCard,
+              { backgroundColor: colors.error, borderColor: colors.error },
+              {
+                opacity: fadeAnim3,
+                transform: [{ translateX: slideAnim3 }],
+              }
+            ]}
+          >
+            <Ionicons name="image-outline" size={24} color={colors.background} />
+            <Text style={[styles.statLabel, { color: colors.background }]}>
+              Capturing the Moment
             </Text>
-          </View>
+            <Text style={[styles.statDescription, { color: colors.background }]}>
+              Creating good-looking photos is hard
+            </Text>
+          </Animated.View>
+
         </View>
 
-        <View style={styles.solutionContainer}>
-          <Text style={[styles.solutionTitle, { color: colors.primary }]}>
-            There's a Better Way
-          </Text>
-          <Text style={[styles.solutionDescription, { color: colors.text }]}>
-            Good photos are essential to get into the top 10% of men, but you don't need to hire a professional photographer anymore.
-          </Text>
-        </View>
-      </ScrollView>
+      </View>
 
-      <OnboardingButton title="Tell Me More" onPress={onNext} />
+      <OnboardingButton title="What now?" onPress={onNext} />
     </SafeAreaView>
   );
 };
@@ -84,24 +168,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
   content: {
-    flexGrow: 1,
+    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 60,
-    minHeight: 650,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 50,
-    zIndex: 10, // Above particles
+    marginBottom: 30,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 30,
     textAlign: 'center',
   },
   subtitle: {
@@ -110,47 +189,31 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 20,
   },
-  problemsContainer: {
+  statsContainer: {
     flex: 1,
-    justifyContent: 'center',
-    gap: 20,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 5,
   },
-  problemCard: {
+  statisticCard: {
+    width: '95%',
     padding: 20,
-    borderRadius: 15,
-    borderWidth: 1,
+    borderRadius: 10,
+    borderWidth: 2,
     alignItems: 'center',
-    zIndex: 10, // Above particles
+    justifyContent: 'center',
+    marginBottom: 15,
   },
-  problemIcon: {
-    marginBottom: 12,
-  },
-  problemTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  problemDescription: {
+  statLabel: {
     fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  solutionContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-    paddingHorizontal: 10,
-    zIndex: 10, // Above particles
-  },
-  solutionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+    marginTop: 8,
     textAlign: 'center',
   },
-  solutionDescription: {
-    fontSize: 16,
+  statDescription: {
+    fontSize: 12,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 16,
   },
 });

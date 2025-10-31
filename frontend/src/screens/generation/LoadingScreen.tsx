@@ -60,7 +60,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     {
       title: "Almost Ready!",
       subtitle: "Preparing your photo gallery for download",
-      tip: "You're about to join the top 10% of men on dating apps"
+      tip: "You're about to join the top 10% on dating apps"
     }
   ];
 

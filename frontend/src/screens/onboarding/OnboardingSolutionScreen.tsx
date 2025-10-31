@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
-  ScrollView,
+  Image,
+  Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
 
@@ -21,47 +21,154 @@ export const OnboardingSolutionScreen: React.FC<OnboardingSolutionScreenProps> =
   onBack,
 }) => {
   const { colors } = useTheme();
+  const animationValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const photoAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(animationValue, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.delay(1500),
+          Animated.timing(animationValue, {
+            toValue: 0,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.delay(1500),
+        ]),
+        { iterations: -1 }
+      ).start();
+    };
+
+    const timer = setTimeout(photoAnimation, 1000);
+    return () => clearTimeout(timer);
+  }, [animationValue]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {onBack && <BackButton onPress={onBack} />}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
             DreamBoat AI
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            See how it works
+            See the transformation
           </Text>
         </View>
 
-        {/* Video Placeholder */}
-        <View style={styles.videoContainer}>
-          <View style={[styles.videoPlaceholder, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.playButton, { backgroundColor: colors.primary }]}>
-              <Ionicons name="play" size={32} color={colors.background} />
-            </View>
-            <Text style={[styles.videoText, { color: colors.textSecondary }]}>
-              Demo Video Placeholder
-            </Text>
-            <Text style={[styles.videoSubtext, { color: colors.textSecondary }]}>
-              Tap to play introduction video
-            </Text>
+        <View style={styles.imageContainer}>
+          <View style={styles.cardStack}>
+            {/* Left card */}
+            <Animated.View
+              style={[
+                styles.imageWrapper,
+                styles.leftCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                {
+                  transform: [
+                    {
+                      translateX: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -50],
+                      }),
+                    },
+                    {
+                      scale: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.85, 0.9],
+                      }),
+                    },
+                    {
+                      rotateZ: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['-8deg', '-12deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Image
+                source={require('../../../assets/me7.png')}
+                style={styles.profileImage}
+              />
+            </Animated.View>
+
+            {/* Center card */}
+            <Animated.View
+              style={[
+                styles.imageWrapper,
+                styles.centerCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                {
+                  transform: [
+                    {
+                      scale: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.05],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Image
+                source={require('../../../assets/me4.png')}
+                style={styles.profileImage}
+              />
+            </Animated.View>
+
+            {/* Right card */}
+            <Animated.View
+              style={[
+                styles.imageWrapper,
+                styles.rightCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                {
+                  transform: [
+                    {
+                      translateX: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 50],
+                      }),
+                    },
+                    {
+                      scale: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.85, 0.9],
+                      }),
+                    },
+                    {
+                      rotateZ: animationValue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['8deg', '12deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Image
+                source={require('../../../assets/me9.png')}
+                style={styles.profileImage}
+              />
+            </Animated.View>
           </View>
         </View>
 
-        <View style={styles.bottomText}>
-          <Text style={[styles.description, { color: colors.text }]}>
-            Watch how DreamBoat AI transforms your photos into professional dating profile pictures
+        <View style={styles.description}>
+          <Text style={[styles.descriptionText, { color: colors.text }]}>
+            Watch how DreamBoat AI transforms your dating life
           </Text>
         </View>
-      </ScrollView>
+      </View>
 
-      <OnboardingButton title="Get Started" onPress={onNext} />
+      <OnboardingButton title="Sign up" onPress={onNext} />
     </SafeAreaView>
   );
 };
@@ -70,20 +177,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
   content: {
-    flexGrow: 1,
+    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 60,
-    justifyContent: 'center',
-    minHeight: 600, // Ensure minimum height for scrolling
   },
   header: {
     alignItems: 'center',
     marginBottom: 60,
-    zIndex: 10, // Above particles
   },
   title: {
     fontSize: 32,
@@ -92,56 +193,67 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  videoContainer: {
-    alignItems: 'center',
-    marginBottom: 60,
-  },
-  videoPlaceholder: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    zIndex: 10, // Above particles
-  },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  playIcon: {
-    fontSize: 32,
-    marginLeft: 4, // Slight offset to center triangle
-  },
-  videoText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  videoSubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  bottomText: {
-    alignItems: 'center',
-    marginBottom: 40,
-    paddingHorizontal: 20,
-    zIndex: 10, // Above particles
-  },
-  description: {
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
+    paddingHorizontal: 20,
+  },
+  imageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+    position: 'relative',
+  },
+  cardStack: {
+    position: 'relative',
+    width: 320,
+    height: 260,
+  },
+  imageWrapper: {
+    width: 200,
+    height: 260,
+    borderRadius: 20,
+    borderWidth: 3,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    position: 'absolute',
+  },
+  leftCard: {
+    left: -20,
+    top: 0,
+    zIndex: 1,
+  },
+  centerCard: {
+    left: 60,
+    top: 0,
+    zIndex: 3,
+  },
+  rightCard: {
+    left: 140,
+    top: 0,
+    zIndex: 2,
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  description: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  descriptionText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 20,
   },
 });

@@ -13,6 +13,19 @@ export interface ColorScheme {
 }
 
 export const colorSchemes: Record<string, ColorScheme> = {
+  figma: {
+    primary: '#1A1A1A',      // Orange Download button
+    secondary: '#E87BE8',    // Pink/Purple Reselect button  
+    background: '#FFFFFF',   // White background
+    surface: '#F5F5F5',      // Light gray for cards
+    text: '#1A1A1A',         // Dark text
+    textSecondary: '#666666', // Gray secondary text
+    border: '#E0E0E0',       // Light gray borders
+    success: '#4CAF50',      // Green
+    warning: '#FF9456',      // Orange (same as primary)
+    error: '#F44336',        // Red
+    accent: '#FF6B3D',       // Coral "All Photos" button
+  },
   default: {
     primary: '#FF6B6B',
     secondary: '#4ECDC4',
@@ -81,6 +94,5 @@ export const colorSchemes: Record<string, ColorScheme> = {
 };
 
 export const getColorScheme = (schemeName: string): ColorScheme => {
-  // return colorSchemes[schemeName] || colorSchemes.default;
-  return colorSchemes['sunset'];
+  return colorSchemes['figma'] || colorSchemes.default;
 };
