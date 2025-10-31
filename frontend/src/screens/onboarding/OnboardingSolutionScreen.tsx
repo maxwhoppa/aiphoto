@@ -184,12 +184,12 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: 30,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 30,
     textAlign: 'center',
   },
   subtitle: {
