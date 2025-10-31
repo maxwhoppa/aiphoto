@@ -28,7 +28,7 @@ services:
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-aiphoto-images-dev}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL:-}
       # Cognito (use your actual values)
-      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-us-east-1_vT51duDCY}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-us-east-1_1InbbFMy2}
       # Google Gemini API Key (required)
       - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
     depends_on:

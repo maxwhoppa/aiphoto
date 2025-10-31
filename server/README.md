@@ -131,7 +131,7 @@ The repository includes automated deployment using CloudFormation and CodeDeploy
 **Optional Secrets (with defaults):**
 - `DATABASE_URL` - PostgreSQL connection string (defaults to localhost)
 - `REDIS_URL` - Redis connection string (defaults to localhost)
-- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID (defaults to us-east-1_vT51duDCY)
+- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID (defaults to us-east-1_1InbbFMy2)
 - `COGNITO_REGION` - AWS Cognito region (defaults to us-east-1)
 - `S3_BUCKET_NAME` - S3 bucket for image storage (defaults to aiphoto-images-dev)
 - `CORS_ORIGIN` - Allowed CORS origins (defaults to localhost URLs)
