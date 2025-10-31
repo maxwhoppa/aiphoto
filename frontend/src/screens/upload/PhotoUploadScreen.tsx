@@ -424,22 +424,6 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
 
       </ScrollView>
 
-      {/* AI Success Rate Badge */}
-      {selectedPhotos.length === 0 && (
-        <View style={[styles.aiStatContainer, { backgroundColor: colors.surface }]}>
-          <View style={styles.aiStatContent}>
-            <Ionicons name="trending-up" size={24} color={colors.primary} />
-            <View style={styles.aiStatText}>
-              <Text style={[styles.aiStatNumber, { color: colors.primary }]}>
-                10-30%
-              </Text>
-              <Text style={[styles.aiStatLabel, { color: colors.textSecondary }]}>
-                match rate with AI-enhanced photos
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       {/* Next Button - Only show when photos are selected */}
       {selectedPhotos.length > 0 && (
@@ -677,39 +661,5 @@ const styles = StyleSheet.create({
   uploadProgressText: {
     fontSize: 14,
     textAlign: 'center',
-  },
-  aiStatContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-  },
-  aiStatContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  aiStatText: {
-    alignItems: 'center',
-  },
-  aiStatNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  aiStatLabel: {
-    fontSize: 14,
-    fontWeight: '500',
   },
 });

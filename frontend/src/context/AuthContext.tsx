@@ -50,6 +50,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     loadStoredAuth();
     checkAppleSignIn();
+
+    // Set up callback for force logout when user is deleted
+    authHandler.setOnUserDeletedCallback(() => {
+      console.log('Force logout triggered due to deleted user');
+      // Force clear local state
+      setUser(null);
+      setToken(null);
+      // Note: AuthHandler already clears tokens internally
+    });
   }, []);
 
   const checkAppleSignIn = async () => {

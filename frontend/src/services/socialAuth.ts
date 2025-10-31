@@ -152,7 +152,18 @@ export async function signInWithApple(): Promise<{
             console.log('Apple user confirmed via server');
           } catch (confirmError: any) {
             console.error('Failed to confirm Apple user via server:', confirmError);
-            throw new Error('Failed to confirm Apple user account');
+
+            // Check if it's a server permission error
+            if (confirmError.message && confirmError.message.includes('not authorized to perform: cognito-idp:AdminGetUser')) {
+              console.log('Server lacks IAM permissions - proceeding with sign-in attempt anyway');
+              console.log('Note: Server needs cognito-idp:AdminGetUser and cognito-idp:AdminConfirmSignUp permissions');
+              // Don't throw error - continue with sign-in attempt since user was created
+            } else if (confirmError.message && confirmError.message.includes('500')) {
+              console.log('Server error during confirmation - proceeding with sign-in attempt anyway');
+              // Don't throw error - continue with sign-in attempt
+            } else {
+              throw new Error(`Failed to confirm Apple user account: ${confirmError.message}`);
+            }
           }
 
           // Try to sign in after confirmation

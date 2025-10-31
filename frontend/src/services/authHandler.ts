@@ -25,6 +25,7 @@ class AuthHandler {
   private clientId: string;
   private tokens: TokenResponse | null = null;
   private refreshPromise: Promise<TokenResponse> | null = null;
+  private onUserDeleted: (() => void) | null = null;
 
   constructor() {
     this.client = new CognitoIdentityProviderClient({
@@ -58,13 +59,17 @@ class AuthHandler {
   public async clearTokens(): Promise<void> {
     this.tokens = null;
     this.refreshPromise = null;
-    
+
     // Clear all stored tokens
     await SecureStore.deleteItemAsync('auth_tokens');
     await SecureStore.deleteItemAsync('auth_token');
     await SecureStore.deleteItemAsync('access_token');
     await SecureStore.deleteItemAsync('refresh_token');
     await SecureStore.deleteItemAsync('user_data');
+  }
+
+  public setOnUserDeletedCallback(callback: () => void): void {
+    this.onUserDeleted = callback;
   }
 
   private isTokenExpired(token: string): boolean {
@@ -118,8 +123,26 @@ class AuthHandler {
         console.log('Tokens refreshed successfully');
         
         return newTokens;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Token refresh failed:', error);
+
+        // Check if user has been deleted
+        if (error.name === 'NotAuthorizedException' &&
+            error.message &&
+            error.message.includes('user has been deleted')) {
+          console.log('User has been deleted, triggering force logout...');
+
+          // Clear tokens
+          await this.clearTokens();
+
+          // Trigger force logout callback if set
+          if (this.onUserDeleted) {
+            this.onUserDeleted();
+          }
+
+          throw new Error('User account has been deleted. Please sign in again.');
+        }
+
         // Clear tokens if refresh fails
         await this.clearTokens();
         throw error;
