@@ -290,12 +290,17 @@ export async function apiRequestJson<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   const response = await apiRequest(endpoint, options);
-  
+
   if (!response.ok) {
+    // Handle 503 Service Unavailable with a user-friendly message
+    if (response.status === 503) {
+      throw new Error('Our devs are deploying! Please wait ~30 seconds!');
+    }
+
     const errorText = await response.text();
     throw new Error(`API request failed: ${response.status} ${errorText}`);
   }
-  
+
   return response.json();
 }
 

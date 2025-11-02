@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
+import { ScenarioCard } from '../../components/ScenarioCard';
 
 interface Scenario {
   id: string;
@@ -19,6 +20,7 @@ interface Scenario {
   icon: string;
   isPopular?: boolean;
   isForceSelected?: boolean;
+  images: string[];
 }
 
 interface ScenarioSelectionScreenProps {
@@ -35,6 +37,11 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
   
+  const getScenarioImages = (scenarioId: string) => {
+    const baseUrl = 'https://picsum.photos/400/400?random='; // Square images
+    return Array.from({ length: 5 }, (_, i) => `${baseUrl}${scenarioId}_${i}`);
+  };
+
   const scenarios: Scenario[] = [
     {
       id: 'photoshoot',
@@ -42,6 +49,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       description: 'Professional studio photos',
       icon: 'camera-outline',
       isPopular: true,
+      images: getScenarioImages('photoshoot'),
     },
     {
       id: 'gym',
@@ -49,6 +57,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       description: 'Athletic and fit lifestyle',
       icon: 'barbell-outline',
       isPopular: true,
+      images: getScenarioImages('gym'),
     },
     {
       id: 'beach',
@@ -56,6 +65,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       description: 'Relaxed beach vibes',
       icon: 'sunny-outline',
       isPopular: true,
+      images: getScenarioImages('beach'),
     },
     {
       id: 'rooftop',
@@ -63,72 +73,84 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       description: 'Urban city views',
       icon: 'business-outline',
       isPopular: true,
+      images: getScenarioImages('rooftop'),
     },
     {
       id: 'nature',
       name: 'Nature',
       description: 'Outdoor adventure',
       icon: 'leaf-outline',
+      images: getScenarioImages('nature'),
     },
     {
       id: 'coffee',
       name: 'Coffee Shop',
       description: 'Casual coffee date',
       icon: 'cafe-outline',
+      images: getScenarioImages('coffee'),
     },
     {
       id: 'formal',
       name: 'Formal',
       description: 'Business professional',
       icon: 'shirt-outline',
+      images: getScenarioImages('formal'),
     },
     {
       id: 'casual',
       name: 'Casual',
       description: 'Everyday comfortable',
       icon: 'shirt-outline',
+      images: getScenarioImages('casual'),
     },
     {
       id: 'travel',
       name: 'Travel',
       description: 'Adventure explorer',
       icon: 'airplane-outline',
+      images: getScenarioImages('travel'),
     },
     {
       id: 'restaurant',
       name: 'Restaurant',
       description: 'Fine dining experience',
       icon: 'restaurant-outline',
+      images: getScenarioImages('restaurant'),
     },
     {
       id: 'art',
       name: 'Art Gallery',
       description: 'Cultural and sophisticated',
       icon: 'color-palette-outline',
+      images: getScenarioImages('art'),
     },
     {
       id: 'music',
       name: 'Music Event',
       description: 'Concert or festival vibes',
       icon: 'musical-notes-outline',
+      images: getScenarioImages('music'),
     },
     {
       id: 'sports',
       name: 'Sports',
       description: 'Athletic activities',
       icon: 'football-outline',
+      images: getScenarioImages('sports'),
     },
     {
       id: 'home',
       name: 'At Home',
       description: 'Comfortable home setting',
       icon: 'home-outline',
+      images: getScenarioImages('home'),
     },
     {
       id: 'winter',
       name: 'Winter',
       description: 'Cozy winter activities',
       icon: 'snow-outline',
+      images: getScenarioImages('winter'),
     },
   ];
 
@@ -152,114 +174,73 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
     onNext(selectedScenarios);
   };
 
-  const renderScenario = (scenario: Scenario) => {
-    const isSelected = selectedScenarios.includes(scenario.id);
-    const isDisabled = !isSelected && selectedScenarios.length >= 6;
-
-    return (
-      <TouchableOpacity
-        key={scenario.id}
-        style={[
-          styles.scenarioCard,
-          {
-            backgroundColor: isSelected ? colors.primary : colors.surface,
-            borderColor: isSelected ? colors.primary : colors.border,
-            opacity: isDisabled ? 0.5 : 1,
-          }
-        ]}
-        onPress={() => toggleScenario(scenario.id)}
-        disabled={isDisabled}
-      >
-        {scenario.isPopular && (
-          <View style={[styles.popularBadge, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.popularText, { color: colors.background }]}>
-              POPULAR
-            </Text>
-          </View>
-        )}
-        
-
-        <View style={styles.scenarioContent}>
-          <View style={styles.scenarioIconContainer}>
-            <Ionicons
-              name={scenario.icon as any}
-              size={32}
-              color={isSelected ? colors.background : colors.primary}
-            />
-          </View>
-          <Text
-            style={[
-              styles.scenarioName,
-              { color: isSelected ? colors.background : colors.text }
-            ]}
-          >
-            {scenario.name}
-          </Text>
-          <Text
-            style={[
-              styles.scenarioDescription,
-              { color: isSelected ? colors.background : colors.textSecondary }
-            ]}
-          >
-            {scenario.description}
-          </Text>
-        </View>
-
-        {isSelected && (
-          <View style={[styles.selectedIndicator, { backgroundColor: colors.background }]}>
-            <Ionicons name="checkmark" size={16} color={colors.primary} />
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {navigation && (
-        <BackButton onPress={() => navigation.goBack()} />
-      )}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          Choose Your Scenarios
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Select 6 scenarios for your AI photo generation
-        </Text>
-        <Text style={[styles.counter, { color: colors.primary }]}>
-          {selectedScenarios.length}/6 selected
-        </Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        {navigation && (
+          <BackButton onPress={() => navigation.goBack()} />
+        )}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Choose Your Scenarios
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Select 6 scenarios for your AI photo generation
+          </Text>
+          <Text style={[styles.counter, { color: colors.primary }]}>
+            {selectedScenarios.length}/6 selected
+          </Text>
+        </View>
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.info}>
-          <View style={styles.infoContent}>
-            <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
-            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Professional photoshoot is recommended for the best results
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.info}>
+            <View style={styles.infoContent}>
+              <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
+              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+                Professional photoshoot is recommended for the best results
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.scenariosList}>
+            {scenarios.map((scenario) => {
+              const isSelected = selectedScenarios.includes(scenario.id);
+              const isDisabled = !isSelected && selectedScenarios.length >= 6;
+
+              return (
+                <ScenarioCard
+                  key={scenario.id}
+                  id={scenario.id}
+                  name={scenario.name}
+                  description={scenario.description}
+                  icon={scenario.icon}
+                  images={scenario.images}
+                  isPopular={scenario.isPopular}
+                  isSelected={isSelected}
+                  isDisabled={isDisabled}
+                  onToggle={() => toggleScenario(scenario.id)}
+                />
+              );
+            })}
+          </View>
+
+          <View style={styles.fatigueTip}>
+            <Text style={[styles.fatigueTitle, { color: colors.text }]}>
+              Reduce Decision Fatigue
+            </Text>
+            <Text style={[styles.fatigueText, { color: colors.textSecondary }]}>
+              We've pre-selected popular scenarios and marked others to help you decide quickly.
             </Text>
           </View>
-        </View>
+        </ScrollView>
+      </SafeAreaView>
 
-        <View style={styles.scenariosGrid}>
-          {scenarios.map(renderScenario)}
-        </View>
-
-        <View style={styles.fatigueTip}>
-          <Text style={[styles.fatigueTitle, { color: colors.text }]}>
-            Reduce Decision Fatigue
-          </Text>
-          <Text style={[styles.fatigueText, { color: colors.textSecondary }]}>
-            We've pre-selected popular scenarios and marked others to help you decide quickly.
-          </Text>
-        </View>
-      </ScrollView>
-
-      <View style={styles.buttonContainer}>
+      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <TouchableOpacity
           style={[
             styles.generateButton,
@@ -282,7 +263,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -290,10 +271,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   header: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 20,
   },
   title: {
@@ -314,13 +298,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   info: {
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
     padding: 15,
     borderRadius: 12,
-    marginBottom: 25,
+    marginBottom: 20,
   },
   infoContent: {
     flexDirection: 'row',
@@ -333,76 +320,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  scenariosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  scenarioCard: {
-    width: '48%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    borderWidth: 2,
-    padding: 15,
-    position: 'relative',
-    marginBottom: 12,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  popularText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  forceBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  forceText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  scenarioContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scenarioIconContainer: {
-    marginBottom: 8,
-  },
-  scenarioName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  scenarioDescription: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  selectedIndicator: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  scenariosList: {
+    marginBottom: 20,
   },
   fatigueTip: {
-    marginTop: 30,
+    marginTop: 10,
     marginBottom: 20,
     padding: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.03)',
@@ -419,15 +341,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  buttonContainer: {
+  bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 10,
-    backgroundColor: 'transparent',
+    paddingBottom: 34,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   generateButton: {
     height: 56,
