@@ -25,23 +25,11 @@ export const OnboardingSolutionScreen: React.FC<OnboardingSolutionScreenProps> =
 
   useEffect(() => {
     const photoAnimation = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-          Animated.delay(1500),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-          Animated.delay(1500),
-        ]),
-        { iterations: -1 }
-      ).start();
+      Animated.timing(animationValue, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+      }).start();
     };
 
     const timer = setTimeout(photoAnimation, 1000);
@@ -53,11 +41,14 @@ export const OnboardingSolutionScreen: React.FC<OnboardingSolutionScreenProps> =
       {onBack && <BackButton onPress={onBack} />}
       <View style={styles.content}>
         <View style={styles.header}>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Introducing 
+          </Text>
           <Text style={[styles.title, { color: colors.text }]}>
             DreamBoat AI
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            See the transformation
+            Your one-stop solution for the most realistic & stunning profile photos
           </Text>
         </View>
 

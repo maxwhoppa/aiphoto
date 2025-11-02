@@ -93,7 +93,7 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
             The Photo Problem
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Most struggle with taking photos
+            Photos matter more than any other factor
           </Text>
         </View>
 
@@ -110,7 +110,7 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
           >
             <Ionicons name="eye-outline" size={24} color={colors.background} />
             <Text style={[styles.statLabel, { color: colors.background }]}>
-              People Are Shallow On Dating Apps
+              People Are Quick To Judge On Dating Apps
             </Text>
             <Text style={[styles.statDescription, { color: colors.background }]}>
               Initial attraction is impulsive
@@ -129,10 +129,10 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
           >
             <Ionicons name="camera-outline" size={24} color={colors.text} />
             <Text style={[styles.statLabel, { color: colors.text }]}>
-              Poor Quality Photos
+              Poor Profiles Are Never Given A Chance
             </Text>
             <Text style={[styles.statDescription, { color: colors.text }]}>
-              Bad profiles are immediately dismissed
+              Bad photos lead to being immediately dismissed
             </Text>
           </Animated.View>
 
@@ -148,10 +148,10 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
           >
             <Ionicons name="image-outline" size={24} color={colors.background} />
             <Text style={[styles.statLabel, { color: colors.background }]}>
-              Capturing the Moment
+               Taking good-looking photos is hard
             </Text>
             <Text style={[styles.statDescription, { color: colors.background }]}>
-              Creating good-looking photos is hard
+              You can’t just snap a pic and expect it to work
             </Text>
           </Animated.View>
 
@@ -159,7 +159,7 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
 
       </View>
 
-      <OnboardingButton title="What now?" onPress={onNext} />
+      <OnboardingButton title="Lets fix this" onPress={onNext} />
     </SafeAreaView>
   );
 };

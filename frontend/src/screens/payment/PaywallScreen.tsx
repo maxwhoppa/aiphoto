@@ -34,102 +34,76 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
   const { colors } = useTheme();
   const { isAuthenticated } = useAuth();
   const [showWebView, setShowWebView] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [currentPaymentId, setCurrentPaymentId] = useState<string | null>(null);
 
   const totalPhotos = photoCount * selectedScenarios.length;
 
-  const features = [
-    {
-      icon: 'camera-outline',
-      title: 'High-Resolution Photos',
-      description: `Get ${totalPhotos} professional-quality photos in full resolution`,
-    },
-    {
-      icon: 'color-palette-outline',
-      title: 'Multiple Scenarios',
-      description: `${selectedScenarios.length} different scenarios to showcase your personality`,
-    },
-    {
-      icon: 'flash-outline',
-      title: 'Instant Download',
-      description: 'Download all photos immediately after generation',
-    },
-    {
-      icon: 'diamond-outline',
-      title: 'Premium Quality',
-      description: 'AI-enhanced photos that get you more matches',
-    },
-    {
-      icon: 'refresh-outline',
-      title: 'Generate Again Option',
-      description: 'Option to generate new photos with different scenarios',
-    },
-    {
-      icon: 'phone-portrait-outline',
-      title: 'Mobile Optimized',
-      description: 'Photos optimized for dating apps and social media',
-    },
-  ];
-
-  const handlePayment = async () => {
-    if (!isAuthenticated) {
-      Alert.alert('Authentication Required', 'Please sign in to continue with payment.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      console.log('Creating Stripe checkout session...');
-      
-      // Call the server's TRPC endpoint to create or get checkout session
-      const response = await apiRequestJson('/trpc/payments.getOrCreateCheckout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          json: {}, // TRPC expects a json wrapper for mutations
-        }),
-      });
-      
-      console.log('Checkout response:', response);
-      
-      if (response.result?.data?.hasUnredeemedPayment) {
-        // User already has an unredeemed payment, get the payment ID
-        const existingPaymentId = response.result?.data?.paymentId;
-        Alert.alert(
-          'Payment Already Exists',
-          'You already have an unredeemed payment. You can proceed to generate your photos without paying again.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Proceed', onPress: () => onPaymentSuccess(existingPaymentId) }
-          ]
-        );
+  // Auto-initiate payment on mount
+  React.useEffect(() => {
+    const initiatePayment = async () => {
+      if (!isAuthenticated) {
+        Alert.alert('Authentication Required', 'Please sign in to continue with payment.');
+        setIsLoading(false);
         return;
       }
-      
-      if (response.result?.data?.checkoutUrl) {
-        // Store payment ID for later redemption
-        setCurrentPaymentId(response.result?.data?.paymentId);
-        setCheckoutUrl(response.result.data.checkoutUrl);
-        setShowWebView(true);
-      } else {
-        throw new Error('No checkout URL received from server');
+
+      setIsLoading(true);
+      try {
+        console.log('Creating Stripe checkout session...');
+
+        // Call the server's TRPC endpoint to create or get checkout session
+        const response = await apiRequestJson('/trpc/payments.getOrCreateCheckout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            json: {}, // TRPC expects a json wrapper for mutations
+          }),
+        });
+
+        console.log('Checkout response:', response);
+
+        if (response.result?.data?.hasUnredeemedPayment) {
+          // User already has an unredeemed payment, get the payment ID
+          const existingPaymentId = response.result?.data?.paymentId;
+          Alert.alert(
+            'Payment Already Exists',
+            'You already have an unredeemed payment. You can proceed to generate your photos without paying again.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => onPaymentCancel() },
+              { text: 'Proceed', onPress: () => onPaymentSuccess(existingPaymentId) }
+            ]
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        if (response.result?.data?.checkoutUrl) {
+          // Store payment ID for later redemption
+          setCurrentPaymentId(response.result?.data?.paymentId);
+          setCheckoutUrl(response.result.data.checkoutUrl);
+          setShowWebView(true);
+        } else {
+          throw new Error('No checkout URL received from server');
+        }
+
+      } catch (error: any) {
+        console.error('Failed to create checkout session:', error);
+        Alert.alert(
+          'Payment Error',
+          error.message || 'Failed to create payment session. Please try again.',
+          [{ text: 'OK', onPress: () => onPaymentCancel() }]
+        );
+      } finally {
+        setIsLoading(false);
       }
-      
-    } catch (error: any) {
-      console.error('Failed to create checkout session:', error);
-      Alert.alert(
-        'Payment Error',
-        error.message || 'Failed to create payment session. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    initiatePayment();
+  }, [isAuthenticated]);
 
   const handleWebViewMessage = (event: any) => {
     const data = JSON.parse(event.nativeEvent.data);
@@ -143,7 +117,25 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
     }
   };
 
-  if (showWebView) {
+  // Show loading state while initializing payment
+  if (isLoading && !showWebView) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingTitle, { color: colors.text }]}>
+            Setting up payment...
+          </Text>
+          <Text style={[styles.loadingSubtitle, { color: colors.textSecondary }]}>
+            You'll be redirected to secure checkout
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show Stripe WebView
+  if (showWebView && checkoutUrl) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
         <View style={styles.webViewHeader}>
@@ -151,10 +143,10 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
             Secure Payment
           </Text>
         </View>
-        
+
         <WebView
           source={{
-            uri: checkoutUrl || 'about:blank',
+            uri: checkoutUrl,
           }}
           style={styles.webView}
           onMessage={handleWebViewMessage}
@@ -163,7 +155,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
           startInLoadingState={true}
           onNavigationStateChange={(navState) => {
             console.log('WebView navigation:', navState.url);
-            
+
             // Check if we've returned from successful payment
             if (navState.url.includes('/payment-success')) {
               setShowWebView(false);
@@ -186,117 +178,13 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
     );
   }
 
+  // Fallback - should not normally reach here
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {navigation && (
-        <BackButton onPress={() => navigation.goBack()} />
-      )}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            Unlock Your Photos
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Get access to all your AI-generated photos in high resolution
-          </Text>
-        </View>
-
-        <View style={styles.pricingCard}>
-          <View style={[styles.pricingHeader, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.pricingTitle, { color: colors.background }]}>
-              Premium Access
-            </Text>
-            <Text style={[styles.pricingSubtitle, { color: colors.background }]}>
-              One-time payment
-            </Text>
-          </View>
-          
-          <View style={[styles.pricingBody, { backgroundColor: colors.surface }]}>
-            <View style={styles.priceContainer}>
-              <Text style={[styles.price, { color: colors.text }]}>$99.99</Text>
-              <Text style={[styles.priceNote, { color: colors.textSecondary }]}>
-                {(99.99 / totalPhotos).toFixed(2)} per photo
-              </Text>
-            </View>
-            
-            <View style={styles.photosInfo}>
-              <Text style={[styles.photosCount, { color: colors.primary }]}>
-                {totalPhotos} High-Resolution Photos
-              </Text>
-              <Text style={[styles.photosBreakdown, { color: colors.textSecondary }]}>
-                {photoCount} photos × {selectedScenarios.length} scenarios
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.featuresContainer}>
-          <Text style={[styles.featuresTitle, { color: colors.text }]}>
-            What You Get
-          </Text>
-          
-          {features.map((feature, index) => (
-            <View key={index} style={[styles.featureCard, { backgroundColor: colors.surface }]}>
-              <View style={styles.featureIconContainer}>
-                <Ionicons name={feature.icon as any} size={24} color={colors.primary} />
-              </View>
-              <View style={styles.featureContent}>
-                <Text style={[styles.featureTitle, { color: colors.text }]}>
-                  {feature.title}
-                </Text>
-                <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>
-                  {feature.description}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.guarantee}>
-          <View style={styles.guaranteeHeader}>
-            <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
-            <Text style={[styles.guaranteeTitle, { color: colors.success }]}>
-              Satisfaction Guaranteed
-            </Text>
-          </View>
-          <Text style={[styles.guaranteeText, { color: colors.textSecondary }]}>
-            Not happy with your photos? Get a full refund within 30 days.
-          </Text>
-        </View>
-
-        <View style={styles.security}>
-          <View style={styles.securityContainer}>
-            <Ionicons name="lock-closed-outline" size={16} color={colors.textSecondary} />
-            <Text style={[styles.securityText, { color: colors.textSecondary }]}>
-              Secure payment powered by Stripe
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.payButton, { backgroundColor: colors.primary }]}
-          onPress={handlePayment}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <>
-              <Text style={[styles.payButtonText, { color: colors.background }]}>
-                Get My Photos - $99.99
-              </Text>
-              <Text style={[styles.payButtonSubtext, { color: colors.background }]}>
-                Safe & Secure Payment
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+      <View style={styles.loadingContainer}>
+        <Text style={[styles.errorText, { color: colors.text }]}>
+          Something went wrong
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -488,6 +376,23 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
+    fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+  },
+  errorText: {
     fontSize: 16,
   },
 });

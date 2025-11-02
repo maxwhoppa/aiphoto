@@ -265,33 +265,12 @@ function AppNavigator() {
                 <ScenarioSelectionScreen
                   photos={route.params.imageIds || []} // Pass the actual image IDs for count
                   navigation={navigation}
-                  onNext={async (selectedScenarios) => {
-                    // Double-check payment status before proceeding
-                    try {
-                      const paymentResponse = await checkPaymentAccess();
-
-                      if (paymentResponse?.result?.data?.hasUnredeemedPayment) {
-                        // User has valid payment, proceed to generation
-                        navigation.navigate('Loading', {
-                          selectedScenarios,
-                          imageIds: route.params.imageIds,
-                          paymentId: paymentResponse.result.data.paymentId,
-                        });
-                      } else {
-                        // User needs to pay
-                        navigation.navigate('Paywall', {
-                          selectedScenarios,
-                          imageIds: route.params.imageIds,
-                        });
-                      }
-                    } catch (error) {
-                      console.error('Error checking payment in scenario selection:', error);
-                      // Default to paywall if we can't verify payment
-                      navigation.navigate('Paywall', {
-                        selectedScenarios,
-                        imageIds: route.params.imageIds,
-                      });
-                    }
+                  onNext={(selectedScenarios) => {
+                    // Navigate directly to Paywall when Generate Photos is clicked
+                    navigation.navigate('Paywall', {
+                      selectedScenarios,
+                      imageIds: route.params.imageIds,
+                    });
                   }}
                 />
               )}

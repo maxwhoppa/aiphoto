@@ -278,7 +278,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
               },
             ]}
           >
-            Generate Photos ({photos.length} photos × {selectedScenarios.length} scenarios)
+            Continue to Payment
           </Text>
         </TouchableOpacity>
       </View>
