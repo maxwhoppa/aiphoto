@@ -214,6 +214,7 @@ export function TabNavigator({ existingImages, onRegenerateFlow, onRefreshImages
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
+          display: 'none', // Temporarily hide the bottom tab bar
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,

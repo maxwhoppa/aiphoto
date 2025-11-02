@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { BottomTab } from '../../components/BottomTab';
+import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
 
 interface GeneratedPhoto {
@@ -42,6 +44,8 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   const screenWidth = Dimensions.get('window').width;
   const cardWidth = screenWidth - 40;
   const imageHeight = cardWidth * 1.2; // Aspect ratio similar to dating apps
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
 
   // Sort photos by selectedProfileOrder
   const sortedPhotos = [...selectedPhotos].sort((a, b) => {
@@ -50,45 +54,24 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
     return orderA - orderB;
   });
 
+  const handleScrollIndicatorPress = () => {
+    scrollViewRef.current?.scrollTo({
+      y: 300, // Scroll down 300 pixels
+      animated: true,
+    });
+  };
+
+  const handleScroll = (event: any) => {
+    const { contentOffset } = event.nativeEvent;
+    // Hide scroll indicator when user has scrolled down
+    setShowScrollIndicator(contentOffset.y < 50);
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header with Action Buttons */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={[styles.headerButton, { backgroundColor: colors.secondary }]}
-          onPress={onDownloadAll}
-          disabled={downloadingPhotos.size > 0}
-        >
-          <Ionicons name="download-outline" size={18} color={colors.background} />
-          <Text variant="button" style={[styles.headerButtonText, { color: colors.background }]}>
-            {downloadingPhotos.size > 0 ? 'Downloading...' : 'Download'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.headerButton, { backgroundColor: colors.accent }]}
-          onPress={onReselect}
-        >
-          <Ionicons name="refresh-outline" size={18} color={colors.background} />
-          <Text variant="button" style={[styles.headerButtonText, { color: colors.background }]}>
-            Reselect
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.headerButton, { backgroundColor: colors.primary }]}
-          onPress={onViewAllPhotos}
-        >
-          <Ionicons name="grid-outline" size={18} color={colors.background} />
-          <Text variant="button" style={[styles.headerButtonText, { color: colors.background }]}>
-            All Photos
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
       {/* Profile Preview Title */}
       <View style={styles.titleSection}>
-        <Text variant="title" style={[styles.title, { color: colors.text }]}>Your Profile Preview</Text>
+        <Text variant="title" style={[styles.title, { color: colors.text }]}>Your profile preview</Text>
         <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
           Swipe to see how your profile looks
         </Text>
@@ -96,9 +79,12 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
 
       {/* Profile Cards */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         {sortedPhotos.map((photo, index) => (
           <View key={photo.id} style={styles.profileCard}>
@@ -210,6 +196,46 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
         )}
 
       </ScrollView>
+
+      {/* Bottom Tab with Buttons */}
+      <BottomTab
+        showScrollIndicator={showScrollIndicator}
+        onScrollIndicatorPress={handleScrollIndicatorPress}
+        scrollIndicatorOffset={180} // Higher offset for multi-button layout
+      >
+        {/* Main Download Button */}
+        <Button
+          title={downloadingPhotos.size > 0 ? 'Downloading...' : 'Download All'}
+          onPress={onDownloadAll}
+          disabled={downloadingPhotos.size > 0}
+          variant={downloadingPhotos.size > 0 ? 'disabled' : 'primary'}
+          icon="download-outline"
+          loading={downloadingPhotos.size > 0}
+        />
+
+        {/* Side by side buttons */}
+        <View style={styles.sideBySideButtons}>
+          <TouchableOpacity
+            style={styles.sideButton}
+            onPress={onReselect}
+          >
+            <Ionicons name="refresh-outline" size={24} color="#000000" />
+            <Text style={styles.sideButtonText}>
+              Reselect
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.sideButton}
+            onPress={onViewAllPhotos}
+          >
+            <Ionicons name="grid-outline" size={24} color="#000000" />
+            <Text style={styles.sideButtonText}>
+              All Photos
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </BottomTab>
     </SafeAreaView>
   );
 };
@@ -218,29 +244,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    gap: 10,
-  },
-  headerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 6,
-  },
-  headerButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   titleSection: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 15,
+  },
+  sideBySideButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  sideButton: {
+    flex: 1,
+    height: 40, // Reduced from 56 to 40
+    borderRadius: 20, // Reduced from 28 to 20
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12, // Added padding
+    gap: 8, // Added gap between icon and text
+    backgroundColor: '#EAEAEA', // Fixed background color
+  },
+  sideButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
+    color: '#1E1E1E', // Fixed text color
   },
   title: {
   },
@@ -253,7 +282,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 150,
   },
   profileCard: {
     marginBottom: 20,

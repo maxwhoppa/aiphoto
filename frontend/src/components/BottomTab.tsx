@@ -35,14 +35,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ progress, title }) => {
 interface ScrollIndicatorProps {
   onPress: () => void;
   visible: boolean;
+  offset: number;
 }
 
-const ScrollIndicator: React.FC<ScrollIndicatorProps> = ({ onPress, visible }) => {
+const ScrollIndicator: React.FC<ScrollIndicatorProps> = ({ onPress, visible, offset }) => {
   if (!visible) return null;
 
   return (
     <TouchableOpacity
-      style={styles.scrollIndicator}
+      style={[styles.scrollIndicator, { bottom: offset }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -58,6 +59,7 @@ interface BottomTabProps {
   progressTitle?: string;
   showScrollIndicator?: boolean;
   onScrollIndicatorPress?: () => void;
+  scrollIndicatorOffset?: number; // Custom offset for scroll indicator position
 }
 
 export const BottomTab: React.FC<BottomTabProps> = ({
@@ -67,6 +69,7 @@ export const BottomTab: React.FC<BottomTabProps> = ({
   progressTitle = "Processing...",
   showScrollIndicator = false,
   onScrollIndicatorPress,
+  scrollIndicatorOffset = 120, // Default offset
 }) => {
   const { colors } = useTheme();
 
@@ -75,6 +78,7 @@ export const BottomTab: React.FC<BottomTabProps> = ({
       <ScrollIndicator
         visible={showScrollIndicator}
         onPress={onScrollIndicatorPress || (() => {})}
+        offset={scrollIndicatorOffset}
       />
       <View style={[styles.bottomTab, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         {showProgress && (
@@ -89,7 +93,6 @@ export const BottomTab: React.FC<BottomTabProps> = ({
 const styles = StyleSheet.create({
   scrollIndicator: {
     position: 'absolute',
-    bottom: 120, // Position above the bottom tab
     left: '50%',
     marginLeft: -20, // Half of width to center
     width: 40,

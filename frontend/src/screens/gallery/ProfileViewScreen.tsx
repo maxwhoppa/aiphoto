@@ -14,7 +14,7 @@ import {
   TouchableWithoutFeedback,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -111,6 +111,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   hasSelectedPhotos = false,
 }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState<string>('all');
   const [downloadingPhotos, setDownloadingPhotos] = useState<Set<string>>(new Set());
   const [savedPhotos, setSavedPhotos] = useState<Set<string>>(new Set());
@@ -490,7 +491,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
       {/* Action Buttons - Moved to top */}
       <View style={styles.topActionsContainer}>
         {(onSelectProfilePhotos || onViewProfile) && (
@@ -565,6 +566,8 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
             maxToRenderPerBatch={10}
             windowSize={5}
             initialNumToRender={10}
+            contentInsetAdjustmentBehavior="automatic"
+            automaticallyAdjustContentInsets={true}
             refreshControl={
               onRefresh ? (
                 <RefreshControl
@@ -576,11 +579,6 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
                 />
               ) : undefined
             }
-            getItemLayout={(data, index) => ({
-              length: photoSize + 15, // photo height + margin
-              offset: (photoSize + 15) * Math.floor(index / 2),
-              index,
-            })}
           />
         ) : (
           <View style={styles.emptyState}>
@@ -879,6 +877,7 @@ const styles = StyleSheet.create({
   },
   photosContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 100,
   },
   photosRow: {
     justifyContent: 'space-between',

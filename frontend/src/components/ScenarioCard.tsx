@@ -84,11 +84,11 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
       <View style={styles.header}>
         <View style={styles.textContainer}>
           {isPopular && (
-            <Text variant="caption" style={[styles.popularLabel, { color: colors.accent }]}>
-              Most Popular
+            <Text variant="caption" weight="bold" style={[styles.popularLabel, { color: colors.accent, fontSize: 14, lineHeight: 17, marginBottom: 6 }]}>
+              MOST POPULAR
             </Text>
           )}
-          <Text variant="subtitle" style={{ color: colors.text }}>
+          <Text variant="subtitle" weight="bold" style={{ color: colors.text, fontSize: 20, lineHeight: 24 }}>
             {name}
           </Text>
         </View>
@@ -105,21 +105,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   textContainer: {
     alignItems: 'flex-start',
   },
   popularLabel: {
     fontSize: 12,
-    marginBottom: 4,
+    marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   imageScrollContainer: {
     paddingLeft: 0,
     paddingRight: 0, // Remove padding so images can be partially off-screen
-    paddingBottom: 12,
+    paddingBottom: 8,
     paddingTop: 16,
   },
   imageContainer: {
