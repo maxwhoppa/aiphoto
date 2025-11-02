@@ -254,7 +254,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
           onPress: pickImage,
         },
         {
-          text: 'Take photo now',
+          text: 'Take photo',
           onPress: takePhoto,
         },
         {
@@ -419,9 +419,9 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
               icon="images-outline"
             />
             <Button
-              title="Take photo now"
+              title="Take photo"
               onPress={takePhoto}
-              variant="secondary"
+              variant="outline"
               icon="camera-outline"
             />
           </View>
