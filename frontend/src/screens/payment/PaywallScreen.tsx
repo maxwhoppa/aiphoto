@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -15,6 +14,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequestJson } from '../../services/authHandler';
 import { BackButton } from '../../components/BackButton';
+import { Text } from '../../components/Text';
 
 interface PaywallScreenProps {
   onPaymentSuccess: (paymentId?: string) => void;
@@ -123,10 +123,10 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingTitle, { color: colors.text }]}>
+          <Text variant="subtitle" style={[styles.loadingTitle, { color: colors.text }]}>
             Setting up payment...
           </Text>
-          <Text style={[styles.loadingSubtitle, { color: colors.textSecondary }]}>
+          <Text variant="body" style={[styles.loadingSubtitle, { color: colors.textSecondary }]}>
             You'll be redirected to secure checkout
           </Text>
         </View>
@@ -139,7 +139,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
         <View style={styles.webViewHeader}>
-          <Text style={[styles.webViewTitle, { color: colors.text }]}>
+          <Text variant="subtitle" style={[styles.webViewTitle, { color: colors.text }]}>
             Secure Payment
           </Text>
         </View>
@@ -168,7 +168,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
           renderLoading={() => (
             <View style={styles.webViewLoading}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: colors.text }]}>
+              <Text variant="body" style={[styles.loadingText, { color: colors.text }]}>
                 Loading secure payment...
               </Text>
             </View>
@@ -182,7 +182,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.loadingContainer}>
-        <Text style={[styles.errorText, { color: colors.text }]}>
+        <Text variant="body" style={[styles.errorText, { color: colors.text }]}>
           Something went wrong
         </Text>
       </View>
@@ -203,19 +203,14 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     marginBottom: 30,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
   subtitle: {
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
     textAlign: 'center',
     lineHeight: 22,
   },
   pricingCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 30,
     elevation: 3,
@@ -231,10 +226,12 @@ const styles = StyleSheet.create({
   pricingTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
     marginBottom: 4,
   },
   pricingSubtitle: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     opacity: 0.9,
   },
   pricingBody: {
@@ -248,10 +245,12 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 36,
     fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
     marginBottom: 4,
   },
   priceNote: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
   },
   photosInfo: {
     alignItems: 'center',
@@ -259,10 +258,12 @@ const styles = StyleSheet.create({
   photosCount: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
   photosBreakdown: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
   },
   featuresContainer: {
     marginBottom: 30,
@@ -270,13 +271,14 @@ const styles = StyleSheet.create({
   featuresTitle: {
     fontSize: 20,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 20,
     textAlign: 'center',
   },
   featureCard: {
     flexDirection: 'row',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     marginBottom: 12,
   },
   featureIconContainer: {
@@ -290,10 +292,12 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
   featureDescription: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     lineHeight: 20,
   },
   guarantee: {
@@ -310,9 +314,11 @@ const styles = StyleSheet.create({
   guaranteeTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
   guaranteeText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -327,6 +333,7 @@ const styles = StyleSheet.create({
   },
   securityText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
   },
   buttonContainer: {
     position: 'absolute',
@@ -340,7 +347,7 @@ const styles = StyleSheet.create({
   },
   payButton: {
     height: 64,
-    borderRadius: 16,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -348,10 +355,12 @@ const styles = StyleSheet.create({
   payButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
     marginBottom: 2,
   },
   payButtonSubtext: {
     fontSize: 12,
+    fontFamily: 'Poppins-Regular',
     opacity: 0.9,
   },
   webViewHeader: {
@@ -365,6 +374,7 @@ const styles = StyleSheet.create({
   webViewTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
   webView: {
     flex: 1,
@@ -377,6 +387,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
   },
   loadingContainer: {
     flex: 1,
@@ -387,12 +398,15 @@ const styles = StyleSheet.create({
   loadingTitle: {
     fontSize: 20,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginTop: 16,
   },
   loadingSubtitle: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
   },
   errorText: {
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
   },
 });

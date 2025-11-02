@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -12,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from '../../components/Text';
 
 interface GeneratedPhoto {
   id: string;
@@ -60,7 +60,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
           disabled={downloadingPhotos.size > 0}
         >
           <Ionicons name="download-outline" size={18} color={colors.background} />
-          <Text style={[styles.headerButtonText, { color: colors.background }]}>
+          <Text variant="button" style={[styles.headerButtonText, { color: colors.background }]}>
             {downloadingPhotos.size > 0 ? 'Downloading...' : 'Download'}
           </Text>
         </TouchableOpacity>
@@ -70,7 +70,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
           onPress={onReselect}
         >
           <Ionicons name="refresh-outline" size={18} color={colors.background} />
-          <Text style={[styles.headerButtonText, { color: colors.background }]}>
+          <Text variant="button" style={[styles.headerButtonText, { color: colors.background }]}>
             Reselect
           </Text>
         </TouchableOpacity>
@@ -80,7 +80,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
           onPress={onViewAllPhotos}
         >
           <Ionicons name="grid-outline" size={18} color={colors.background} />
-          <Text style={[styles.headerButtonText, { color: colors.background }]}>
+          <Text variant="button" style={[styles.headerButtonText, { color: colors.background }]}>
             All Photos
           </Text>
         </TouchableOpacity>
@@ -88,8 +88,8 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
 
       {/* Profile Preview Title */}
       <View style={styles.titleSection}>
-        <Text style={[styles.title, { color: colors.text }]}>Your Profile Preview</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        <Text variant="title" style={[styles.title, { color: colors.text }]}>Your Profile Preview</Text>
+        <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
           Swipe to see how your profile looks
         </Text>
       </View>
@@ -243,8 +243,6 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
   },
   subtitle: {
     fontSize: 14,

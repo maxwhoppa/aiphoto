@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -15,7 +14,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
+import { Button } from '../../components/Button';
+import { BottomTab } from '../../components/BottomTab';
 import { getUploadUrls, recordUploadedImages } from '../../services/api';
+import { Text } from '../../components/Text';
 
 // Simple UUID v4 generator
 const generateUUID = () => {
@@ -287,21 +289,22 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {isRegenerateFlow && navigation && (
-        <BackButton onPress={() => navigation.goBack()} />
-      )}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        {isRegenerateFlow && navigation && (
+          <BackButton onPress={() => navigation.goBack()} />
+        )}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
             {isRegenerateFlow ? 'Upload New Photos' : 'Upload Your Photos'}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Upload 5-10 photos for the best AI generation results
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Upload 10 photos for the best results
           </Text>
         </View>
 
@@ -311,7 +314,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
             <View style={styles.tipsContainer}>
               <View style={styles.tipsTitleContainer}>
                 <Ionicons name="camera-outline" size={20} color={colors.primary} />
-                <Text style={[styles.tipsTitle, { color: colors.text }]}>
+                <Text variant="subtitle" style={{ color: colors.text }}>
                   Photo Tips for Best Results
                 </Text>
               </View>
@@ -321,10 +324,10 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
                     <Ionicons name={tip.icon as any} size={24} color={colors.primary} />
                   </View>
                   <View style={styles.tipContent}>
-                    <Text style={[styles.tipTitle, { color: colors.text }]}>
+                    <Text variant="label" style={{ color: colors.text }}>
                       {tip.title}
                     </Text>
-                    <Text style={[styles.tipDescription, { color: colors.textSecondary }]}>
+                    <Text variant="body" style={{ color: colors.textSecondary }}>
                       {tip.description}
                     </Text>
                   </View>
@@ -332,31 +335,6 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
               ))}
             </View>
 
-            {/* Upload Buttons */}
-            <View style={styles.uploadButtonsContainer}>
-              <TouchableOpacity
-                style={[styles.uploadButton, { backgroundColor: colors.primary }]}
-                onPress={pickImage}
-              >
-                <View style={styles.uploadButtonContent}>
-                  <Ionicons name="images-outline" size={20} color={colors.background} />
-                  <Text style={[styles.uploadButtonText, { color: colors.background }]}>
-                    Choose from Gallery
-                  </Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.uploadButton, { backgroundColor: colors.secondary }]}
-                onPress={takePhoto}
-              >
-                <View style={styles.uploadButtonContent}>
-                  <Ionicons name="camera-outline" size={20} color={colors.background} />
-                  <Text style={[styles.uploadButtonText, { color: colors.background }]}>
-                    Take Photo Now
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
           </>
         )}
 
@@ -376,10 +354,10 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
                 </Text>
               </View>
               <Text style={[styles.summaryTipsText, { color: colors.textSecondary }]}>
-                Good lighting • Clear face • Different poses • Variety of shots
+               • Good lighting • Face clean • Different poses
               </Text>
             </View>
-            
+
             <View style={styles.photosGrid}>
               {selectedPhotos.map((photo, index) => (
                 <View key={index} style={[styles.photoContainer, { width: photoSize, height: photoSize }]}>
@@ -398,7 +376,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
                   </TouchableOpacity>
                 </View>
               ))}
-              
+
               {/* Add more photos placeholder */}
               {selectedPhotos.length < 10 && (
                 <TouchableOpacity
@@ -422,59 +400,45 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
           </View>
         )}
 
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
 
-
-      {/* Next Button - Only show when photos are selected */}
-      {selectedPhotos.length > 0 && (
-        <View style={styles.buttonContainer}>
-        {isUploading && (
-          <View style={styles.uploadProgressContainer}>
-            <View style={[styles.uploadProgressBar, { backgroundColor: colors.border }]}>
-              <View
-                style={[
-                  styles.uploadProgressFill,
-                  {
-                    backgroundColor: colors.primary,
-                    width: `${uploadProgress}%`,
-                  }
-                ]}
-              />
-            </View>
-            <Text style={[styles.uploadProgressText, { color: colors.textSecondary }]}>
-              Uploading photos... {Math.round(uploadProgress)}%
-            </Text>
+      {/* Bottom Tab with Buttons */}
+      <BottomTab
+        showProgress={isUploading}
+        progress={uploadProgress}
+        progressTitle="Uploading photos..."
+      >
+        {/* Upload Buttons - Show when no photos selected */}
+        {selectedPhotos.length === 0 && (
+          <View style={styles.bottomButtonsContainer}>
+            <Button
+              title="Choose from Gallery"
+              onPress={pickImage}
+              variant="primary"
+              icon="images-outline"
+            />
+            <Button
+              title="Take Photo Now"
+              onPress={takePhoto}
+              variant="secondary"
+              icon="camera-outline"
+            />
           </View>
         )}
-        
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            {
-              backgroundColor: selectedPhotos.length >= 5 && !isUploading ? colors.primary : colors.border,
-            },
-          ]}
-          onPress={handleNext}
-          disabled={selectedPhotos.length < 5 || isUploading}
-        >
-          {isUploading ? (
-            <ActivityIndicator color={colors.textSecondary} />
-          ) : (
-            <Text
-              style={[
-                styles.nextButtonText,
-                {
-                  color: selectedPhotos.length >= 5 ? colors.background : colors.textSecondary,
-                },
-              ]}
-            >
-              {isRegenerateFlow ? 'Upload & Continue' : 'Upload & Continue'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-      )}
-    </SafeAreaView>
+
+        {/* Upload & Continue Button - Show when photos are selected */}
+        {selectedPhotos.length > 0 && (
+          <Button
+            title={isRegenerateFlow ? 'Upload & Continue' : 'Upload & Continue'}
+            onPress={handleNext}
+            disabled={selectedPhotos.length < 5 || isUploading}
+            loading={isUploading}
+            variant={selectedPhotos.length >= 5 && !isUploading ? 'primary' : 'disabled'}
+          />
+        )}
+      </BottomTab>
+    </View>
   );
 };
 
@@ -482,25 +446,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingTop: 40,
-    marginBottom: 30,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 20,
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'left',
     lineHeight: 22,
+    marginBottom: 20,
   },
   tipsContainer: {
     marginBottom: 30,
@@ -514,11 +484,12 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
   tipCard: {
     flexDirection: 'row',
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 20,
     marginBottom: 10,
   },
   tipIconContainer: {
@@ -533,10 +504,12 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
   tipDescription: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     lineHeight: 20,
   },
   uploadButtonsContainer: {
@@ -545,7 +518,7 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -557,6 +530,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
   photosContainer: {
     marginBottom: 30,
@@ -564,6 +538,7 @@ const styles = StyleSheet.create({
   photosTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 15,
   },
   summaryTipsContainer: {
@@ -580,9 +555,11 @@ const styles = StyleSheet.create({
   summaryTipsTitle: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
   summaryTipsText: {
     fontSize: 12,
+    fontFamily: 'Poppins-Regular',
     lineHeight: 16,
   },
   photosGrid: {
@@ -605,13 +582,14 @@ const styles = StyleSheet.create({
     right: 5,
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   removeButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
     lineHeight: 16,
   },
   addMoreContainer: {
@@ -624,42 +602,10 @@ const styles = StyleSheet.create({
   addMoreText: {
     fontSize: 32,
     fontWeight: '300',
+    fontFamily: 'Poppins-Regular',
   },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 10,
-    backgroundColor: 'transparent',
-  },
-  nextButton: {
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  uploadProgressContainer: {
-    marginBottom: 16,
-  },
-  uploadProgressBar: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  uploadProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  uploadProgressText: {
-    fontSize: 14,
-    textAlign: 'center',
+  bottomButtonsContainer: {
+    flexDirection: 'column',
+    gap: 12,
   },
 });

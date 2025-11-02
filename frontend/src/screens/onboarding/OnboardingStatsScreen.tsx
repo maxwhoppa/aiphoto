@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Animated,
 } from 'react-native';
@@ -10,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
+import { Text } from '../../components/Text';
 
 interface OnboardingStatsScreenProps {
   onNext: () => void;
@@ -71,10 +71,10 @@ export const OnboardingStatsScreen: React.FC<OnboardingStatsScreenProps> = ({
       {onBack && <BackButton onPress={onBack} />}
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
             The Dating Reality
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             You're losing to other profiles.
           </Text>
         </View>
@@ -90,25 +90,25 @@ export const OnboardingStatsScreen: React.FC<OnboardingStatsScreenProps> = ({
               }
             ]}
           >
-            <Text style={[styles.statLabel, { color: colors.background }]}>
+            <Text variant="label" style={[styles.statLabel, { color: colors.background }]}>
               Top 10% Get
             </Text>
             <View style={styles.statNumberContainer}>
-              <Text style={[styles.statNumber, { color: colors.background }]}>
+              <Text variant="title" style={[styles.statNumber, { color: colors.background }]}>
                 58%
               </Text>
-              <Text style={[styles.statAsterisk, { color: colors.background, opacity: 0.5 }]}>
+              <Text variant="caption" style={[styles.statAsterisk, { color: colors.background, opacity: 0.5 }]}>
                 *
               </Text>
             </View>
-            <Text style={[styles.statDescription, { color: colors.background }]}>
+            <Text variant="body" style={[styles.statDescription, { color: colors.background }]}>
               of all matches
             </Text>
             <View style={[styles.divider, { backgroundColor: colors.background, opacity: 0.3 }]} />
-            <Text style={[styles.statInsight, { color: colors.background, opacity: 0.9 }]}>
+            <Text variant="caption" style={[styles.statInsight, { color: colors.background, opacity: 0.9 }]}>
               The top performers dominate the dating market
             </Text>
-            <Text style={[styles.statCitation, { color: colors.background, opacity: 0.6 }]}>
+            <Text variant="caption" style={[styles.statCitation, { color: colors.background, opacity: 0.6 }]}>
               *Source: teamblind.com
             </Text>
           </Animated.View>
@@ -123,25 +123,25 @@ export const OnboardingStatsScreen: React.FC<OnboardingStatsScreenProps> = ({
               }
             ]}
           >
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+            <Text variant="label" style={[styles.statLabel, { color: colors.textSecondary }]}>
               The Average Man Gets
             </Text>
             <View style={styles.statNumberContainer}>
-              <Text style={[styles.statNumber, { color: colors.error }]}>
+              <Text variant="title" style={[styles.statNumber, { color: colors.error }]}>
                 2.63%
               </Text>
-              <Text style={[styles.statAsterisk, { color: colors.textSecondary, opacity: 0.5 }]}>
+              <Text variant="caption" style={[styles.statAsterisk, { color: colors.textSecondary, opacity: 0.5 }]}>
                 *
               </Text>
             </View>
-            <Text style={[styles.statDescription, { color: colors.text }]}>
+            <Text variant="body" style={[styles.statDescription, { color: colors.text }]}>
               of all matches
             </Text>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <Text style={[styles.statInsight, { color: colors.textSecondary }]}>
+            <Text variant="caption" style={[styles.statInsight, { color: colors.textSecondary }]}>
               That's only 3 matches out of every 100 swipes
             </Text>
-            <Text style={[styles.statCitation, { color: colors.textSecondary }]}>
+            <Text variant="caption" style={[styles.statCitation, { color: colors.textSecondary }]}>
               *Source: swipestats.io
             </Text>
           </Animated.View>
@@ -168,8 +168,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
   },
@@ -206,10 +204,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
+    minHeight: 45, // Further reduced
+    paddingTop: 1, // Further reduced
   },
   statNumber: {
     fontSize: 42,
     fontWeight: 'bold',
+    lineHeight: 42, // Further reduced
   },
   statAsterisk: {
     position: 'absolute',

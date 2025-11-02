@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -12,6 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
 import { ScenarioCard } from '../../components/ScenarioCard';
+import { Button } from '../../components/Button';
+import { BottomTab } from '../../components/BottomTab';
+import { Text } from '../../components/Text';
 
 interface Scenario {
   id: string;
@@ -36,6 +38,8 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
 }) => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   
   const getScenarioImages = (scenarioId: string) => {
     const baseUrl = 'https://picsum.photos/400/400?random='; // Square images
@@ -174,6 +178,19 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
     onNext(selectedScenarios);
   };
 
+  const handleScrollIndicatorPress = () => {
+    scrollViewRef.current?.scrollTo({
+      y: 200, // Scroll down 200 pixels
+      animated: true,
+    });
+  };
+
+  const handleScroll = (event: any) => {
+    const { contentOffset } = event.nativeEvent;
+    // Hide scroll indicator when user has scrolled down
+    setShowScrollIndicator(contentOffset.y < 50);
+  };
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -182,31 +199,25 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
           <BackButton onPress={() => navigation.goBack()} />
         )}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            Choose Your Scenarios
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
+            Choose your{'\n'}scenarios
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Select 6 scenarios for your AI photo generation
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Choose up to 6 scenarios for your generation
           </Text>
-          <Text style={[styles.counter, { color: colors.primary }]}>
+          <Text variant="label" style={[styles.counter, { color: colors.primary }]}>
             {selectedScenarios.length}/6 selected
           </Text>
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           style={styles.content}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
-          <View style={styles.info}>
-            <View style={styles.infoContent}>
-              <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                Professional photoshoot is recommended for the best results
-              </Text>
-            </View>
-          </View>
-
           <View style={styles.scenariosList}>
             {scenarios.map((scenario) => {
               const isSelected = selectedScenarios.includes(scenario.id);
@@ -228,41 +239,20 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
               );
             })}
           </View>
-
-          <View style={styles.fatigueTip}>
-            <Text style={[styles.fatigueTitle, { color: colors.text }]}>
-              Reduce Decision Fatigue
-            </Text>
-            <Text style={[styles.fatigueText, { color: colors.textSecondary }]}>
-              We've pre-selected popular scenarios and marked others to help you decide quickly.
-            </Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
 
-      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[
-            styles.generateButton,
-            {
-              backgroundColor: selectedScenarios.length === 6 ? colors.primary : colors.border,
-            },
-          ]}
+      <BottomTab
+        showScrollIndicator={showScrollIndicator}
+        onScrollIndicatorPress={handleScrollIndicatorPress}
+      >
+        <Button
+          title="Generate Photos"
           onPress={handleNext}
           disabled={selectedScenarios.length !== 6}
-        >
-          <Text
-            style={[
-              styles.generateButtonText,
-              {
-                color: selectedScenarios.length === 6 ? colors.background : colors.textSecondary,
-              },
-            ]}
-          >
-            Continue to Payment
-          </Text>
-        </TouchableOpacity>
-      </View>
+          variant={selectedScenarios.length === 6 ? 'primary' : 'disabled'}
+        />
+      </BottomTab>
     </View>
   );
 };
@@ -275,26 +265,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 40,
     paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 20,
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 22,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   counter: {
     fontSize: 18,
-    fontWeight: '600',
+    textAlign: 'left',
+    marginBottom: 20,
   },
   content: {
     flex: 1,
@@ -340,34 +338,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  generateButton: {
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  generateButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
   },
 });

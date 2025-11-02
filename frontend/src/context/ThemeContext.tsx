@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { ColorScheme, colorSchemes, getColorScheme } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 interface ThemeContextType {
   currentScheme: string;
   colors: ColorScheme;
+  typography: typeof typography;
   availableSchemes: string[];
   setColorScheme: (scheme: string) => void;
   updateColor: (colorKey: keyof ColorScheme, hexValue: string) => void;
@@ -41,6 +43,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       value={{
         currentScheme,
         colors,
+        typography,
         availableSchemes,
         setColorScheme,
         updateColor,

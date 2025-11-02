@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Image,
   Animated,
@@ -11,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
+import { Text } from '../../components/Text';
 
 interface OnboardingIntroScreenProps {
   onNext: () => void;
@@ -60,13 +60,13 @@ export const OnboardingIntroScreen: React.FC<OnboardingIntroScreenProps> = ({
       {onBack && <BackButton onPress={onBack} />}
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
             Welcome to
           </Text>
-          <Text style={[styles.appName, { color: colors.primary }]}>
+          <Text variant="title" style={[styles.appName, { color: colors.primary }]}>
             DreamBoat AI
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text variant="subtitle" style={[styles.subtitle, { color: colors.textSecondary }]}>
             Transform your dating profile with a polished "You".
           </Text>
         </View>
@@ -179,13 +179,9 @@ const styles = StyleSheet.create({
     marginBottom: 60,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '300',
     marginBottom: 8,
   },
   appName: {
-    fontSize: 36,
-    fontWeight: 'bold',
     marginBottom: 16,
   },
   subtitle: {

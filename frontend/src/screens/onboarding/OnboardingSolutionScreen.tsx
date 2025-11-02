@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Image,
   Animated,
@@ -10,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
+import { Text } from '../../components/Text';
 
 interface OnboardingSolutionScreenProps {
   onNext: () => void;
@@ -41,13 +41,13 @@ export const OnboardingSolutionScreen: React.FC<OnboardingSolutionScreenProps> =
       {onBack && <BackButton onPress={onBack} />}
       <View style={styles.content}>
         <View style={styles.header}>
-                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Introducing 
+                    <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Introducing
           </Text>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
             DreamBoat AI
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             Your one-stop solution for the most realistic & stunning profile photos
           </Text>
         </View>
@@ -153,7 +153,7 @@ export const OnboardingSolutionScreen: React.FC<OnboardingSolutionScreenProps> =
         </View>
 
         <View style={styles.description}>
-          <Text style={[styles.descriptionText, { color: colors.text }]}>
+          <Text variant="body" style={[styles.descriptionText, { color: colors.text }]}>
             Watch how DreamBoat AI transforms your dating life
           </Text>
         </View>
@@ -178,8 +178,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
   },

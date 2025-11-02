@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Animated,
   Dimensions,
@@ -11,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { getUploadUrls, recordUploadedImages, generateImages, getGeneratedImages, redeemPayment } from '../../services/api';
+import { Text } from '../../components/Text';
 
 interface LoadingScreenProps {
   onComplete: (generatedImages: any[]) => void;
@@ -203,10 +203,10 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
             Creating Your Photos{dots}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             {isOvertime
               ? "Taking longer than usual due to high traffic"
               : "This usually takes about 60 seconds"
@@ -249,10 +249,10 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         {/* Progress Section */}
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
-            <Text style={[styles.progressTitle, { color: colors.text }]}>
+            <Text variant="subtitle" style={[styles.progressTitle, { color: colors.text }]}>
               {currentMsg.title}
             </Text>
-            <Text style={[styles.progressPercentage, { color: colors.primary }]}>
+            <Text variant="subtitle" style={[styles.progressPercentage, { color: colors.primary }]}>
               {Math.round(progress)}%
             </Text>
           </View>
@@ -273,7 +273,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             />
           </View>
           
-          <Text style={[styles.progressSubtitle, { color: colors.textSecondary }]}>
+          <Text variant="body" style={[styles.progressSubtitle, { color: colors.textSecondary }]}>
             {currentMsg.subtitle}
           </Text>
         </View>
@@ -354,13 +354,12 @@ const styles = StyleSheet.create({
     marginBottom: 50,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: 'Poppins-Regular',
     textAlign: 'center',
   },
   visualContainer: {
@@ -408,11 +407,13 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     flex: 1,
   },
   progressPercentage: {
     fontSize: 18,
     fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
   },
   progressBar: {
     height: 8,
@@ -426,6 +427,7 @@ const styles = StyleSheet.create({
   },
   progressSubtitle: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     lineHeight: 20,
   },
   statsContainer: {
@@ -443,12 +445,14 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     textAlign: 'center',
     fontWeight: '500',
+    fontFamily: 'Poppins-SemiBold',
   },
   tipContainer: {
     padding: 16,
@@ -457,6 +461,7 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     textAlign: 'center',
     lineHeight: 20,
     fontStyle: 'italic',
@@ -478,6 +483,7 @@ const styles = StyleSheet.create({
   marketingTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -486,6 +492,7 @@ const styles = StyleSheet.create({
   },
   marketingPoint: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     lineHeight: 20,
   },
 });

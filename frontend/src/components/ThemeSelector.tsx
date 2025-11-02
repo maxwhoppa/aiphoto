@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
 import { BackButton } from './BackButton';
+import { Text } from './Text';
 
 interface ThemeSelectorProps {
   navigation?: any;
@@ -56,7 +56,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ navigation }) => {
         <BackButton onPress={() => navigation.goBack()} />
       )}
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Theme Settings</Text>
+      <Text variant="title" style={[styles.title, { color: colors.text }]}>Theme Settings</Text>
       
       {/* Scheme Selector */}
       <View style={styles.section}>
@@ -191,8 +191,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 20,
   },
   section: {

@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { Text } from './Text';
 
 interface ScenarioCardProps {
   id: string;
@@ -37,15 +37,15 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
   const { colors } = useTheme();
   const scrollRef = useRef<ScrollView>(null);
   const screenWidth = Dimensions.get('window').width;
-  const imageWidth = (screenWidth - 40 - 40) / 4.5; // Show 4-5 images, accounting for padding
+  const imageWidth = (screenWidth - 40) / 4.5; // Even smaller images, showing ~4.8 at a time
 
   return (
     <TouchableOpacity
       style={[
         styles.container,
         {
-          backgroundColor: isSelected ? colors.primary + '10' : colors.surface,
-          borderColor: isSelected ? colors.primary : colors.border,
+          backgroundColor: isSelected ? colors.accent + '20' : colors.surface,
+          borderColor: isSelected ? colors.accent : colors.border,
           opacity: isDisabled ? 0.5 : 1,
         }
       ]}
@@ -53,44 +53,6 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
       disabled={isDisabled}
       activeOpacity={0.8}
     >
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: isSelected ? colors.primary : colors.background }]}>
-            <Ionicons
-              name={icon as any}
-              size={24}
-              color={isSelected ? colors.background : colors.primary}
-            />
-          </View>
-          <View style={styles.textContainer}>
-            <View style={styles.titleRow}>
-              <Text style={[styles.name, { color: colors.text }]}>
-                {name}
-              </Text>
-              {/* {isPopular && (
-                <View style={[styles.popularBadge, { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.popularText, { color: colors.background }]}>
-                    POPULAR
-                  </Text>
-                </View>
-              )} */}
-            </View>
-            <Text style={[styles.description, { color: colors.textSecondary }]}>
-              {description}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          {isSelected ? (
-            <View style={[styles.checkbox, styles.checkboxSelected, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-              <Ionicons name="checkmark" size={16} color={colors.background} />
-            </View>
-          ) : (
-            <View style={[styles.checkbox, { borderColor: colors.border }]} />
-          )}
-        </View>
-      </View>
-
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -99,7 +61,17 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
         decelerationRate="fast"
       >
         {images.map((image, index) => (
-          <View key={index} style={[styles.imageContainer, { width: imageWidth }]}>
+          <View
+            key={index}
+            style={[
+              styles.imageContainer,
+              {
+                width: imageWidth,
+                marginLeft: index === 0 ? -imageWidth * 0.5 : 0, // First image 50% off-screen
+                marginRight: index === images.length - 1 ? -imageWidth * 0.2 : 8, // Last image 20% off-screen
+              }
+            ]}
+          >
             <Image
               source={{ uri: image }}
               style={styles.image}
@@ -108,6 +80,19 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
           </View>
         ))}
       </ScrollView>
+
+      <View style={styles.header}>
+        <View style={styles.textContainer}>
+          {isPopular && (
+            <Text variant="caption" style={[styles.popularLabel, { color: colors.accent }]}>
+              Most Popular
+            </Text>
+          )}
+          <Text variant="subtitle" style={{ color: colors.text }}>
+            {name}
+          </Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -115,76 +100,29 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 2,
     overflow: 'hidden',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerRight: {
-    marginLeft: 12,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
   textContainer: {
-    flex: 1,
+    alignItems: 'flex-start',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  popularLabel: {
+    fontSize: 12,
     marginBottom: 4,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  popularBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  popularText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxSelected: {
-    borderWidth: 0,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   imageScrollContainer: {
-    paddingLeft: 16,
-    paddingRight: 16,
-    paddingBottom: 16,
+    paddingLeft: 0,
+    paddingRight: 0, // Remove padding so images can be partially off-screen
+    paddingBottom: 12,
+    paddingTop: 16,
   },
   imageContainer: {
-    marginRight: 8,
     borderRadius: 8,
     overflow: 'hidden',
   },

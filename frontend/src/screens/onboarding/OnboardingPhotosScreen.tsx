@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Animated,
 } from 'react-native';
@@ -10,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { OnboardingButton } from '../../components/OnboardingButton';
 import { BackButton } from '../../components/BackButton';
+import { Text } from '../../components/Text';
 
 interface OnboardingPhotosScreenProps {
   onNext: () => void;
@@ -89,10 +89,10 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
       {onBack && <BackButton onPress={onBack} />}
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>
             The Photo Problem
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             Photos matter more than any other factor
           </Text>
         </View>
@@ -109,10 +109,10 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
             ]}
           >
             <Ionicons name="eye-outline" size={24} color={colors.background} />
-            <Text style={[styles.statLabel, { color: colors.background }]}>
+            <Text variant="label" style={[styles.statLabel, { color: colors.background }]}>
               People Are Quick To Judge On Dating Apps
             </Text>
-            <Text style={[styles.statDescription, { color: colors.background }]}>
+            <Text variant="caption" style={[styles.statDescription, { color: colors.background }]}>
               Initial attraction is impulsive
             </Text>
           </Animated.View>
@@ -128,10 +128,10 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
             ]}
           >
             <Ionicons name="camera-outline" size={24} color={colors.text} />
-            <Text style={[styles.statLabel, { color: colors.text }]}>
+            <Text variant="label" style={[styles.statLabel, { color: colors.text }]}>
               Poor Profiles Are Never Given A Chance
             </Text>
-            <Text style={[styles.statDescription, { color: colors.text }]}>
+            <Text variant="caption" style={[styles.statDescription, { color: colors.text }]}>
               Bad photos lead to being immediately dismissed
             </Text>
           </Animated.View>
@@ -147,11 +147,11 @@ export const OnboardingPhotosScreen: React.FC<OnboardingPhotosScreenProps> = ({
             ]}
           >
             <Ionicons name="image-outline" size={24} color={colors.background} />
-            <Text style={[styles.statLabel, { color: colors.background }]}>
+            <Text variant="label" style={[styles.statLabel, { color: colors.background }]}>
                Taking good-looking photos is hard
             </Text>
-            <Text style={[styles.statDescription, { color: colors.background }]}>
-              You can’t just snap a pic and expect it to work
+            <Text variant="caption" style={[styles.statDescription, { color: colors.background }]}>
+              You can't just snap a pic and expect it to work
             </Text>
           </Animated.View>
 
@@ -178,8 +178,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
   },

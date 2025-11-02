@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -17,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { BackButton } from '../../components/BackButton';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Text } from '../../components/Text';
 
 interface EmailSignInScreenProps {
   onSuccess: () => void;
@@ -153,10 +153,10 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
         >
           <View style={styles.content}>
             <View style={styles.header}>
-              <Text style={[styles.title, { color: colors.text }]}>
+              <Text variant="title" style={[styles.title, { color: colors.text }]}>
                 {mode === 'verify' ? 'Verify Email' : showEmailForm ? (mode === 'signin' ? 'Sign In' : 'Create Account') : 'Welcome'}
               </Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
                 {mode === 'verify' ? `Enter the verification code sent to ${email}` :
                  showEmailForm ? (mode === 'signin' ? 'Welcome back! Sign in to your account' : 'Create a new account to get started') :
                  'Sign in to continue'}
@@ -197,6 +197,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     disabled={verificationCode.length !== 6 || isLoading}
                   >
                     <Text
+                      variant="button"
                       style={[
                         styles.buttonText,
                         {
@@ -216,7 +217,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                       setShowEmailForm(false);
                     }}
                   >
-                    <Text style={[styles.linkText, { color: colors.primary }]}>
+                    <Text variant="body" style={[styles.linkText, { color: colors.primary }]}>
                       Didn't receive code? Try again
                     </Text>
                   </TouchableOpacity>
@@ -348,7 +349,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     <AppleAuthentication.AppleAuthenticationButton
                       buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
                       buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                      cornerRadius={12}
+                      cornerRadius={20}
                       style={styles.appleButton}
                       onPress={handleAppleSignIn}
                     />
@@ -404,8 +405,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -422,13 +421,13 @@ const styles = StyleSheet.create({
   input: {
     height: 56,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 20,
     paddingHorizontal: 16,
     fontSize: 16,
   },
   button: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
@@ -467,7 +466,7 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

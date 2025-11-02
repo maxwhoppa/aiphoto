@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from '../../components/Text';
 
 interface GeneratedPhoto {
   id: string;
@@ -173,20 +173,20 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
           style={[styles.skipButton, { backgroundColor: colors.surface }]}
           onPress={onBack || onSkip}
         >
-          <Text style={[styles.skipText, { color: colors.textSecondary }]}>
+          <Text variant="back" style={{ color: colors.textSecondary }}>
             {onBack ? 'Back' : 'Skip'}
           </Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.title, { color: colors.text }]}>Select Your Best Photos</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text variant="title" style={{ color: colors.text }}>Select Your Best Photos</Text>
+          <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             {currentScenario.charAt(0).toUpperCase() + currentScenario.slice(1)} ({currentScenarioIndex + 1}/{selectedScenarios.length})
           </Text>
         </View>
 
         <View style={[styles.counter, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.counterText, { color: colors.background }]}>
+          <Text variant="label" style={{ color: colors.background }}>
             {getTotalSelections()}/6
           </Text>
         </View>
@@ -194,10 +194,10 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
 
       {/* Instructions */}
       <View style={styles.instructions}>
-        <Text style={[styles.instructionText, { color: colors.text }]}>
+        <Text variant="subtitle" style={{ color: colors.text }}>
           Select 0-2 photos from this scenario
         </Text>
-        <Text style={[styles.instructionSubtext, { color: colors.textSecondary }]}>
+        <Text variant="body" style={[styles.instructionSubtext, { color: colors.textSecondary }]}>
           {selectedForScenario.length}/2 selected
         </Text>
       </View>
@@ -255,10 +255,9 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
             size={24}
             color={currentScenarioIndex === 0 ? colors.textSecondary : colors.text}
           />
-          <Text style={[
-            styles.navButtonText,
-            { color: currentScenarioIndex === 0 ? colors.textSecondary : colors.text }
-          ]}>
+          <Text variant="button" style={{
+            color: currentScenarioIndex === 0 ? colors.textSecondary : colors.text
+          }}>
             Previous
           </Text>
         </TouchableOpacity>
@@ -276,7 +275,7 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
             <ActivityIndicator size="small" color={colors.background} />
           ) : (
             <>
-              <Text style={[styles.navButtonText, { color: colors.background }]}>
+              <Text variant="button" style={{ color: colors.background }}>
                 {currentScenarioIndex === selectedScenarios.length - 1 ? 'Finish' : 'Next'}
               </Text>
               <Ionicons
@@ -315,49 +314,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    marginBottom: 10,
   },
   skipButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-  },
-  skipText: {
-    fontSize: 14,
-    fontWeight: '500',
+    borderRadius: 20,
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
     marginHorizontal: 10,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
   subtitle: {
-    fontSize: 14,
     marginTop: 2,
   },
   counter: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-  },
-  counterText: {
-    fontSize: 14,
-    fontWeight: '600',
+    borderRadius: 20,
   },
   instructions: {
     paddingHorizontal: 20,
     paddingBottom: 15,
     alignItems: 'center',
   },
-  instructionText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   instructionSubtext: {
-    fontSize: 14,
     marginTop: 4,
   },
   scrollView: {
@@ -374,7 +356,7 @@ const styles = StyleSheet.create({
   },
   photoItem: {
     marginBottom: 15,
-    borderRadius: 12,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 3,
     borderColor: 'transparent',
@@ -413,7 +395,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     gap: 8,
   },
   navButtonPrimary: {
@@ -421,10 +403,6 @@ const styles = StyleSheet.create({
   },
   navButtonDisabled: {
     opacity: 0.5,
-  },
-  navButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   progressBar: {
     height: 4,
