@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   button: {
     position: 'absolute',
     top: 50,
-    left: 20,
+    left: 8,
     zIndex: 100, // Above everything
     paddingVertical: 8,
     paddingHorizontal: 12,

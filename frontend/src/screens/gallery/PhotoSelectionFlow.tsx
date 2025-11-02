@@ -179,7 +179,7 @@ export const PhotoSelectionFlow: React.FC<PhotoSelectionFlowProps> = ({
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text variant="title" style={{ color: colors.text }}>Select Your Best Photos</Text>
+          <Text variant="title" style={{ color: colors.text }}>Select your best photos</Text>
           <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             {currentScenario.charAt(0).toUpperCase() + currentScenario.slice(1)} ({currentScenarioIndex + 1}/{selectedScenarios.length})
           </Text>

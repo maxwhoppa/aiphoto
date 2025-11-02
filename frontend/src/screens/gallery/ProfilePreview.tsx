@@ -27,6 +27,7 @@ interface ProfilePreviewProps {
   selectedPhotos: GeneratedPhoto[];
   onDownloadAll: () => void;
   onReselect: () => void;
+  onGenerateAgain: () => void;
   onViewAllPhotos: () => void;
   isDownloading?: boolean;
   downloadingPhotos?: Set<string>;
@@ -36,6 +37,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   selectedPhotos,
   onDownloadAll,
   onReselect,
+  onGenerateAgain,
   onViewAllPhotos,
   isDownloading = false,
   downloadingPhotos = new Set(),
@@ -89,7 +91,11 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
         {sortedPhotos.map((photo, index) => (
           <View key={photo.id} style={styles.profileCard}>
             {/* Photo */}
-            <View style={[styles.imageContainer, { width: cardWidth, height: imageHeight }]}>
+            <TouchableOpacity
+              style={[styles.imageContainer, { width: cardWidth, height: imageHeight }]}
+              onPress={onReselect}
+              activeOpacity={0.7}
+            >
               <Image
                 source={{ uri: photo.downloadUrl || photo.uri }}
                 style={styles.profileImage}
@@ -126,7 +132,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
                   </View>
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
 
             {/* Mock Profile Info (like dating apps) */}
             {index === 0 && (
@@ -205,7 +211,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
       >
         {/* Main Download Button */}
         <Button
-          title={downloadingPhotos.size > 0 ? 'Downloading...' : 'Download All'}
+          title={downloadingPhotos.size > 0 ? 'Downloading...' : 'Download pictures'}
           onPress={onDownloadAll}
           disabled={downloadingPhotos.size > 0}
           variant={downloadingPhotos.size > 0 ? 'disabled' : 'primary'}
@@ -217,11 +223,11 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
         <View style={styles.sideBySideButtons}>
           <TouchableOpacity
             style={styles.sideButton}
-            onPress={onReselect}
+            onPress={onGenerateAgain}
           >
             <Ionicons name="refresh-outline" size={24} color="#000000" />
             <Text style={styles.sideButtonText}>
-              Reselect
+              Generate
             </Text>
           </TouchableOpacity>
 
@@ -246,8 +252,8 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 15,
+    paddingTop: 5,
+    paddingBottom: 10,
   },
   sideBySideButtons: {
     flexDirection: 'row',

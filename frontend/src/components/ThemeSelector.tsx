@@ -56,11 +56,11 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ navigation }) => {
         <BackButton onPress={() => navigation.goBack()} />
       )}
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text variant="title" style={[styles.title, { color: colors.text }]}>Theme Settings</Text>
+      <Text variant="title" style={[styles.title, { color: colors.text }]}>Theme settings</Text>
       
       {/* Scheme Selector */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Color Scheme</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Color scheme</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {availableSchemes.map((scheme) => (
             <TouchableOpacity

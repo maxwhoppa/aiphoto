@@ -247,7 +247,7 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
         onScrollIndicatorPress={handleScrollIndicatorPress}
       >
         <Button
-          title="Generate Photos"
+          title="Generate photos"
           onPress={handleNext}
           disabled={selectedScenarios.length !== 6}
           variant={selectedScenarios.length === 6 ? 'primary' : 'disabled'}

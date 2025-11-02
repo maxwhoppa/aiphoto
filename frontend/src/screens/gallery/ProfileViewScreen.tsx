@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -21,6 +20,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../../components/BackButton';
+import { BottomTab } from '../../components/BottomTab';
+import { Button } from '../../components/Button';
+import { Text } from '../../components/Text';
 
 // Optimized image component with expo-image for better performance
 const OptimizedImage: React.FC<{
@@ -99,6 +102,9 @@ interface ProfileViewScreenProps {
   onSelectProfilePhotos?: () => void;
   onViewProfile?: () => void;
   hasSelectedPhotos?: boolean;
+  onBack?: () => void; // Made optional again with fallback
+  onGoToProfile?: () => void; // New prop for direct profile navigation
+  navigation?: any; // Add navigation prop as fallback
 }
 
 export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
@@ -109,6 +115,9 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   onSelectProfilePhotos,
   onViewProfile,
   hasSelectedPhotos = false,
+  onBack,
+  onGoToProfile,
+  navigation,
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -437,6 +446,21 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
   const displayPhotos = getDisplayPhotos();
 
+  // Handle back navigation - prioritize going to profile screen
+  const handleBack = () => {
+    if (onGoToProfile) {
+      onGoToProfile(); // Go directly to profile screen
+    } else if (onViewProfile) {
+      onViewProfile(); // Fallback to existing profile view function
+    } else if (onBack) {
+      onBack(); // Use custom back function
+    } else if (navigation && navigation.goBack) {
+      navigation.goBack(); // Standard navigation back
+    } else {
+      console.warn('No navigation available - cannot go to profile');
+    }
+  };
+
   // Handle pull-to-refresh - only triggers on release
   const handleRefresh = useCallback(() => {
     console.log('Pull-to-refresh released, starting refresh...');
@@ -491,51 +515,14 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
-      {/* Action Buttons - Moved to top */}
-      <View style={styles.topActionsContainer}>
-        {(onSelectProfilePhotos || onViewProfile) && (
-          <TouchableOpacity
-            style={[styles.topActionButton, { backgroundColor: colors.primary }]}
-            onPress={hasSelectedPhotos && onViewProfile ? onViewProfile : onSelectProfilePhotos}
-          >
-            <View style={styles.topActionButtonContent}>
-              <Ionicons
-                name={hasSelectedPhotos ? "person-outline" : "heart-outline"}
-                size={18}
-                color={colors.background}
-              />
-              <Text style={[styles.topActionButtonText, { color: colors.background }]}>
-                {hasSelectedPhotos ? "Profile" : "Select Profile"}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <BackButton onPress={handleBack} />
+        <View style={[styles.header, { marginTop: 20 }]}>
+          <Text style={[styles.title, { color: colors.text }]}>All photos</Text>
+        </View>
 
-        <TouchableOpacity
-          style={[styles.topActionButton, { backgroundColor: colors.secondary }]}
-          onPress={downloadAllPhotos}
-        >
-          <View style={styles.topActionButtonContent}>
-            <Ionicons name="download-outline" size={18} color={colors.background} />
-            <Text style={[styles.topActionButtonText, { color: colors.background }]}>
-              Download ({displayPhotos.length})
-            </Text>
-          </View>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.topActionButton, { backgroundColor: colors.accent }]}
-          onPress={onGenerateAgain}
-        >
-          <View style={styles.topActionButtonContent}>
-            <Ionicons name="refresh-outline" size={18} color={colors.background} />
-            <Text style={[styles.topActionButtonText, { color: colors.background }]}>
-              Generate Again
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
 
       {/* Filter Dropdown */}
       <View style={styles.filterContainer}>
@@ -544,7 +531,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           onPress={() => setFilterModalVisible(true)}
         >
           <Text style={[styles.filterButtonText, { color: colors.text }]}>
-            {selectedTab === 'all' ? `All Photos (${generatedPhotos.length})` :
+            {selectedTab === 'all' ? `All photos (${generatedPhotos.length})` :
              `${selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)} (${photosByScenario[selectedTab]?.length || 0})`}
           </Text>
           <Ionicons name="chevron-down" size={20} color={colors.text} />
@@ -588,6 +575,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           </View>
         )}
       </View>
+      </SafeAreaView>
 
       {/* Native Image Viewer */}
       <Modal
@@ -713,13 +701,13 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
             <TouchableWithoutFeedback>
               <View style={[styles.filterModalContent, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.filterModalTitle, { color: colors.text }]}>
-                  Filter Photos
+                  Filter photos
                 </Text>
 
                 <ScrollView style={styles.filterOptionsContainer}>
                   {tabs.map((tab) => {
                     const isSelected = selectedTab === tab;
-                    const tabLabel = tab === 'all' ? `All Photos (${generatedPhotos.length})` :
+                    const tabLabel = tab === 'all' ? `All photos (${generatedPhotos.length})` :
                                    `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${photosByScenario[tab]?.length || 0})`;
 
                     return (
@@ -757,7 +745,29 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </SafeAreaView>
+
+      {/* Bottom Tab with Download and Generate Again buttons */}
+      <BottomTab
+        showScrollIndicator={false}
+      >
+        <View style={styles.bottomButtonsContainer}>
+          <Button
+            title="Generate"
+            onPress={onGenerateAgain}
+            variant="primary"
+            icon="refresh-outline"
+            style={styles.bottomButton}
+          />
+          <Button
+            title="Download"
+            onPress={downloadAllPhotos}
+            variant="outline"
+            icon="download-outline"
+            style={[styles.bottomButton, styles.downloadButton]}
+          />
+        </View>
+      </BottomTab>
+    </View>
   );
 };
 
@@ -765,12 +775,49 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 0,
+    textAlign: 'left',
+    lineHeight: 34,
+  },
   // New top action button styles
   topActionsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
+    marginTop: 20, // Add space between back button and this section
+  },
+  // Bottom buttons styles
+  bottomButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  bottomButton: {
+    flex: 1,
+  },
+  downloadButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#1E1E1E',
+    borderWidth: 2,
   },
   topActionButton: {
     flex: 1,
@@ -795,8 +842,9 @@ const styles = StyleSheet.create({
   },
   // Filter dropdown styles
   filterContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 12,
+    marginTop: 20, // Equal spacing from title to filter
   },
   filterButton: {
     flexDirection: 'row',

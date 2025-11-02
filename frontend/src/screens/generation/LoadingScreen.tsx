@@ -38,27 +38,27 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
   const messages = [
     {
-      title: "Analyzing Your Photos",
+      title: "Analyzing your photos",
       subtitle: "Our AI is studying your facial features and style preferences",
       tip: "Good lighting in your original photos leads to better AI results"
     },
     {
-      title: "Generating Scenarios",
+      title: "Generating scenarios",
       subtitle: `Creating ${imageIds.length * selectedScenarios.length} professional photos across ${selectedScenarios.length} scenarios`,
       tip: "Each scenario uses different AI models for optimal results"
     },
     {
-      title: "Enhancing Quality",
+      title: "Enhancing quality",
       subtitle: "Applying professional-grade enhancements and lighting corrections",
       tip: "Professional photographers charge $200-500 for similar results"
     },
     {
-      title: "Adding Final Touches",
+      title: "Adding final touches",
       subtitle: "Optimizing photos for dating apps and social media",
       tip: "Studies show professional photos get 3x more matches"
     },
     {
-      title: "Almost Ready!",
+      title: "Almost ready!",
       subtitle: "Preparing your photo gallery for download",
       tip: "You're about to join the top 10% on dating apps"
     }

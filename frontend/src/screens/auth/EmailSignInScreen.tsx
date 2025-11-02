@@ -235,7 +235,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     ]}
                     value={email}
                     onChangeText={setEmail}
-                    placeholder="Email Address"
+                    placeholder="Email address"
                     placeholderTextColor={colors.textSecondary}
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -280,7 +280,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                       ]}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
-                      placeholder="Confirm Password"
+                      placeholder="Confirm password"
                       placeholderTextColor={colors.textSecondary}
                       secureTextEntry
                       autoCapitalize="none"

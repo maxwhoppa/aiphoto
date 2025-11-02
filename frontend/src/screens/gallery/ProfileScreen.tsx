@@ -126,17 +126,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   }, []);
 
   const handleReselect = useCallback(() => {
-    Alert.alert(
-      'Reselect Photos',
-      'This will clear your current selections. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          onPress: () => setViewMode('selection'),
-        },
-      ]
-    );
+    setViewMode('selection');
   }, []);
 
   const handleDownloadAll = useCallback(async () => {
@@ -284,6 +274,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           selectedPhotos={selectedPhotos}
           onDownloadAll={handleDownloadAll}
           onReselect={handleReselect}
+          onGenerateAgain={onGenerateAgain}
           onViewAllPhotos={() => setViewMode('all')}
           downloadingPhotos={downloadingPhotos}
         />

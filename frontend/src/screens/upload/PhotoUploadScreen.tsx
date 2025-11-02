@@ -88,7 +88,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
       const totalPhotos = [...selectedPhotos, ...newPhotos];
       
       if (totalPhotos.length > 10) {
-        Alert.alert('Too Many Photos', 'You can upload a maximum of 10 photos.');
+        Alert.alert('Too many photos', 'You can upload a maximum of 10 photos.');
         return;
       }
       
@@ -111,7 +111,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
       const totalPhotos = [...selectedPhotos, newPhoto];
       
       if (totalPhotos.length > 10) {
-        Alert.alert('Too Many Photos', 'You can upload a maximum of 10 photos.');
+        Alert.alert('Too many photos', 'You can upload a maximum of 10 photos.');
         return;
       }
       
@@ -127,7 +127,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   const uploadPhotosToS3 = async () => {
     if (selectedPhotos.length < 5) {
       Alert.alert(
-        'More Photos Needed',
+        'More photos needed',
         'Please upload at least 5 photos to get the best results.'
       );
       return;
@@ -230,7 +230,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
     } catch (error: any) {
       console.error('Photo upload failed:', error);
       Alert.alert(
-        'Upload Failed',
+        'Upload failed',
         error.message || 'Failed to upload your photos. Please try again.',
         [{ text: 'OK' }]
       );
@@ -246,15 +246,15 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
 
   const showPhotoOptions = () => {
     Alert.alert(
-      'Add Photo',
+      'Add photo',
       'Choose how you want to add a photo',
       [
         {
-          text: 'Choose from Gallery',
+          text: 'Choose from gallery',
           onPress: pickImage,
         },
         {
-          text: 'Take Photo Now',
+          text: 'Take photo now',
           onPress: takePhoto,
         },
         {
@@ -268,22 +268,22 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   const tips = [
     {
       icon: 'bulb-outline',
-      title: 'Good Lighting',
+      title: 'Good lighting',
       description: 'Natural light works best - near a window or outdoors',
     },
     {
       icon: 'person-outline',
-      title: 'Clear Face',
+      title: 'Clear face',
       description: 'Make sure your face is clearly visible and not blurry',
     },
     {
       icon: 'grid-outline',
-      title: 'Different Poses',
+      title: 'Different poses',
       description: 'Include variety - front facing, side profile, full body',
     },
     {
       icon: 'home-outline',
-      title: 'Take at Home',
+      title: 'Take at home',
       description: 'You can take all photos right now if you don\'t have any',
     },
   ];
@@ -301,7 +301,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
         >
         <View style={styles.header}>
           <Text variant="title" style={[styles.title, { color: colors.text }]}>
-            {isRegenerateFlow ? 'Upload New Photos' : 'Upload Your Photos'}
+            {isRegenerateFlow ? 'Upload new photos' : 'Upload your photos'}
           </Text>
           <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             Upload 10 photos for the best results
@@ -315,7 +315,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
               <View style={styles.tipsTitleContainer}>
                 <Ionicons name="camera-outline" size={20} color={colors.primary} />
                 <Text variant="subtitle" style={{ color: colors.text }}>
-                  Photo Tips for Best Results
+                  Photo tips for best results
                 </Text>
               </View>
               {tips.map((tip, index) => (
@@ -342,7 +342,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
         {selectedPhotos.length > 0 && (
           <View style={styles.photosContainer}>
             <Text style={[styles.photosTitle, { color: colors.text }]}>
-              Selected Photos ({selectedPhotos.length}/10)
+              Selected photos ({selectedPhotos.length}/10)
             </Text>
 
             {/* Summarized Photo Tips */}
@@ -350,7 +350,7 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
               <View style={styles.summaryTipsHeader}>
                 <Ionicons name="bulb-outline" size={16} color={colors.primary} />
                 <Text style={[styles.summaryTipsTitle, { color: colors.text }]}>
-                  Photo Tips
+                  Photo tips
                 </Text>
               </View>
               <Text style={[styles.summaryTipsText, { color: colors.textSecondary }]}>
@@ -413,13 +413,13 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
         {selectedPhotos.length === 0 && (
           <View style={styles.bottomButtonsContainer}>
             <Button
-              title="Choose from Gallery"
+              title="Choose from gallery"
               onPress={pickImage}
               variant="primary"
               icon="images-outline"
             />
             <Button
-              title="Take Photo Now"
+              title="Take photo now"
               onPress={takePhoto}
               variant="secondary"
               icon="camera-outline"
@@ -427,10 +427,10 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
           </View>
         )}
 
-        {/* Upload & Continue Button - Show when photos are selected */}
+        {/* Upload and Continue Button - Show when photos are selected */}
         {selectedPhotos.length > 0 && (
           <Button
-            title={isRegenerateFlow ? 'Upload & Continue' : 'Upload & Continue'}
+            title="Upload and continue"
             onPress={handleNext}
             disabled={selectedPhotos.length < 5 || isUploading}
             loading={isUploading}

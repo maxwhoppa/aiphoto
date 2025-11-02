@@ -160,7 +160,7 @@ export const OnboardingIntroScreen: React.FC<OnboardingIntroScreenProps> = ({
         </View>
       </View>
 
-      <OnboardingButton title="Get Started" onPress={onNext} />
+      <OnboardingButton title="Get started" onPress={onNext} />
     </SafeAreaView>
   );
 };

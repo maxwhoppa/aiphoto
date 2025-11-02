@@ -114,7 +114,7 @@ export const PhotoRanking: React.FC<PhotoRankingProps> = ({
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.title, { color: colors.text }]}>Rank Your Top Photos</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Rank your top photos</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Select and order up to 6 photos
           </Text>
