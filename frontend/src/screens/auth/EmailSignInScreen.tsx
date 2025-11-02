@@ -349,7 +349,7 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     <AppleAuthentication.AppleAuthenticationButton
                       buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
                       buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                      cornerRadius={20}
+                      cornerRadius={28}
                       style={styles.appleButton}
                       onPress={handleAppleSignIn}
                     />
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   },
   button: {
     height: 56,
-    borderRadius: 20,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     height: 56,
-    borderRadius: 20,
+    borderRadius: 28,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
