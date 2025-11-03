@@ -116,7 +116,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         }
       }
 
-      // Fetch generated images
+      // Fetch generated images (profile selection is now done server-side automatically)
       const generatedImagesResponse = await getGeneratedImages({});
       const generatedImages = generatedImagesResponse.result?.data || generatedImagesResponse.data || [];
 
@@ -129,7 +129,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       // Complete the progress bar
       setProgress(100);
 
-      // Complete after a brief delay
+      // Complete after a brief delay with the photos (selection is already done server-side)
       setTimeout(() => {
         onComplete(generatedImages);
       }, 500);

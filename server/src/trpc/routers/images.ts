@@ -328,14 +328,66 @@ export const imagesRouter = router({
     }
 
       // Extract results from Promise.allSettled
-      const processedResults = results.map(result => 
+      const processedResults = results.map(result =>
         result.status === 'fulfilled' ? result.value : {
           imageId: 'unknown',
-          scenario: 'unknown', 
+          scenario: 'unknown',
           success: false,
           error: result.reason instanceof Error ? result.reason.message : 'Processing failed'
         }
       );
+
+      // After successful generation, auto-select profile photos if none exist
+      const successfulGenerations = processedResults.filter(r => r.success);
+
+      if (successfulGenerations.length > 0) {
+        // Check if user already has profile selections
+        const existingSelections = await db
+          .select()
+          .from(generatedImages)
+          .where(
+            and(
+              eq(generatedImages.userId, user.id),
+              isNotNull(generatedImages.selectedProfileOrder)
+            )
+          );
+
+        // Only auto-select if no existing selections
+        if (existingSelections.length === 0) {
+          logger.info('Auto-selecting profile photos for user', {
+            cognitoUserId: ctx.user.sub,
+            generatedCount: successfulGenerations.length,
+          });
+
+          // Get all generated images for this user to randomly select from
+          const allGeneratedImages = await db
+            .select()
+            .from(generatedImages)
+            .where(eq(generatedImages.userId, user.id))
+            .orderBy(desc(generatedImages.createdAt));
+
+          if (allGeneratedImages.length > 0) {
+            // Randomly select up to 6 images
+            const shuffled = [...allGeneratedImages].sort(() => Math.random() - 0.5);
+            const toSelect = shuffled.slice(0, Math.min(6, shuffled.length));
+
+            // Update the selected images with their profile order
+            await db.transaction(async (tx) => {
+              for (let i = 0; i < toSelect.length; i++) {
+                await tx
+                  .update(generatedImages)
+                  .set({ selectedProfileOrder: i + 1 })
+                  .where(eq(generatedImages.id, toSelect[i].id));
+              }
+            });
+
+            logger.info('Profile photos auto-selected', {
+              cognitoUserId: ctx.user.sub,
+              selectedCount: toSelect.length,
+            });
+          }
+        }
+      }
 
       return {
         processed: processedResults.length,

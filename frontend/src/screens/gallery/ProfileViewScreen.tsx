@@ -12,6 +12,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -24,6 +25,7 @@ import { BackButton } from '../../components/BackButton';
 import { BottomTab } from '../../components/BottomTab';
 import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
+import { hasNewPhotos, setLastViewedPhotoCount, getLastViewedPhotoCount } from '../../utils/photoViewTracking';
 
 // Optimized image component with expo-image for better performance
 const OptimizedImage: React.FC<{
@@ -34,14 +36,38 @@ const OptimizedImage: React.FC<{
   index?: number;
   isLoaded: boolean;
   onImageLoad: (photoId: string) => void;
-}> = ({ photo, size, onPress, colors, index = 0, isLoaded, onImageLoad }) => {
+  isNewPhoto?: boolean;
+}> = ({ photo, size, onPress, colors, index = 0, isLoaded, onImageLoad, isNewPhoto = false }) => {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(isLoaded);
+  const bounceAnim = React.useRef(new Animated.Value(0)).current;
 
   // Prioritize first visible images
   const priority = index < 10 ? 'high' : 'normal';
 
   // Image is clickable once it has loaded at least once
   const canClick = hasLoadedOnce;
+
+  // Create bouncing animation for new photos
+  React.useEffect(() => {
+    if (isNewPhoto) {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, {
+            toValue: -5,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bounceAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [isNewPhoto, bounceAnim]);
 
   return (
     <TouchableOpacity
@@ -83,6 +109,22 @@ const OptimizedImage: React.FC<{
           {photo.scenario}
         </Text>
       </View>
+
+      {/* New photo notification dot */}
+      {isNewPhoto && (
+        <Animated.View
+          style={[
+            styles.newPhotoNotificationDot,
+            {
+              transform: [
+                {
+                  translateY: bounceAnim,
+                },
+              ],
+            },
+          ]}
+        />
+      )}
     </TouchableOpacity>
   );
 };
@@ -131,6 +173,8 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [lastViewedCount, setLastViewedCount] = useState(0);
+  const [newPhotoIds, setNewPhotoIds] = useState<Set<string>>(new Set());
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 2; // 2 photos per row with spacing
 
@@ -151,6 +195,32 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     }
     return photosByScenario[selectedTab] || [];
   };
+
+  // Check for new photos when component mounts or photos change
+  useEffect(() => {
+    const checkForNewPhotos = async () => {
+      const storedCount = await getLastViewedPhotoCount();
+      setLastViewedCount(storedCount);
+
+      // If we have more photos than last viewed, mark the new ones
+      if (generatedPhotos.length > storedCount) {
+        // Sort photos by creation date (assuming newer photos come first)
+        const sortedPhotos = [...generatedPhotos].sort((a, b) => {
+          // If photos have timestamps, use them; otherwise use array order
+          return 0; // Keep original order for now
+        });
+
+        // Mark photos beyond the last viewed count as new
+        const newPhotos = sortedPhotos.slice(0, generatedPhotos.length - storedCount);
+        const newIds = new Set(newPhotos.map(photo => photo.id));
+        setNewPhotoIds(newIds);
+      } else {
+        setNewPhotoIds(new Set());
+      }
+    };
+
+    checkForNewPhotos();
+  }, [generatedPhotos.length]);
 
   const requestMediaLibraryPermissions = async () => {
     try {
@@ -208,6 +278,15 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
     setCurrentImageIndex(index);
 
+    // Mark this photo as viewed by removing it from new photos
+    if (newPhotoIds.has(photo.id)) {
+      setNewPhotoIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(photo.id);
+        return newSet;
+      });
+    }
+
     // Show modal immediately with already-loaded image
     setImageViewerVisible(true);
 
@@ -233,7 +312,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
       preloadAdjacent();
     }, 500); // Delay adjacent preloading
-  }, [preloadedImages, selectedTab, generatedPhotos, photosByScenario]);
+  }, [preloadedImages, selectedTab, generatedPhotos, photosByScenario, newPhotoIds]);
 
   const downloadPhoto = async (photo: GeneratedPhoto) => {
     console.log('Starting download for photo:', photo.id);
@@ -403,6 +482,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
     const isDownloading = downloadingPhotos.has(photo.id);
     const isSaved = savedPhotos.has(photo.id);
     const isLoaded = loadedImages.has(photo.id);
+    const isNewPhoto = newPhotoIds.has(photo.id);
 
     return (
       <View style={styles.photoWrapper}>
@@ -413,6 +493,7 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
           colors={colors}
           index={index}
           isLoaded={isLoaded}
+          isNewPhoto={isNewPhoto}
           onImageLoad={(photoId) => {
             setLoadedImages(prev => new Set(prev).add(photoId));
           }}
@@ -442,12 +523,17 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
         )}
       </View>
     );
-  }, [photoSize, colors, downloadingPhotos, savedPhotos, openImageViewer, loadedImages]);
+  }, [photoSize, colors, downloadingPhotos, savedPhotos, openImageViewer, loadedImages, newPhotoIds]);
 
   const displayPhotos = getDisplayPhotos();
 
   // Handle back navigation - prioritize going to profile screen
-  const handleBack = () => {
+  const handleBack = async () => {
+    // Update viewed count when leaving the screen
+    if (newPhotoIds.size === 0 && generatedPhotos.length > lastViewedCount) {
+      await setLastViewedPhotoCount(generatedPhotos.length);
+    }
+
     if (onGoToProfile) {
       onGoToProfile(); // Go directly to profile screen
     } else if (onViewProfile) {
@@ -1009,6 +1095,20 @@ const styles = StyleSheet.create({
   scenarioText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  newPhotoNotificationDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF6B35', // Orange color
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 3,
   },
   thumbnailLoadingOverlay: {
     position: 'absolute',

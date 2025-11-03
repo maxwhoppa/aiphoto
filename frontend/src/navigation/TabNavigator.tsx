@@ -169,18 +169,19 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
             imageIds={route.params.imageIds}
             paymentId={route.params.paymentId}
             onComplete={async (generatedImages) => {
-              // Convert and set the new images
+              // Convert and set the new images, preserving the selectedProfileOrder
               const newPhotos = generatedImages.map((img: any) => ({
                 id: img.id,
                 uri: img.downloadUrl || img.s3Url,
                 scenario: img.scenario,
                 downloadUrl: img.downloadUrl,
+                selectedProfileOrder: img.selectedProfileOrder || null,
               }));
 
               // Update the images in ProfileStackNavigator state
               setImages(newPhotos);
 
-              // Navigate back to ProfileView
+              // Navigate back to ProfileView - the ProfileScreen will automatically load the selected photos
               navigation.reset({
                 index: 0,
                 routes: [{

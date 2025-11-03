@@ -5,9 +5,11 @@ import { ProfileViewScreen } from './ProfileViewScreen';
 import { PhotoSelectionFlow } from './PhotoSelectionFlow';
 import { ProfilePreview } from './ProfilePreview';
 import { PhotoRanking } from './PhotoRanking';
+import { SinglePhotoSelectionScreen } from './SinglePhotoSelectionScreen';
 import { setSelectedProfilePhotos, getSelectedProfilePhotos } from '../../services/api';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
+import { hasNewPhotos, setLastViewedPhotoCount } from '../../utils/photoViewTracking';
 
 interface GeneratedPhoto {
   id: string;
@@ -24,7 +26,7 @@ interface ProfileScreenProps {
   onRefresh?: () => Promise<void>;
 }
 
-type ViewMode = 'selection' | 'ranking' | 'preview' | 'all';
+type ViewMode = 'selection' | 'ranking' | 'preview' | 'all' | 'single-select';
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   generatedPhotos,
@@ -39,6 +41,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingPhotos, setDownloadingPhotos] = useState<Set<string>>(new Set());
   const [photosToRank, setPhotosToRank] = useState<GeneratedPhoto[]>([]);
+  const [hasUnviewedPhotos, setHasUnviewedPhotos] = useState(false);
+  const [photoToReplace, setPhotoToReplace] = useState<{ index: number; photo: GeneratedPhoto } | null>(null);
 
   // Group photos by scenario for selection flow
   const photosByScenario = generatedPhotos.reduce((acc, photo) => {
@@ -82,6 +86,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
     loadSelectedPhotos();
   }, []);
+
+  // Check if there are unviewed photos
+  useEffect(() => {
+    const checkForNewPhotos = async () => {
+      const hasNew = await hasNewPhotos(generatedPhotos.length);
+      setHasUnviewedPhotos(hasNew);
+    };
+    checkForNewPhotos();
+  }, [generatedPhotos.length]);
 
   const handleSelectionComplete = useCallback(async (selections: { generatedImageId: string; order: number }[]) => {
     setIsSaving(true);
@@ -127,6 +140,49 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   const handleReselect = useCallback(() => {
     setViewMode('selection');
+  }, []);
+
+  const handleSinglePhotoReplace = useCallback((photoIndex: number, currentPhoto: GeneratedPhoto) => {
+    setPhotoToReplace({ index: photoIndex, photo: currentPhoto });
+    setViewMode('single-select');
+  }, []);
+
+  const handleSinglePhotoSelection = useCallback(async (newPhoto: GeneratedPhoto, replacementIndex: number) => {
+    setIsSaving(true);
+    try {
+      // Create new array with the replaced photo
+      const updatedPhotos = [...selectedPhotos];
+      const photoWithOrder = {
+        ...newPhoto,
+        selectedProfileOrder: updatedPhotos[replacementIndex].selectedProfileOrder,
+      };
+      updatedPhotos[replacementIndex] = photoWithOrder;
+
+      // Update the API with new selections
+      const selections = updatedPhotos.map((photo, index) => ({
+        generatedImageId: photo.id,
+        order: photo.selectedProfileOrder || index + 1,
+      }));
+
+      await setSelectedProfilePhotos(selections);
+      setSelectedPhotos(updatedPhotos);
+      setViewMode('preview');
+      setPhotoToReplace(null);
+    } catch (error) {
+      console.error('Error replacing photo:', error);
+      Alert.alert(
+        'Error',
+        'Failed to replace the photo. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedPhotos]);
+
+  const handleCancelSingleSelection = useCallback(() => {
+    setPhotoToReplace(null);
+    setViewMode('preview');
   }, []);
 
   const handleDownloadAll = useCallback(async () => {
@@ -275,8 +331,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onDownloadAll={handleDownloadAll}
           onReselect={handleReselect}
           onGenerateAgain={onGenerateAgain}
-          onViewAllPhotos={() => setViewMode('all')}
+          onViewAllPhotos={() => {
+            setViewMode('all');
+            // Mark photos as viewed
+            setLastViewedPhotoCount(generatedPhotos.length);
+            setHasUnviewedPhotos(false);
+          }}
+          onSinglePhotoReplace={handleSinglePhotoReplace}
           downloadingPhotos={downloadingPhotos}
+          isNewGeneration={hasUnviewedPhotos}
         />
       );
 
@@ -292,6 +355,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           hasSelectedPhotos={selectedPhotos.length > 0}
         />
       );
+
+    case 'single-select':
+      return photoToReplace ? (
+        <SinglePhotoSelectionScreen
+          generatedPhotos={generatedPhotos}
+          selectedScenarios={selectedScenarios}
+          currentPhoto={photoToReplace.photo}
+          photoIndex={photoToReplace.index}
+          onPhotoSelect={handleSinglePhotoSelection}
+          onCancel={handleCancelSingleSelection}
+        />
+      ) : null;
 
     default:
       return null;

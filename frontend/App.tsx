@@ -15,6 +15,7 @@ import { LoadingScreen } from './src/screens/generation/LoadingScreen';
 import { ProfileViewScreen } from './src/screens/gallery/ProfileViewScreen';
 import { ThemeSelector } from './src/components/ThemeSelector';
 import { ParticleBackground } from './src/components/ParticleBackground';
+import { ShakeLogoutHandler } from './src/components/ShakeLogoutHandler';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { getGeneratedImages, checkPaymentAccess } from './src/services/api';
 
@@ -40,7 +41,7 @@ type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, signOut } = useAuth();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasPaymentAccess, setHasPaymentAccess] = useState(false);
   const [hasGeneratedImages, setHasGeneratedImages] = useState(false);
@@ -191,6 +192,7 @@ function AppNavigator() {
 
   return (
     <ParticleBackground intensity="medium">
+      {isAuthenticated && <ShakeLogoutHandler onLogout={signOut} />}
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{

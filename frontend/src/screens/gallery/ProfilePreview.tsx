@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -29,8 +30,10 @@ interface ProfilePreviewProps {
   onReselect: () => void;
   onGenerateAgain: () => void;
   onViewAllPhotos: () => void;
+  onSinglePhotoReplace?: (photoIndex: number, currentPhoto: GeneratedPhoto) => void;
   isDownloading?: boolean;
   downloadingPhotos?: Set<string>;
+  isNewGeneration?: boolean;
 }
 
 export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
@@ -39,8 +42,10 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   onReselect,
   onGenerateAgain,
   onViewAllPhotos,
+  onSinglePhotoReplace,
   isDownloading = false,
   downloadingPhotos = new Set(),
+  isNewGeneration = false,
 }) => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
@@ -48,6 +53,29 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   const imageHeight = cardWidth * 1.2; // Aspect ratio similar to dating apps
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  // Create bouncing animation for the notification dot
+  useEffect(() => {
+    if (isNewGeneration) {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, {
+            toValue: -5,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bounceAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [isNewGeneration, bounceAnim]);
 
   // Sort photos by selectedProfileOrder
   const sortedPhotos = [...selectedPhotos].sort((a, b) => {
@@ -93,7 +121,13 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
             {/* Photo */}
             <TouchableOpacity
               style={[styles.imageContainer, { width: cardWidth, height: imageHeight }]}
-              onPress={onReselect}
+              onPress={() => {
+                if (onSinglePhotoReplace) {
+                  onSinglePhotoReplace(index, photo);
+                } else {
+                  onReselect();
+                }
+              }}
               activeOpacity={0.7}
             >
               <Image
@@ -239,6 +273,20 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
             <Text style={styles.sideButtonText}>
               All Photos
             </Text>
+            {isNewGeneration && (
+              <Animated.View
+                style={[
+                  styles.notificationDot,
+                  {
+                    transform: [
+                      {
+                        translateY: bounceAnim,
+                      },
+                    ],
+                  },
+                ]}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </BottomTab>
@@ -276,6 +324,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 24,
     color: '#1E1E1E', // Fixed text color
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF6B35', // Orange color
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 3,
   },
   title: {
   },
