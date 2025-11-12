@@ -73,7 +73,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         if (existingSelections.length > 0) {
           console.log('Found existing selections in generatedPhotos:', existingSelections.length);
-          setSelectedPhotos(existingSelections);
+          // Sort by selectedProfileOrder to ensure correct positioning
+          const sortedSelections = existingSelections.sort((a, b) =>
+            (a.selectedProfileOrder || 0) - (b.selectedProfileOrder || 0)
+          );
+          console.log('ProfileScreen: Sorted selections:', sortedSelections.map(p => ({ id: p.id, order: p.selectedProfileOrder })));
+          setSelectedPhotos(sortedSelections);
           setViewMode('preview');
         } else {
           // Fall back to API call
@@ -90,8 +95,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               downloadUrl: photo.downloadUrl || photo.s3Url,
               selectedProfileOrder: photo.selectedProfileOrder,
             }));
-            console.log('Found selections from API:', selected.length);
-            setSelectedPhotos(selected);
+            // Sort by selectedProfileOrder to ensure correct positioning
+            const sortedSelected = selected.sort((a, b) =>
+              (a.selectedProfileOrder || 0) - (b.selectedProfileOrder || 0)
+            );
+            console.log('Found selections from API:', sortedSelected.length);
+            console.log('ProfileScreen: API sorted selections:', sortedSelected.map(p => ({ id: p.id, order: p.selectedProfileOrder })));
+            setSelectedPhotos(sortedSelected);
             setViewMode('preview');
           } else {
             // No selections yet, show selection flow
@@ -174,19 +184,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const handleSinglePhotoSelection = useCallback(async (newPhoto: GeneratedPhoto, replacementIndex: number) => {
     setIsSaving(true);
     try {
+      console.log('handleSinglePhotoSelection: Replacing photo at index', replacementIndex);
+      console.log('handleSinglePhotoSelection: Current selectedPhotos:', selectedPhotos.map(p => ({ id: p.id, order: p.selectedProfileOrder })));
+
       // Create new array with the replaced photo
       const updatedPhotos = [...selectedPhotos];
+      const originalOrder = updatedPhotos[replacementIndex].selectedProfileOrder;
+
+      console.log('handleSinglePhotoSelection: Original order was:', originalOrder);
+
       const photoWithOrder = {
         ...newPhoto,
-        selectedProfileOrder: updatedPhotos[replacementIndex].selectedProfileOrder,
+        selectedProfileOrder: originalOrder,
       };
       updatedPhotos[replacementIndex] = photoWithOrder;
 
-      // Update the API with new selections
-      const selections = updatedPhotos.map((photo, index) => ({
+      console.log('handleSinglePhotoSelection: Updated photos:', updatedPhotos.map(p => ({ id: p.id, order: p.selectedProfileOrder })));
+
+      // Update the API with new selections - ensure we preserve exact orders
+      const selections = updatedPhotos.map((photo) => ({
         generatedImageId: photo.id,
-        order: photo.selectedProfileOrder || index + 1,
+        order: photo.selectedProfileOrder!, // We know this exists since these are selected photos
       }));
+
+      console.log('handleSinglePhotoSelection: Sending selections to API:', selections);
 
       await setSelectedProfilePhotos(selections);
       setSelectedPhotos(updatedPhotos);

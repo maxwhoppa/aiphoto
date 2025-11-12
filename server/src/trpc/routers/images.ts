@@ -350,20 +350,90 @@ export const imagesRouter = router({
               task.scenario
             );
 
-            // Process with Gemini and get the generated image
-            const generatedImageResult = await geminiService.generateAndUploadImage(
-              task.image.s3Key,
-              task.scenario,
-              customPrompt,
-              uploadData.uploadUrl
-            );
+            // Process with Gemini and get the generated image - with retry logic
+            let generatedImageResult;
+            let lastError;
+            const MAX_RETRIES = 3;
 
-            if (generatedImageResult.error) {
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+              try {
+                logger.info('Attempting image generation', {
+                  cognitoUserId: ctx.user.sub,
+                  imageId: task.imageId,
+                  scenario: task.scenario,
+                  attempt,
+                  maxRetries: MAX_RETRIES,
+                });
+
+                generatedImageResult = await geminiService.generateAndUploadImage(
+                  task.image.s3Key,
+                  task.scenario,
+                  customPrompt,
+                  uploadData.uploadUrl
+                );
+
+                if (!generatedImageResult.error) {
+                  // Success! Break out of retry loop
+                  if (attempt > 1) {
+                    logger.info('Image generation succeeded after retry', {
+                      cognitoUserId: ctx.user.sub,
+                      imageId: task.imageId,
+                      scenario: task.scenario,
+                      successfulAttempt: attempt,
+                    });
+                  }
+                  break;
+                }
+
+                lastError = generatedImageResult.error;
+
+                // If this isn't the last attempt, wait before retrying
+                if (attempt < MAX_RETRIES) {
+                  const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 1s, 2s, 4s
+                  logger.warn('Image generation failed, retrying', {
+                    cognitoUserId: ctx.user.sub,
+                    imageId: task.imageId,
+                    scenario: task.scenario,
+                    attempt,
+                    error: generatedImageResult.error,
+                    retryDelay: delay,
+                  });
+
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              } catch (error) {
+                lastError = error instanceof Error ? error.message : 'Processing failed';
+
+                if (attempt < MAX_RETRIES) {
+                  const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff
+                  logger.warn('Image generation threw error, retrying', {
+                    cognitoUserId: ctx.user.sub,
+                    imageId: task.imageId,
+                    scenario: task.scenario,
+                    attempt,
+                    error: lastError,
+                    retryDelay: delay,
+                  });
+
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                  logger.error('Image generation failed after all retries', {
+                    cognitoUserId: ctx.user.sub,
+                    imageId: task.imageId,
+                    scenario: task.scenario,
+                    finalError: lastError,
+                  });
+                }
+              }
+            }
+
+            // Check if we still have an error after all retries
+            if (generatedImageResult?.error || !generatedImageResult) {
               return {
                 imageId: task.imageId,
                 scenario: task.scenario,
                 success: false,
-                error: generatedImageResult.error,
+                error: lastError || 'Image generation failed after all retries',
               };
             }
 
@@ -739,6 +809,11 @@ export const imagesRouter = router({
 
       // Start transaction to update all selections atomically
       await db.transaction(async (tx) => {
+        logger.info('Updating profile photo selections', {
+          cognitoUserId: ctx.user.sub,
+          newSelections: input.selections,
+        });
+
         // First, clear all existing selections for this user
         await tx
           .update(generatedImages)
@@ -747,6 +822,12 @@ export const imagesRouter = router({
 
         // Then set the new selections
         for (const selection of input.selections) {
+          logger.info('Setting photo order', {
+            cognitoUserId: ctx.user.sub,
+            imageId: selection.generatedImageId,
+            order: selection.order,
+          });
+
           const result = await tx
             .update(generatedImages)
             .set({ selectedProfileOrder: selection.order })
@@ -759,6 +840,13 @@ export const imagesRouter = router({
           if (result.length === 0) {
             throw new Error(`Image ${selection.generatedImageId} not found or not owned by user`);
           }
+
+          logger.info('Photo order updated successfully', {
+            cognitoUserId: ctx.user.sub,
+            imageId: selection.generatedImageId,
+            order: selection.order,
+            resultId: result[0].id,
+          });
         }
       });
 

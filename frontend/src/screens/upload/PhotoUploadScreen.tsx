@@ -367,8 +367,15 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
                     resizeMode="cover"
                   />
                   <TouchableOpacity
-                    style={[styles.removeButton, { backgroundColor: colors.error }]}
+                    style={[
+                      styles.removeButton,
+                      {
+                        backgroundColor: isUploading ? colors.textSecondary : colors.error,
+                        opacity: isUploading ? 0.5 : 1
+                      }
+                    ]}
                     onPress={() => removePhoto(index)}
+                    disabled={isUploading}
                   >
                     <Text style={[styles.removeButtonText, { color: colors.background }]}>
                       ×
@@ -387,9 +394,11 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
                       height: photoSize,
                       backgroundColor: colors.surface,
                       borderColor: colors.border,
+                      opacity: isUploading ? 0.5 : 1
                     }
                   ]}
                   onPress={showPhotoOptions}
+                  disabled={isUploading}
                 >
                   <Text style={[styles.addMoreText, { color: colors.textSecondary }]}>
                     +
