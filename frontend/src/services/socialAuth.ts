@@ -210,7 +210,54 @@ export async function signInWithApple(): Promise<{
           throw createError;
         }
       } else if (authError.name === 'UserNotConfirmedException') {
-        throw new Error('Please check your email for a verification code and confirm your account first.');
+        console.log('User not confirmed, attempting to confirm via server...');
+
+        try {
+          // Try to confirm the user via the server
+          await confirmSocialUser(email, 'apple');
+          console.log('Apple user confirmed via server');
+
+          // Try to sign in again after confirmation
+          const retryAuthCommand = new InitiateAuthCommand({
+            ClientId: CLIENT_ID,
+            AuthFlow: AuthFlowType.USER_PASSWORD_AUTH,
+            AuthParameters: {
+              USERNAME: username,
+              PASSWORD: password,
+            },
+          });
+
+          const retryResponse = await client.send(retryAuthCommand);
+
+          if (!retryResponse.AuthenticationResult) {
+            throw new Error('User confirmed but sign-in failed');
+          }
+
+          const retryTokens = {
+            accessToken: retryResponse.AuthenticationResult.AccessToken || '',
+            idToken: retryResponse.AuthenticationResult.IdToken || '',
+            refreshToken: retryResponse.AuthenticationResult.RefreshToken || '',
+            expiresIn: retryResponse.AuthenticationResult.ExpiresIn || 3600,
+          };
+
+          const retryCognitoUser: any = jwtDecode(retryTokens.idToken);
+
+          const retryUser = {
+            sub: retryCognitoUser.sub,
+            email: email,
+            name: credential.fullName ?
+              `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim() :
+              'Apple User',
+            appleUserId: credential.user,
+            provider: 'apple',
+          };
+
+          return { user: retryUser, tokens: retryTokens };
+
+        } catch (confirmError: any) {
+          console.error('Failed to confirm Apple user:', confirmError);
+          throw new Error('Please check your email for a verification code and confirm your account first.');
+        }
       } else {
         console.error('Apple sign-in auth error:', authError);
         throw authError;

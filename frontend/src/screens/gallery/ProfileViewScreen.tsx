@@ -25,7 +25,8 @@ import { BackButton } from '../../components/BackButton';
 import { BottomTab } from '../../components/BottomTab';
 import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
-import { hasNewPhotos, setLastViewedPhotoCount, getLastViewedPhotoCount } from '../../utils/photoViewTracking';
+import { GenerationStatusNotification } from '../../components/GenerationStatusNotification';
+import { hasNewPhotos, setLastViewedPhotoCount, getLastViewedPhotoCount, getViewedPhotoIds, markPhotoAsViewed, markPhotosAsViewed } from '../../utils/photoViewTracking';
 
 // Optimized image component with expo-image for better performance
 const OptimizedImage: React.FC<{
@@ -147,6 +148,8 @@ interface ProfileViewScreenProps {
   onBack?: () => void; // Made optional again with fallback
   onGoToProfile?: () => void; // New prop for direct profile navigation
   navigation?: any; // Add navigation prop as fallback
+  isGenerating?: boolean;
+  generationMessage?: string;
 }
 
 export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
@@ -160,6 +163,8 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   onBack,
   onGoToProfile,
   navigation,
+  isGenerating = false,
+  generationMessage = "Images Generating...",
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -199,28 +204,60 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   // Check for new photos when component mounts or photos change
   useEffect(() => {
     const checkForNewPhotos = async () => {
-      const storedCount = await getLastViewedPhotoCount();
+      const [storedCount, viewedPhotoIds] = await Promise.all([
+        getLastViewedPhotoCount(),
+        getViewedPhotoIds()
+      ]);
+
+      console.log('ProfileViewScreen: storedCount =', storedCount, 'currentCount =', generatedPhotos.length);
+      console.log('ProfileViewScreen: viewedPhotoIds =', viewedPhotoIds.size, 'photos');
       setLastViewedCount(storedCount);
 
-      // If we have more photos than last viewed, mark the new ones
-      if (generatedPhotos.length > storedCount) {
-        // Sort photos by creation date (assuming newer photos come first)
-        const sortedPhotos = [...generatedPhotos].sort((a, b) => {
-          // If photos have timestamps, use them; otherwise use array order
-          return 0; // Keep original order for now
-        });
+      // Find photos that haven't been viewed yet
+      const unviewedPhotoIds = new Set(
+        generatedPhotos
+          .filter(photo => !viewedPhotoIds.has(photo.id))
+          .map(photo => photo.id)
+      );
 
-        // Mark photos beyond the last viewed count as new
-        const newPhotos = sortedPhotos.slice(0, generatedPhotos.length - storedCount);
-        const newIds = new Set(newPhotos.map(photo => photo.id));
-        setNewPhotoIds(newIds);
-      } else {
-        setNewPhotoIds(new Set());
-      }
+      console.log('ProfileViewScreen: marking', unviewedPhotoIds.size, 'photos as new');
+      setNewPhotoIds(unviewedPhotoIds);
     };
 
     checkForNewPhotos();
   }, [generatedPhotos.length]);
+
+  // Handle when photos come into view to mark them as seen
+  const handleViewableItemsChanged = useCallback(({ viewableItems }: any) => {
+    const viewablePhotoIds = viewableItems.map((item: any) => item.item.id);
+
+    // Remove any viewable photos from the new photos set
+    const photosToMark: string[] = [];
+
+    setNewPhotoIds(prev => {
+      const newSet = new Set(prev);
+
+      viewablePhotoIds.forEach((photoId: string) => {
+        if (newSet.has(photoId)) {
+          newSet.delete(photoId);
+          photosToMark.push(photoId);
+        }
+      });
+
+      return newSet;
+    });
+
+    // Persist the viewed status for photos that were marked
+    if (photosToMark.length > 0) {
+      markPhotosAsViewed(photosToMark);
+      console.log('ProfileViewScreen: marked', photosToMark.length, 'photos as viewed via scroll');
+    }
+  }, []);
+
+  // Configuration for viewable items (how much of the item needs to be visible)
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50, // 50% of the item must be visible
+  };
 
   const requestMediaLibraryPermissions = async () => {
     try {
@@ -285,6 +322,9 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
         newSet.delete(photo.id);
         return newSet;
       });
+      // Persist the viewed status
+      markPhotoAsViewed(photo.id);
+      console.log('ProfileViewScreen: marked photo as viewed from click:', photo.id);
     }
 
     // Show modal immediately with already-loaded image
@@ -602,6 +642,12 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Generation Status Notification */}
+      <GenerationStatusNotification
+        visible={isGenerating}
+        message={generationMessage}
+      />
+
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <BackButton onPress={handleBack} />
         <View style={[styles.header, { marginTop: 20 }]}>
@@ -641,6 +687,8 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
             initialNumToRender={10}
             contentInsetAdjustmentBehavior="automatic"
             automaticallyAdjustContentInsets={true}
+            onViewableItemsChanged={handleViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
             refreshControl={
               onRefresh ? (
                 <RefreshControl

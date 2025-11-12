@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomTab } from '../../components/BottomTab';
 import { Button } from '../../components/Button';
 import { Text } from '../../components/Text';
+import { GenerationStatusNotification } from '../../components/GenerationStatusNotification';
 
 interface GeneratedPhoto {
   id: string;
@@ -34,6 +35,8 @@ interface ProfilePreviewProps {
   isDownloading?: boolean;
   downloadingPhotos?: Set<string>;
   isNewGeneration?: boolean;
+  isGenerating?: boolean;
+  generationMessage?: string;
 }
 
 export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
@@ -46,18 +49,38 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   isDownloading = false,
   downloadingPhotos = new Set(),
   isNewGeneration = false,
+  isGenerating = false,
+  generationMessage = "Images Generating...",
 }) => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
   const cardWidth = screenWidth - 40;
   const imageHeight = cardWidth * 1.2; // Aspect ratio similar to dating apps
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('ProfilePreview: isGenerating prop changed to:', isGenerating);
+  }, [isGenerating]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [showCompletionBounce, setShowCompletionBounce] = useState(false);
+  const prevIsGenerating = useRef(isGenerating);
   const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  // Detect when generation completes (goes from true to false)
+  useEffect(() => {
+    if (prevIsGenerating.current === true && isGenerating === false) {
+      // Generation just completed, show bounce animation on All Photos button
+      setShowCompletionBounce(true);
+      console.log('Generation completed - showing bounce on All Photos button');
+    }
+    prevIsGenerating.current = isGenerating;
+  }, [isGenerating]);
 
   // Create bouncing animation for the notification dot
   useEffect(() => {
-    if (isNewGeneration) {
+    if (isNewGeneration || showCompletionBounce) {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(bounceAnim, {
@@ -75,7 +98,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
       animation.start();
       return () => animation.stop();
     }
-  }, [isNewGeneration, bounceAnim]);
+  }, [isNewGeneration, showCompletionBounce, bounceAnim]);
 
   // Sort photos by selectedProfileOrder
   const sortedPhotos = [...selectedPhotos].sort((a, b) => {
@@ -95,10 +118,18 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
     const { contentOffset } = event.nativeEvent;
     // Hide scroll indicator when user has scrolled down
     setShowScrollIndicator(contentOffset.y < 50);
+    // Track if user is at the top for generation notification
+    setIsAtTop(contentOffset.y < 20);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
+      {/* Generation Status Notification - always show when generating */}
+      <GenerationStatusNotification
+        visible={isGenerating}
+        message={generationMessage}
+      />
+
       {/* Profile Preview Title */}
       <View style={styles.titleSection}>
         <Text variant="title" style={[styles.title, { color: colors.text }]}>Your profile preview</Text>
@@ -267,13 +298,16 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
 
           <TouchableOpacity
             style={styles.sideButton}
-            onPress={onViewAllPhotos}
+            onPress={() => {
+              setShowCompletionBounce(false);
+              onViewAllPhotos();
+            }}
           >
             <Ionicons name="grid-outline" size={24} color="#000000" />
             <Text style={styles.sideButtonText}>
               All Photos
             </Text>
-            {isNewGeneration && (
+            {(isNewGeneration || showCompletionBounce) && (
               <Animated.View
                 style={[
                   styles.notificationDot,

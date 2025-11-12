@@ -24,6 +24,7 @@ interface ProfileScreenProps {
   selectedScenarios: string[];
   onGenerateAgain: () => void;
   onRefresh?: () => Promise<void>;
+  isGenerating?: boolean;
 }
 
 type ViewMode = 'selection' | 'ranking' | 'preview' | 'all' | 'single-select';
@@ -33,9 +34,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   selectedScenarios,
   onGenerateAgain,
   onRefresh,
+  isGenerating = false,
 }) => {
   const { colors } = useTheme();
-  const [viewMode, setViewMode] = useState<ViewMode>('preview');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    // Initialize with smart default based on existing selections
+    const hasSelections = generatedPhotos.some(photo =>
+      photo.selectedProfileOrder !== null && photo.selectedProfileOrder !== undefined
+    );
+    return hasSelections ? 'preview' : 'selection';
+  });
   const [selectedPhotos, setSelectedPhotos] = useState<GeneratedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,23 +66,38 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     const loadSelectedPhotos = async () => {
       setIsLoading(true);
       try {
-        const response = await getSelectedProfilePhotos();
-        const data = response?.result?.data || [];
+        // First check if generatedPhotos already has selection info
+        const existingSelections = generatedPhotos.filter(photo =>
+          photo.selectedProfileOrder !== null && photo.selectedProfileOrder !== undefined
+        );
 
-        if (data && data.length > 0) {
-          // Map the selected photos from API to our format
-          const selected = data.map((photo: any) => ({
-            id: photo.id,
-            uri: photo.s3Url,
-            scenario: photo.scenario,
-            downloadUrl: photo.downloadUrl || photo.s3Url,
-            selectedProfileOrder: photo.selectedProfileOrder,
-          }));
-          setSelectedPhotos(selected);
-          setViewMode('preview'); // Show preview if we have selections
+        if (existingSelections.length > 0) {
+          console.log('Found existing selections in generatedPhotos:', existingSelections.length);
+          setSelectedPhotos(existingSelections);
+          setViewMode('preview');
         } else {
-          // No selections yet, show selection flow
-          setViewMode('selection');
+          // Fall back to API call
+          console.log('No selections in generatedPhotos, calling API...');
+          const response = await getSelectedProfilePhotos();
+          const data = response?.result?.data || [];
+
+          if (data && data.length > 0) {
+            // Map the selected photos from API to our format
+            const selected = data.map((photo: any) => ({
+              id: photo.id,
+              uri: photo.downloadUrl || photo.s3Url,
+              scenario: photo.scenario,
+              downloadUrl: photo.downloadUrl || photo.s3Url,
+              selectedProfileOrder: photo.selectedProfileOrder,
+            }));
+            console.log('Found selections from API:', selected.length);
+            setSelectedPhotos(selected);
+            setViewMode('preview');
+          } else {
+            // No selections yet, show selection flow
+            console.log('No selections found, showing selection flow');
+            setViewMode('selection');
+          }
         }
       } catch (error) {
         console.error('Error loading selected photos:', error);
@@ -85,12 +108,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     };
 
     loadSelectedPhotos();
-  }, []);
+  }, [generatedPhotos]);
 
   // Check if there are unviewed photos
   useEffect(() => {
     const checkForNewPhotos = async () => {
       const hasNew = await hasNewPhotos(generatedPhotos.length);
+      console.log('ProfileScreen: hasNewPhotos =', hasNew, 'for count', generatedPhotos.length);
       setHasUnviewedPhotos(hasNew);
     };
     checkForNewPhotos();
@@ -333,13 +357,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onGenerateAgain={onGenerateAgain}
           onViewAllPhotos={() => {
             setViewMode('all');
-            // Mark photos as viewed
-            setLastViewedPhotoCount(generatedPhotos.length);
+            // Don't mark photos as viewed here - let ProfileViewScreen handle it
             setHasUnviewedPhotos(false);
           }}
           onSinglePhotoReplace={handleSinglePhotoReplace}
           downloadingPhotos={downloadingPhotos}
           isNewGeneration={hasUnviewedPhotos}
+          isGenerating={isGenerating}
         />
       );
 
@@ -353,6 +377,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onSelectProfilePhotos={() => setViewMode('selection')}
           onViewProfile={() => setViewMode('preview')}
           hasSelectedPhotos={selectedPhotos.length > 0}
+          isGenerating={isGenerating}
         />
       );
 

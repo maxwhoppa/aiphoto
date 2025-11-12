@@ -36,6 +36,20 @@
       "when": 1759973238848,
       "tag": "0004_sweet_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1762147530138,
+      "tag": "0005_bent_nocturne",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1762911651818,
+      "tag": "0006_confused_rockslide",
+      "breakpoints": true
     }
   ]
 }

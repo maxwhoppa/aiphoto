@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../index';
-import { getDb, users, payments } from '../../db/index';
+import { getDb, users, payments, generations } from '../../db/index';
 import { eq, and, desc } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import { config } from '../../utils/config';
@@ -182,7 +182,7 @@ export const paymentsRouter = router({
       const user = userResults[0];
 
       if (!user) {
-        return { 
+        return {
           hasAccess: false,
           paymentId: null,
           message: 'User not found'
@@ -215,6 +215,59 @@ export const paymentsRouter = router({
         hasAccess: false,
         paymentId: null,
         message: 'No unredeemed payment found. Please purchase access.'
+      };
+    }),
+
+  // Check generation status
+  checkGenerationStatus: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        return {
+          isGenerating: false,
+          generationStatus: null,
+          paymentId: null,
+          message: 'User not found'
+        };
+      }
+
+      // Check for any generation with in_progress status
+      const activeGenerations = await db
+        .select()
+        .from(generations)
+        .where(and(
+          eq(generations.userId, user.id),
+          eq(generations.generationStatus, 'in_progress')
+        ))
+        .orderBy(desc(generations.createdAt))
+        .limit(1);
+
+      if (activeGenerations.length > 0) {
+        const generation = activeGenerations[0];
+        return {
+          isGenerating: true,
+          generationStatus: generation.generationStatus,
+          generationId: generation.id,
+          paymentId: generation.paymentId,
+          totalImages: generation.totalImages,
+          completedImages: generation.completedImages,
+          scenarios: JSON.parse(generation.scenarios),
+          createdAt: generation.createdAt,
+          message: 'Generation in progress'
+        };
+      }
+
+      return {
+        isGenerating: false,
+        generationStatus: null,
+        generationId: null,
+        paymentId: null,
+        message: 'No active generation found'
       };
     }),
 

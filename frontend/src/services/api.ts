@@ -36,7 +36,25 @@ export async function createCheckoutSession() {
 }
 
 export async function checkPaymentAccess() {
-  return apiRequestJson('/trpc/payments.checkAccess');
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/payments.checkAccess?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
+}
+
+export async function checkGenerationStatus() {
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/payments.checkGenerationStatus?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
 }
 
 export async function redeemPayment(paymentId: string) {
@@ -49,7 +67,14 @@ export async function redeemPayment(paymentId: string) {
 }
 
 export async function getPaymentHistory() {
-  return apiRequestJson('/trpc/payments.getPaymentHistory');
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/payments.getPaymentHistory?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
 }
 
 // Image API calls
@@ -97,20 +122,23 @@ export async function recordUploadedImages(images: Array<{fileName: string; cont
   }
 }
 
-export async function generateImages(imageIds: string[], scenarios: string[]) {
-  console.log('generateImages called with:', { imageIds, scenarios });
-  
+export async function generateImages(imageIds: string[], scenarios: string[], paymentId?: string) {
+  console.log('generateImages called with:', { imageIds, scenarios, paymentId });
+
   // Use direct format - no "json" wrapper
-  const requestBody = { imageIds, scenarios };
-  
+  const requestBody: any = { imageIds, scenarios };
+  if (paymentId) {
+    requestBody.paymentId = paymentId;
+  }
+
   console.log('Request body to send:', JSON.stringify(requestBody, null, 2));
-  
+
   try {
     const response = await apiRequestJson('/trpc/images.generateImages', {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
-    
+
     console.log('Generate images response:', response);
     return response;
   } catch (error) {
@@ -128,7 +156,14 @@ export async function getGeneratedImages(filters = {}) {
 }
 
 export async function getMyImages() {
-  return apiRequestJson('/trpc/images.getMyImages');
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/images.getMyImages?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
 }
 
 // Selected profile photos API calls
@@ -152,7 +187,14 @@ export async function setSelectedProfilePhotos(selections: Array<{generatedImage
 }
 
 export async function getSelectedProfilePhotos() {
-  return apiRequestJson('/trpc/images.getSelectedProfilePhotos');
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/images.getSelectedProfilePhotos?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
 }
 
 export async function toggleProfilePhotoSelection(generatedImageId: string, order?: number) {

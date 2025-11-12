@@ -1,5 +1,8 @@
-import { pgTable, uuid, varchar, timestamp, text, boolean, integer, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, text, boolean, integer, unique, pgEnum } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+
+// Enum for generation status
+export const generationStatusEnum = pgEnum('generation_status', ['in_progress', 'completed', 'failed']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -22,9 +25,22 @@ export const userImages = pgTable('user_images', {
   uniqueUserS3Key: unique().on(table.userId, table.s3Key),
 }));
 
+export const generations = pgTable('generations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }), // Optional payment reference
+  generationStatus: generationStatusEnum('generation_status').notNull().default('in_progress'),
+  totalImages: integer('total_images').notNull(), // Total number of images to generate
+  completedImages: integer('completed_images').notNull().default(0), // Number of images completed so far
+  scenarios: text('scenarios').notNull(), // JSON array of scenario names
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'), // When generation finished (success or failure)
+});
+
 export const generatedImages = pgTable('generated_images', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  generationId: uuid('generation_id').references(() => generations.id, { onDelete: 'cascade' }), // Nullable for legacy images
   originalImageId: uuid('original_image_id').notNull().references(() => userImages.id, { onDelete: 'cascade' }),
   scenario: varchar('scenario', { length: 100 }).notNull(),
   prompt: text('prompt').notNull(),
@@ -64,6 +80,7 @@ export const payments = pgTable('payments', {
 export const usersRelations = relations(users, ({ many }) => ({
   userImages: many(userImages),
   generatedImages: many(generatedImages),
+  generations: many(generations),
   payments: many(payments),
 }));
 
@@ -75,10 +92,26 @@ export const userImagesRelations = relations(userImages, ({ one, many }) => ({
   generatedImages: many(generatedImages),
 }));
 
+export const generationsRelations = relations(generations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [generations.userId],
+    references: [users.id],
+  }),
+  payment: one(payments, {
+    fields: [generations.paymentId],
+    references: [payments.id],
+  }),
+  generatedImages: many(generatedImages),
+}));
+
 export const generatedImagesRelations = relations(generatedImages, ({ one }) => ({
   user: one(users, {
     fields: [generatedImages.userId],
     references: [users.id],
+  }),
+  generation: one(generations, {
+    fields: [generatedImages.generationId],
+    references: [generations.id],
   }),
   originalImage: one(userImages, {
     fields: [generatedImages.originalImageId],
@@ -86,17 +119,20 @@ export const generatedImagesRelations = relations(generatedImages, ({ one }) => 
   }),
 }));
 
-export const paymentsRelations = relations(payments, ({ one }) => ({
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
   user: one(users, {
     fields: [payments.userId],
     references: [users.id],
   }),
+  generations: many(generations),
 }));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type UserImage = typeof userImages.$inferSelect;
 export type NewUserImage = typeof userImages.$inferInsert;
+export type Generation = typeof generations.$inferSelect;
+export type NewGeneration = typeof generations.$inferInsert;
 export type GeneratedImage = typeof generatedImages.$inferSelect;
 export type NewGeneratedImage = typeof generatedImages.$inferInsert;
 export type Scenario = typeof scenarios.$inferSelect;

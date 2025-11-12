@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../index';
-import { getDb, userImages, generatedImages, users, scenarios } from '../../db/index';
+import { getDb, userImages, generatedImages, users, scenarios, payments, generations } from '../../db/index';
 import { eq, desc, and, isNotNull } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import { geminiService } from '../../services/gemini';
@@ -163,6 +163,7 @@ export const imagesRouter = router({
       imageIds: z.array(z.string().uuid()),
       scenarios: z.array(z.string()),
       customPrompts: z.record(z.string()).optional(), // scenario -> custom prompt
+      paymentId: z.string().optional(), // Optional payment ID or session ID to redeem
     }))
     .mutation(async ({ ctx, input }) => {
       const db = getDb();
@@ -178,6 +179,95 @@ export const imagesRouter = router({
         }).returning();
         user = newUser;
       }
+
+      // Handle payment redemption if paymentId provided
+      let paymentRecord = null;
+      if (input.paymentId) {
+        console.log('DEBUG: generateImages received paymentId:', input.paymentId);
+        console.log('DEBUG: user.id:', user.id);
+        try {
+          let paymentResults;
+
+          // Try to find payment by ID first (UUID format), then by session ID
+          if (input.paymentId.includes('cs_')) {
+            // This looks like a Stripe session ID
+            console.log('DEBUG: Looking up payment by Stripe session ID');
+            paymentResults = await db
+              .select()
+              .from(payments)
+              .where(and(
+                eq(payments.stripeSessionId, input.paymentId),
+                eq(payments.userId, user.id)
+              ))
+              .limit(1);
+          } else {
+            // This looks like a payment UUID
+            console.log('DEBUG: Looking up payment by UUID');
+            paymentResults = await db
+              .select()
+              .from(payments)
+              .where(and(
+                eq(payments.id, input.paymentId),
+                eq(payments.userId, user.id)
+              ))
+              .limit(1);
+          }
+
+          if (paymentResults.length > 0) {
+            paymentRecord = paymentResults[0];
+            console.log('DEBUG: Found payment:', {
+              id: paymentRecord.id,
+              stripeSessionId: paymentRecord.stripeSessionId,
+              redeemed: paymentRecord.redeemed
+            });
+
+            // Mark payment as redeemed if not already
+            if (!paymentRecord.redeemed) {
+              await db
+                .update(payments)
+                .set({
+                  redeemed: true,
+                  redeemedAt: new Date(),
+                })
+                .where(eq(payments.id, paymentRecord.id));
+
+              logger.info('Payment redeemed for photo generation', {
+                paymentId: paymentRecord.id,
+                sessionId: paymentRecord.stripeSessionId,
+                cognitoUserId: ctx.user.sub,
+                userId: user.id,
+              });
+            }
+          } else {
+            console.log('DEBUG: Payment not found, proceeding without payment reference');
+            logger.warn('Payment not found but proceeding with generation', {
+              requestedPaymentId: input.paymentId,
+              cognitoUserId: ctx.user.sub,
+              userId: user.id,
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to redeem payment', {
+            paymentId: input.paymentId,
+            cognitoUserId: ctx.user.sub,
+            error,
+          });
+          console.log('DEBUG: Payment redemption failed, but proceeding with generation anyway');
+        }
+      }
+
+      // Create generation record
+      const totalImages = input.imageIds.length * input.scenarios.length;
+      const [generation] = await db.insert(generations).values({
+        userId: user.id,
+        paymentId: paymentRecord?.id || null,
+        generationStatus: 'in_progress',
+        totalImages,
+        completedImages: 0,
+        scenarios: JSON.stringify(input.scenarios),
+      }).returning();
+
+      console.log('DEBUG: Created generation record:', generation.id);
 
       // Get user's images that match the requested IDs
       const images = await db
@@ -282,6 +372,7 @@ export const imagesRouter = router({
               .insert(generatedImages)
               .values({
                 userId: user.id,
+                generationId: generation.id,
                 originalImageId: task.imageId,
                 scenario: task.scenario,
                 prompt,
@@ -387,6 +478,33 @@ export const imagesRouter = router({
             });
           }
         }
+      }
+
+      // Update generation status and completion count
+      try {
+        const newStatus = successfulGenerations.length > 0 ? 'completed' : 'failed';
+        await db
+          .update(generations)
+          .set({
+            generationStatus: newStatus,
+            completedImages: successfulGenerations.length,
+            completedAt: new Date(),
+          })
+          .where(eq(generations.id, generation.id));
+
+        logger.info(`Generation marked as ${newStatus}`, {
+          generationId: generation.id,
+          cognitoUserId: ctx.user.sub,
+          completedImages: successfulGenerations.length,
+          totalImages: totalImages,
+          successfulCount: successfulGenerations.length,
+          totalTasks: processedResults.length,
+        });
+      } catch (error) {
+        logger.error('Failed to update generation status', {
+          generationId: generation.id,
+          error,
+        });
       }
 
       return {

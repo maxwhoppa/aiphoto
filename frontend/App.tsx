@@ -24,6 +24,7 @@ interface GeneratedPhoto {
   uri: string;
   scenario: string;
   downloadUrl?: string;
+  selectedProfileOrder?: number | null;
 }
 
 type RootStackParamList = {
@@ -32,7 +33,7 @@ type RootStackParamList = {
   PhotoUpload: { isRegenerateFlow?: boolean };
   ScenarioSelection: { imageIds: string[] };
   Paywall: { selectedScenarios: string[]; imageIds: string[] };
-  Loading: { selectedScenarios: string[]; imageIds: string[]; paymentId?: string };
+  Loading: { selectedScenarios: string[]; imageIds: string[]; paymentId?: string; isRegenerateFlow?: boolean };
   ProfileView: { generatedPhotos: GeneratedPhoto[]; selectedScenarios: string[] };
   MainTabs: undefined;
   ThemeSettings: undefined;
@@ -117,8 +118,11 @@ function AppNavigator() {
           uri: img.downloadUrl || img.s3Url,
           scenario: img.scenario,
           downloadUrl: img.downloadUrl,
+          selectedProfileOrder: img.selectedProfileOrder || null,
         }));
 
+        console.log('App.tsx: Found generated images, count:', generatedPhotos.length);
+        console.log('App.tsx: Selected photos in generatedImages:', generatedPhotos.filter(img => img.selectedProfileOrder).length);
         setExistingImages(generatedPhotos);
         setHasGeneratedImages(true);
         setHasPaymentAccess(true); // They've already paid if they have generated images
@@ -152,6 +156,7 @@ function AppNavigator() {
           uri: img.downloadUrl || img.s3Url,
           scenario: img.scenario,
           downloadUrl: img.downloadUrl,
+          selectedProfileOrder: img.selectedProfileOrder || null,
         }));
 
         setExistingImages(generatedPhotos);
@@ -314,6 +319,7 @@ function AppNavigator() {
                   selectedScenarios={route.params.selectedScenarios}
                   imageIds={route.params.imageIds}
                   paymentId={route.params.paymentId}
+                  isRegenerateFlow={route.params.isRegenerateFlow || false}
                   onComplete={(generatedImages) => {
                     // Convert generated images to the format expected by ProfileView
                     const generatedPhotos: GeneratedPhoto[] = generatedImages.map((img: any) => ({

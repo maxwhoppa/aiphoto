@@ -159,7 +159,20 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
             // Check if we've returned from successful payment
             if (navState.url.includes('/payment-success')) {
               setShowWebView(false);
-              onPaymentSuccess(currentPaymentId || undefined);
+              // Extract session ID from URL for tracking
+              console.log('Full payment success URL:', navState.url);
+              const urlParts = navState.url.split('?');
+              console.log('URL parts:', urlParts);
+              if (urlParts.length > 1) {
+                const urlParams = new URLSearchParams(urlParts[1]);
+                console.log('URL params:', Array.from(urlParams.entries()));
+                const sessionId = urlParams.get('session_id');
+                console.log('Extracted session ID:', sessionId);
+                onPaymentSuccess(sessionId || undefined);
+              } else {
+                console.log('No query parameters found in success URL');
+                onPaymentSuccess(undefined);
+              }
             } else if (navState.url.includes('/payment-cancelled')) {
               setShowWebView(false);
               onPaymentCancel();

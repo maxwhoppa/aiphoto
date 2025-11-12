@@ -9,21 +9,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { getUploadUrls, recordUploadedImages, generateImages, getGeneratedImages, redeemPayment } from '../../services/api';
+import { getUploadUrls, recordUploadedImages, generateImages, getGeneratedImages } from '../../services/api';
 import { Text } from '../../components/Text';
 
 interface LoadingScreenProps {
   onComplete: (generatedImages: any[]) => void;
+  onError?: () => void;
   selectedScenarios: string[];
   imageIds: string[];
   paymentId?: string;
+  isRegenerateFlow?: boolean;
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   onComplete,
+  onError,
   selectedScenarios,
   imageIds,
   paymentId,
+  isRegenerateFlow = false,
 }) => {
   const { colors } = useTheme();
   const [progress, setProgress] = useState(0);
@@ -71,6 +75,36 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
     try {
       console.log('Starting image generation process...');
+      console.log('LoadingScreen received paymentId:', paymentId);
+      console.log('LoadingScreen received imageIds:', imageIds);
+      console.log('LoadingScreen received scenarios:', selectedScenarios);
+
+      // Only check for existing images if this is NOT a regeneration flow
+      // (for first-time users who might have navigated here incorrectly)
+      if (!isRegenerateFlow) {
+        const existingImagesResponse = await getGeneratedImages({});
+        const existingImages = existingImagesResponse?.result?.data || existingImagesResponse?.data || existingImagesResponse || [];
+
+        if (existingImages.length > 0) {
+          // User already has images, redirect to profile view instead of generating new ones
+          console.log('User already has generated images, redirecting to existing photos');
+          setIsProcessing(false);
+
+          // Convert existing images to the expected format and complete immediately
+          const generatedPhotos = existingImages.map((img: any) => ({
+            id: img.id,
+            uri: img.downloadUrl || img.s3Url,
+            scenario: img.scenario,
+            downloadUrl: img.downloadUrl,
+            selectedProfileOrder: img.selectedProfileOrder || null,
+          }));
+
+          setTimeout(() => {
+            onComplete(generatedPhotos);
+          }, 500);
+          return;
+        }
+      }
 
       // Start the fake progress that takes 60 seconds to reach 99%
       const startTime = Date.now();
@@ -103,24 +137,43 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         }
       }, 100); // Update every 100ms for smooth animation
 
-      // Meanwhile, do the actual API work in parallel
-      const generateResponse = await generateImages(imageIds, selectedScenarios);
+      // Start the actual API work - don't wait for it to complete
+      console.log('About to call generateImages with paymentId:', paymentId);
+      generateImages(imageIds, selectedScenarios, paymentId);
 
-      // Redeem payment if paymentId provided
-      if (paymentId) {
-        try {
-          await redeemPayment(paymentId);
-          console.log('Payment redeemed successfully');
-        } catch (error) {
-          console.error('Failed to redeem payment:', error);
-        }
-      }
-
-      // Fetch generated images (profile selection is now done server-side automatically)
+      // Check if there are existing images to show
       const generatedImagesResponse = await getGeneratedImages({});
       const generatedImages = generatedImagesResponse.result?.data || generatedImagesResponse.data || [];
 
-      // Clear the interval in case API finished before 40 seconds
+      if (generatedImages.length > 0) {
+        // User has existing images - redirect immediately so they can browse while new ones generate
+        console.log('User has existing images, redirecting to profile while generation continues');
+
+        // Clear the interval since we're redirecting
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+
+        // Set progress to show something happened
+        setProgress(25);
+
+        // Redirect with existing images (new ones will be generated in background)
+        setTimeout(() => {
+          onComplete(generatedImages);
+        }, 1000);
+        return;
+      }
+
+      // No existing images - wait for generation to complete normally
+      console.log('No existing images found, waiting for generation to complete');
+      const generateResponse = await generateImages(imageIds, selectedScenarios, paymentId);
+
+      // Fetch the newly generated images
+      const newImagesResponse = await getGeneratedImages({});
+      const newImages = newImagesResponse.result?.data || newImagesResponse.data || [];
+
+      // Clear the interval
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
@@ -129,9 +182,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       // Complete the progress bar
       setProgress(100);
 
-      // Complete after a brief delay with the photos (selection is already done server-side)
+      // Complete with the new images
       setTimeout(() => {
-        onComplete(generatedImages);
+        onComplete(newImages);
       }, 500);
 
     } catch (error: any) {
@@ -141,6 +194,11 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
+      }
+
+      // Call error callback to reset generation state
+      if (onError) {
+        onError();
       }
 
       Alert.alert(
