@@ -16,6 +16,8 @@ export const GenerationStatusNotification: React.FC<GenerationStatusNotification
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  const isCompletionMessage = message.includes("complete");
+
   // Debug logging
   React.useEffect(() => {
     console.log('GenerationStatusNotification: visible prop changed to:', visible, 'message:', message);
@@ -25,7 +27,9 @@ export const GenerationStatusNotification: React.FC<GenerationStatusNotification
 
   return (
     <View style={[styles.notification, { top: insets.top + 60 }]}>
-      <ActivityIndicator size="small" color="#666" style={styles.spinner} />
+      {!isCompletionMessage && (
+        <ActivityIndicator size="small" color="#666" style={styles.spinner} />
+      )}
       <Text style={styles.notificationText}>
         {message}
       </Text>

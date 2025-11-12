@@ -44,6 +44,9 @@ interface ProfileStackNavigatorProps {
 function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImages }: ProfileStackNavigatorProps) {
   const [images, setImages] = React.useState<GeneratedPhoto[]>(existingImages);
   const [isGenerating, setIsGenerating] = React.useState(false);
+  const [generationMessage, setGenerationMessage] = React.useState("Images Generating...");
+  const [showCompletionMessage, setShowCompletionMessage] = React.useState(false);
+  const previousGeneratingRef = React.useRef(false);
 
   // Check generation status on mount and periodically
   React.useEffect(() => {
@@ -55,10 +58,29 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
         console.log('TabNavigator: Generation status response:', generationData);
         const isCurrentlyGenerating = generationData?.isGenerating || false;
         console.log('TabNavigator: Setting isGenerating to:', isCurrentlyGenerating);
-        setIsGenerating(isCurrentlyGenerating);
+
+        // Detect generation completion (was generating, now not)
+        if (previousGeneratingRef.current && !isCurrentlyGenerating) {
+          console.log('TabNavigator: Generation completed! Showing completion message');
+          setIsGenerating(false);
+          setShowCompletionMessage(true);
+          setGenerationMessage("Images complete!");
+
+          // Hide the completion message after 3 seconds
+          setTimeout(() => {
+            setShowCompletionMessage(false);
+          }, 3000);
+        } else if (isCurrentlyGenerating) {
+          setIsGenerating(true);
+          setShowCompletionMessage(false);
+          setGenerationMessage("Images Generating...");
+        }
+
+        previousGeneratingRef.current = isCurrentlyGenerating;
       } catch (error) {
         console.error('TabNavigator: Error checking generation status:', error);
         setIsGenerating(false);
+        setShowCompletionMessage(false);
       }
     };
 
@@ -112,7 +134,8 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
             selectedScenarios={Array.from(new Set(images.map(img => img.scenario)))}
             onGenerateAgain={() => onRegenerateFlow(navigation)}
             onRefresh={handleRefresh}
-            isGenerating={isGenerating}
+            isGenerating={isGenerating || showCompletionMessage}
+            generationMessage={generationMessage}
           />
         )}
       </ProfileStack.Screen>

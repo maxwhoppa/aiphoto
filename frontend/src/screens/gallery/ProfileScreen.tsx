@@ -25,6 +25,7 @@ interface ProfileScreenProps {
   onGenerateAgain: () => void;
   onRefresh?: () => Promise<void>;
   isGenerating?: boolean;
+  generationMessage?: string;
 }
 
 type ViewMode = 'selection' | 'ranking' | 'preview' | 'all' | 'single-select';
@@ -35,6 +36,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onGenerateAgain,
   onRefresh,
   isGenerating = false,
+  generationMessage = "Images Generating...",
 }) => {
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -385,6 +387,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           downloadingPhotos={downloadingPhotos}
           isNewGeneration={hasUnviewedPhotos}
           isGenerating={isGenerating}
+          generationMessage={generationMessage}
         />
       );
 
@@ -399,6 +402,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onViewProfile={() => setViewMode('preview')}
           hasSelectedPhotos={selectedPhotos.length > 0}
           isGenerating={isGenerating}
+          generationMessage={generationMessage}
         />
       );
 
