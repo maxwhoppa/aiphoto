@@ -106,11 +106,11 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         }
       }
 
-      // Start the fake progress that takes 60 seconds to reach 99%
+      // Start the fake progress that takes 120 seconds to reach 99%
       const startTime = Date.now();
       progressIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - startTime;
-        const progressPercent = Math.min(99, (elapsed / 60000) * 99); // 99% over 60 seconds
+        const progressPercent = Math.min(99, (elapsed / 120000) * 99); // 99% over 120 seconds
         setProgress(progressPercent);
 
         // Update messages based on progress
@@ -131,8 +131,8 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
           }
         }
 
-        // Check if we've exceeded 60 seconds
-        if (elapsed > 60000) {
+        // Check if we've exceeded 120 seconds
+        if (elapsed > 120000) {
           setIsOvertime(true);
         }
       }, 100); // Update every 100ms for smooth animation
@@ -276,7 +276,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
           <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
             {isOvertime
               ? "Taking longer than usual due to high traffic"
-              : "This usually takes about 60 seconds"
+              : "This usually takes about 2 minutes"
             }
           </Text>
         </View>
