@@ -137,7 +137,6 @@ function AppNavigator() {
       return [];
     } catch (error) {
       console.log('No existing images found or error checking:', error);
-      setHasGeneratedImages(false);
       return [];
     } finally {
       setIsCheckingImages(false);

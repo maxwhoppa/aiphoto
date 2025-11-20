@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { ProfileViewScreen } from './ProfileViewScreen';
-import { PhotoSelectionFlow } from './PhotoSelectionFlow';
 import { ProfilePreview } from './ProfilePreview';
 import { PhotoRanking } from './PhotoRanking';
 import { SinglePhotoSelectionScreen } from './SinglePhotoSelectionScreen';
@@ -28,7 +27,7 @@ interface ProfileScreenProps {
   generationMessage?: string;
 }
 
-type ViewMode = 'selection' | 'ranking' | 'preview' | 'all' | 'single-select';
+type ViewMode = 'ranking' | 'preview' | 'all' | 'single-select';
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   generatedPhotos,
@@ -39,13 +38,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   generationMessage = "Images Generating...",
 }) => {
   const { colors } = useTheme();
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    // Initialize with smart default based on existing selections
-    const hasSelections = generatedPhotos.some(photo =>
-      photo.selectedProfileOrder !== null && photo.selectedProfileOrder !== undefined
-    );
-    return hasSelections ? 'preview' : 'selection';
-  });
+  const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const [selectedPhotos, setSelectedPhotos] = useState<GeneratedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -106,14 +99,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             setSelectedPhotos(sortedSelected);
             setViewMode('preview');
           } else {
-            // No selections yet, show selection flow
-            console.log('No selections found, showing selection flow');
-            setViewMode('selection');
+            // No selections yet, show profile preview anyway
+            console.log('No selections found, showing profile preview');
+            setViewMode('preview');
           }
         }
       } catch (error) {
         console.error('Error loading selected photos:', error);
-        setViewMode('selection');
+        setViewMode('preview');
       } finally {
         setIsLoading(false);
       }
@@ -175,7 +168,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   }, []);
 
   const handleReselect = useCallback(() => {
-    setViewMode('selection');
+    // Instead of going to selection flow, just stay in preview
+    // User can replace individual photos if needed
+    Alert.alert(
+      'Photo Selection',
+      'You can replace individual photos by tapping on them in your profile.',
+      [{ text: 'OK' }]
+    );
   }, []);
 
   const handleSinglePhotoReplace = useCallback((photoIndex: number, currentPhoto: GeneratedPhoto) => {
@@ -350,18 +349,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   // Render based on current view mode
   switch (viewMode) {
-    case 'selection':
-      return (
-        <PhotoSelectionFlow
-          photosByScenario={photosByScenario}
-          selectedScenarios={selectedScenarios}
-          onComplete={handleSelectionComplete}
-          onRankPhotos={handleRankPhotos}
-          onSkip={() => setViewMode('all')}
-          onBack={selectedPhotos.length > 0 ? () => setViewMode('preview') : () => setViewMode('all')}
-        />
-      );
-
     case 'ranking':
       return (
         <PhotoRanking
@@ -398,7 +385,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           selectedScenarios={selectedScenarios}
           onGenerateAgain={onGenerateAgain}
           onRefresh={onRefresh}
-          onSelectProfilePhotos={() => setViewMode('selection')}
           onViewProfile={() => setViewMode('preview')}
           hasSelectedPhotos={selectedPhotos.length > 0}
           isGenerating={isGenerating}

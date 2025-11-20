@@ -142,7 +142,6 @@ interface ProfileViewScreenProps {
   selectedScenarios: string[];
   onGenerateAgain: () => void;
   onRefresh?: () => Promise<void>;
-  onSelectProfilePhotos?: () => void;
   onViewProfile?: () => void;
   hasSelectedPhotos?: boolean;
   onBack?: () => void; // Made optional again with fallback
@@ -157,7 +156,6 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   selectedScenarios,
   onGenerateAgain,
   onRefresh,
-  onSelectProfilePhotos,
   onViewProfile,
   hasSelectedPhotos = false,
   onBack,
