@@ -289,14 +289,24 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
                   await setSelectedProfilePhotos(selections);
                   console.log(`Auto-selected ${selections.length} profile photos`);
 
-                  // Update the photos with their selected orders
-                  finalPhotos = finalPhotos.map(photo => {
-                    const selection = selections.find(s => s.generatedImageId === photo.id);
-                    return {
-                      ...photo,
-                      selectedProfileOrder: selection ? selection.order : null
-                    };
-                  });
+                  // Wait a moment for the backend to process
+                  await new Promise(resolve => setTimeout(resolve, 500));
+
+                  // Fetch the updated images with selectedProfileOrder from the backend
+                  const updatedImagesResponse = await getGeneratedImages({});
+                  const updatedImages = updatedImagesResponse?.result?.data || updatedImagesResponse?.data || [];
+
+                  // Convert to the expected format with selectedProfileOrder from backend
+                  finalPhotos = updatedImages.map((img: any) => ({
+                    id: img.id,
+                    uri: img.downloadUrl || img.s3Url,
+                    scenario: img.scenario,
+                    downloadUrl: img.downloadUrl,
+                    selectedProfileOrder: img.selectedProfileOrder || null,
+                  }));
+
+                  console.log('TabNavigator: Updated photos with selectedProfileOrder from backend:',
+                    finalPhotos.filter(p => p.selectedProfileOrder).length, 'selected out of', finalPhotos.length);
                 } catch (error) {
                   console.error('Failed to auto-select photos:', error);
                   // Continue with original photos if auto-selection fails

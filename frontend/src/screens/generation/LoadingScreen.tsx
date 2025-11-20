@@ -137,41 +137,49 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         }
       }, 100); // Update every 100ms for smooth animation
 
-      // Start the actual API work - don't wait for it to complete
+      // Start the actual API work and wait for it to complete
       console.log('About to call generateImages with paymentId:', paymentId);
-      generateImages(imageIds, selectedScenarios, paymentId);
 
-      // Check if there are existing images to show
-      const generatedImagesResponse = await getGeneratedImages({});
-      const generatedImages = generatedImagesResponse.result?.data || generatedImagesResponse.data || [];
+      // For regeneration flow, check if there are existing images first
+      if (isRegenerateFlow) {
+        const existingImagesResponse = await getGeneratedImages({});
+        const existingImages = existingImagesResponse.result?.data || existingImagesResponse.data || [];
 
-      if (generatedImages.length > 0) {
-        // User has existing images - redirect immediately so they can browse while new ones generate
-        console.log('User has existing images, redirecting to profile while generation continues');
+        if (existingImages.length > 0) {
+          // Start generation in background for regeneration
+          generateImages(imageIds, selectedScenarios, paymentId);
 
-        // Clear the interval since we're redirecting
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
+          console.log('User has existing images, redirecting to profile while new generation runs in background');
+
+          // Clear the interval since we're redirecting
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+
+          // Set progress to show something happened
+          setProgress(25);
+
+          // Redirect with existing images (new ones will be generated in background)
+          setTimeout(() => {
+            onComplete(existingImages);
+          }, 1000);
+          return;
         }
-
-        // Set progress to show something happened
-        setProgress(25);
-
-        // Redirect with existing images (new ones will be generated in background)
-        setTimeout(() => {
-          onComplete(generatedImages);
-        }, 1000);
-        return;
       }
 
-      // No existing images - wait for generation to complete normally
-      console.log('No existing images found, waiting for generation to complete');
+      // For first-time generation or if no existing images, wait for generation to complete
+      console.log('Waiting for generation to complete...');
       const generateResponse = await generateImages(imageIds, selectedScenarios, paymentId);
+      console.log('Generation completed, response:', generateResponse);
 
-      // Fetch the newly generated images
+      // Wait a moment for the backend to process and update selectedProfileOrder
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Fetch the newly generated images (which should now include selectedProfileOrder)
       const newImagesResponse = await getGeneratedImages({});
       const newImages = newImagesResponse.result?.data || newImagesResponse.data || [];
+      console.log('Fetched new images with selectedProfileOrder:', newImages.filter((img: any) => img.selectedProfileOrder).length, 'selected out of', newImages.length);
 
       // Clear the interval
       if (progressIntervalRef.current) {
@@ -182,8 +190,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       // Complete the progress bar
       setProgress(100);
 
-      // Complete with the new images
+      // Complete with the new images (which should have selectedProfileOrder)
       setTimeout(() => {
+        console.log('LoadingScreen: Completing with', newImages.length, 'images,', newImages.filter((img: any) => img.selectedProfileOrder).length, 'with selectedProfileOrder');
         onComplete(newImages);
       }, 500);
 

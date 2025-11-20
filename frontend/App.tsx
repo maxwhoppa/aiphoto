@@ -321,12 +321,17 @@ function AppNavigator() {
                   isRegenerateFlow={route.params.isRegenerateFlow || false}
                   onComplete={(generatedImages) => {
                     // Convert generated images to the format expected by ProfileView
+                    // IMPORTANT: Preserve selectedProfileOrder from backend
                     const generatedPhotos: GeneratedPhoto[] = generatedImages.map((img: any) => ({
                       id: img.id,
                       uri: img.downloadUrl || img.s3Url,
                       scenario: img.scenario,
                       downloadUrl: img.downloadUrl,
+                      selectedProfileOrder: img.selectedProfileOrder || null,
                     }));
+
+                    console.log('App.tsx LoadingScreen onComplete: Received', generatedPhotos.length, 'photos,',
+                      generatedPhotos.filter(p => p.selectedProfileOrder).length, 'with selectedProfileOrder');
 
                     // Update app state to show they now have images
                     setExistingImages(generatedPhotos);
