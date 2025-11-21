@@ -33,7 +33,7 @@ class GeminiService {
       apiKey: config.GOOGLE_GEMINI_API_KEY,
     });
     
-    logger.info('Gemini service initialized with gemini-2.5-flash-image-preview (nano banana model)');
+    logger.info('Gemini service initialized with gemini-3-pro-image-preview (Nano Banana Pro - Gemini 3)');
   }
 
   private async sleep(ms: number): Promise<void> {
@@ -95,7 +95,7 @@ class GeminiService {
 
       const response = await this.withRetry(async () => {
         return await this.ai.models.generateContent({
-          model: 'gemini-2.5-flash-image-preview',
+          model: 'gemini-3-pro-preview',
           contents: [{ text: request.prompt }],
         });
       });
@@ -231,7 +231,7 @@ class GeminiService {
     console.log('========================================\n');
 
     try {
-      logger.info('Starting Gemini 2.0 Flash image generation', {
+      logger.info('Starting Gemini 3 Pro Image generation (Nano Banana Pro)', {
         requestId,
         scenario,
         originalImageS3Key,
@@ -253,7 +253,7 @@ class GeminiService {
         const base64Image = Buffer.from(imageBuffer).toString('base64');
 
         console.log('\n>>> SENDING TO GEMINI API <<<');
-        console.log('Model: gemini-2.5-flash-image-preview');
+        console.log('Model: gemini-3-pro-image-preview');
         console.log('Text Prompt Being Sent:', prompt);
         console.log('Image Size:', base64Image.length, 'characters (base64)');
 
@@ -274,7 +274,7 @@ class GeminiService {
         console.log('>>> END GEMINI API REQUEST <<<\n');
 
         const response = await this.ai.models.generateContent({
-          model: 'gemini-2.5-flash-image-preview',
+          model: 'gemini-3-pro-image-preview',
           contents: promptContent,
         });
 
@@ -364,7 +364,7 @@ class GeminiService {
     try {
       const response = await this.withRetry(async () => {
         return await this.ai.models.generateContent({
-          model: 'gemini-2.5-flash-image-preview',
+          model: 'gemini-3-pro-preview',
           contents: [{ text: 'Hello, this is a health check.' }],
         });
       });
