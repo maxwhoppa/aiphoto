@@ -131,8 +131,23 @@ class GeminiService {
     }
   }
 
-  async generateImagePrompt(scenario: string, userDescription?: string): Promise<string> {
+  async generateImagePrompt(scenario: string): Promise<string> {
+    console.log('=== generateImagePrompt called ===');
+    console.log('Scenario requested:', scenario);
+
+    // Note: These are all being hardcoded right now but should probably be dynamically rendered via the DB in the future. So DO NOT REMOVE or CHANGE
+    // the names of these types because the mobile app has a dependency on these in the `ScenarioSelectionScreens.tsx` file.
     const basePrompts: Record<string, string> = {
+      // New premium scenarios
+      professional: 'Ultra-realistic corporate portrait, thoughtful and serious expression. Sitting on a dark leather sofa in a professional lounge, slightly leaning forward, one hand resting on the face, the other near a laptop placed on the lap. Ensure that the laptop is closed and the arm is covering where the logo of the laptop would be. Wearing a black blazer, plain black T-shirt, and slim black pants. Background with elegant dark wood wall panels, corporate atmosphere. Warm soft ambient indoor lighting, cinematic contrast. Captured with DSLR, 50mm f/1.8 lens, medium shot including sofa and knees, slightly side angle. Realistic skin texture, warm tones, subtle film grain. Editorial corporate photography, business magazine style.',
+      casual_fitting_room: 'ultra-realistic 4k iphone mirror selfie inside a luxury designer fitting room, warm soft lighting reflecting off marble and champagne-beige walls. subtle flash glow on mirror, clean uncluttered background. modern pose — one hand holding phone slightly tilted, the other relaxed by the side. wearing a trendy casual luxe outfit, magazine-ready aesthetic, pinterest-worthy minimal luxury mood. sharp focus, high clarity, real camera lens quality.',
+      white_photoshoot: 'Show me adjusting statement watch or a pair of sunglasses in front of a white studio backdrop, captured with a direct bright flash. My expression should feel calm and poised, highlighting the accessory subtly.',
+      coffee_new: 'uploaded image in a trendy café, holding a freshly brewed cup of coffee',
+      editorial_photoshoot: 'A contemporary studio portrait of the person in the reference photo, seated casually on a tall wooden stool against a seamless light-gray background. Subject leans slightly forward, cheek resting gently on one hand in a thoughtful pose, the other hand relaxed by their side. Outfit: oversized soft gray turtleneck, slate trousers, clean white sneakers — calm monochrome palette. Soft diffused front lighting with gentle shadows, highlighting knit texture. Calm neutral expression, soft gaze, understated Korean lifestyle mood. Neutral tones, subtle desaturation, natural skin texture, minimal retouching, polished yet authentic editorial style.',
+      hotel_bathroom: 'ultra-realistic 4k iphone mirror selfie inside a hotel bathroom, warm soft lighting. subtle glow on mirror, clean uncluttered background. modern pose — one hand holding phone slightly tilted, the other relaxed by the side. wearing trendy casual streetwear outfit, magazine-ready aesthetic, pinterest-worthy minimal luxury mood. sharp focus, high clarity, real camera lens quality.',
+      pinterest_thirst: 'create a pinterest thirst trap photo with the subject showing just the face, hair and upper chest laying down on a bed',
+
+      // Original scenarios
       photoshoot: 'change the photo so that it is a professional photoshoot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
       nature: 'Change the photo so that it is a nature shot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
       gym: 'Change the photo so that it is a gym photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
@@ -150,19 +165,25 @@ class GeminiService {
       winter: 'Change the photo so that it is a winter photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
     };
 
-    const basePrompt = basePrompts[scenario] || basePrompts.casual;
-    
-    if (userDescription) {
-      return `${basePrompt}. Additional details: ${userDescription}. Create a photorealistic, high-quality image with professional composition.`;
+    const basePrompt = basePrompts[scenario];
+
+    if (!basePrompt) {
+      console.error(`ERROR: No prompt found for scenario: ${scenario}`);
+      console.error('Available scenarios:', Object.keys(basePrompts));
+      throw new Error(`No prompt found for scenario: ${scenario}. Available scenarios: ${Object.keys(basePrompts).join(', ')}`);
     }
 
-    return `${basePrompt}. Create a photorealistic, high-quality image with professional composition.`;
+    console.log('Found prompt for scenario:', scenario);
+    console.log('PROMPT:', basePrompt);
+    console.log('=== End generateImagePrompt ===\n');
+
+    return basePrompt;
   }
 
   async processImageWithScenario(
     originalImageS3Key: string,
     scenario: string,
-    customPrompt?: string
+    prompt: string
   ): Promise<GeminiGenerationResponse> {
     const requestId = this.generateRequestId();
 
@@ -171,22 +192,11 @@ class GeminiService {
         requestId,
         scenario,
         originalImageS3Key,
-        hasCustomPrompt: !!customPrompt,
+        prompt
       });
 
-      const prompt = customPrompt || await this.generateImagePrompt(scenario);
-      
-      // For now, we'll generate a text description
-      // In a full implementation, you'd integrate with image generation APIs
-      const fullPrompt = `
-        Transform the person in this image into the following scenario: ${prompt}
-        
-        Maintain the person's facial features and appearance while adapting them to the new environment and lighting conditions.
-        Provide a detailed description of how the person would look in this new scenario.
-      `;
-
       return await this.generateContent({
-        prompt: fullPrompt,
+        prompt: prompt,
         imageUrl: originalImageS3Key, // This is now an S3 key, not URL
         scenario,
       });
@@ -206,22 +216,29 @@ class GeminiService {
   async generateAndUploadImage(
     originalImageS3Key: string,
     scenario: string,
-    customPrompt?: string,
+    prompt: string,
     s3UploadUrl?: string
   ): Promise<GeminiImageGenerationResponse> {
     const requestId = this.generateRequestId();
+
+    console.log('\n========================================');
+    console.log('=== generateAndUploadImage CALLED ===');
+    console.log('========================================');
+    console.log('Request ID:', requestId);
+    console.log('Scenario:', scenario);
+    console.log('S3 Key:', originalImageS3Key);
+    console.log('RECEIVED PROMPT:', prompt);
+    console.log('========================================\n');
 
     try {
       logger.info('Starting Gemini 2.0 Flash image generation', {
         requestId,
         scenario,
         originalImageS3Key,
-        hasCustomPrompt: !!customPrompt,
         hasUploadUrl: !!s3UploadUrl,
       });
 
       const result = await this.withRetry(async () => {
-        const prompt = customPrompt || await this.generateImagePrompt(scenario);
 
         // Generate pre-signed download URL for the original image
         const downloadUrlData = await s3Service.generateDownloadUrl(originalImageS3Key, 3600); // 1 hour expiry
@@ -235,22 +252,14 @@ class GeminiService {
         const imageBuffer = await imageResponse.arrayBuffer();
         const base64Image = Buffer.from(imageBuffer).toString('base64');
 
-        // Build enhanced prompt for image generation
-        const enhancedPrompt = `Transform this person's photo into the following scenario: ${prompt}
-
-Requirements:
-- Maintain the person's exact facial features and identity
-- Create a photorealistic, high-quality result
-- Ensure professional photo quality with natural lighting
-- Make it suitable for a dating profile
-- Keep the person as the main focus
-- Create a believable, authentic-looking transformation
-
-Generate a new image following these specifications.`;
+        console.log('\n>>> SENDING TO GEMINI API <<<');
+        console.log('Model: gemini-2.5-flash-image-preview');
+        console.log('Text Prompt Being Sent:', prompt);
+        console.log('Image Size:', base64Image.length, 'characters (base64)');
 
         // Use the correct Google GenAI API pattern
         const promptContent = [
-          { text: enhancedPrompt },
+          { text: prompt },
           {
             inlineData: {
               mimeType: 'image/jpeg',
@@ -259,10 +268,17 @@ Generate a new image following these specifications.`;
           },
         ];
 
+        console.log('Full Request Structure:');
+        console.log('- Text part:', promptContent[0]);
+        console.log('- Image part: base64 image data (', base64Image.length, 'chars )');
+        console.log('>>> END GEMINI API REQUEST <<<\n');
+
         const response = await this.ai.models.generateContent({
           model: 'gemini-2.5-flash-image-preview',
           contents: promptContent,
         });
+
+        console.log('>>> GEMINI API RESPONSE RECEIVED <<<');
 
         // Check if the response contains generated image data
         const candidates = response.candidates;
@@ -302,6 +318,7 @@ Generate a new image following these specifications.`;
             requestId,
             scenario,
             imageSize: generatedImageBuffer.length,
+            prompt
           });
 
           return {

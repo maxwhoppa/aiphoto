@@ -97,11 +97,6 @@ class S3Service {
         expiresIn: expiresInSeconds,
       });
 
-      logger.info('Generated S3 download URL', {
-        s3Key,
-        expiresIn: expiresInSeconds,
-      });
-
       return {
         downloadUrl,
         expiresIn: expiresInSeconds,

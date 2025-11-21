@@ -162,7 +162,6 @@ export const imagesRouter = router({
     .input(z.object({
       imageIds: z.array(z.string().uuid()),
       scenarios: z.array(z.string()),
-      customPrompts: z.record(z.string()).optional(), // scenario -> custom prompt
       paymentId: z.string().optional(), // Optional payment ID or session ID to redeem
     }))
     .mutation(async ({ ctx, input }) => {
@@ -295,7 +294,6 @@ export const imagesRouter = router({
             imageId,
             image,
             scenario,
-            customPrompt: input.customPrompts?.[scenario],
           });
         }
       }
@@ -324,14 +322,21 @@ export const imagesRouter = router({
         const batchResults = await Promise.allSettled(
           batch.map(async (task) => {
           try {
-            const customPrompt = task.customPrompt;
-            const prompt = customPrompt || await geminiService.generateImagePrompt(task.scenario);
+            console.log('\n=== PROCESSING IMAGE TASK ===');
+            console.log('Image ID:', task.imageId);
+            console.log('Scenario:', task.scenario);
+
+            const prompt = await geminiService.generateImagePrompt(task.scenario);
+
+            console.log('Generated prompt length:', prompt.length);
+            console.log('First 200 chars of prompt:', prompt.substring(0, 200));
+            console.log('=== END TASK SETUP ===\n');
 
             // Process with Gemini
             const result = await geminiService.processImageWithScenario(
               task.image.s3Key,
               task.scenario,
-              customPrompt
+              prompt // Use the resolved prompt instead of customPrompt
             );
 
             if (result.error) {
@@ -365,10 +370,15 @@ export const imagesRouter = router({
                   maxRetries: MAX_RETRIES,
                 });
 
+                console.log('\n>>> CALLING generateAndUploadImage <<<');
+                console.log('Scenario:', task.scenario);
+                console.log('Prompt being passed:', prompt.substring(0, 300));
+                console.log('>>> END CALL SETUP <<<\n');
+
                 generatedImageResult = await geminiService.generateAndUploadImage(
                   task.image.s3Key,
                   task.scenario,
-                  customPrompt,
+                  prompt, // Use the resolved prompt instead of customPrompt
                   uploadData.uploadUrl
                 );
 

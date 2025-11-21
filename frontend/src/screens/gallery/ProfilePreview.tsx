@@ -68,15 +68,24 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   const prevIsGenerating = useRef(isGenerating);
   const bounceAnim = useRef(new Animated.Value(0)).current;
 
-  // Detect when generation completes (goes from true to false)
+  // Detect when generation completes (goes from true to false OR message changes to completed)
   useEffect(() => {
-    if (prevIsGenerating.current === true && isGenerating === false) {
+    console.log('ProfilePreview: isGenerating changed from', prevIsGenerating.current, 'to', isGenerating, 'message:', generationMessage);
+    const wasGenerating = prevIsGenerating.current === true;
+    const isCompletionMessage = generationMessage?.includes('complete') || generationMessage?.includes('Complete');
+
+    if ((wasGenerating && isGenerating === false) || (isGenerating && isCompletionMessage)) {
       // Generation just completed, show bounce animation on All Photos button
       setShowCompletionBounce(true);
       console.log('Generation completed - showing bounce on All Photos button');
+
+      // Keep the bounce animation for longer (10 seconds instead of auto-hiding)
+      setTimeout(() => {
+        setShowCompletionBounce(false);
+      }, 10000);
     }
     prevIsGenerating.current = isGenerating;
-  }, [isGenerating]);
+  }, [isGenerating, generationMessage]);
 
   // Create bouncing animation for the notification dot
   useEffect(() => {

@@ -48,11 +48,66 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
 
   const scenarios: Scenario[] = [
     {
+      id: 'professional',
+      name: 'Professional',
+      description: 'Ultra-realistic corporate portrait',
+      icon: 'briefcase-outline',
+      isPopular: true,
+      images: getScenarioImages('professional'),
+    },
+    {
+      id: 'casual_fitting_room',
+      name: 'Casual Fitting Room',
+      description: 'Luxury designer fitting room selfie',
+      icon: 'shirt-outline',
+      isPopular: true,
+      images: getScenarioImages('casual_fitting_room'),
+    },
+    {
+      id: 'white_photoshoot',
+      name: 'White Photoshoot',
+      description: 'Clean studio backdrop with accessories',
+      icon: 'glasses-outline',
+      isPopular: true,
+      images: getScenarioImages('white_photoshoot'),
+    },
+    {
+      id: 'coffee_new',
+      name: 'Coffee',
+      description: 'Trendy café with fresh coffee',
+      icon: 'cafe-outline',
+      isPopular: true,
+      images: getScenarioImages('coffee_new'),
+    },
+    {
+      id: 'editorial_photoshoot',
+      name: 'Editorial Photoshoot',
+      description: 'Contemporary studio portrait',
+      icon: 'camera-outline',
+      isPopular: true,
+      images: getScenarioImages('editorial_photoshoot'),
+    },
+    {
+      id: 'hotel_bathroom',
+      name: 'Hotel Bathroom',
+      description: 'Luxury hotel bathroom mirror selfie',
+      icon: 'bed-outline',
+      isPopular: true,
+      images: getScenarioImages('hotel_bathroom'),
+    },
+    {
+      id: 'pinterest_thirst',
+      name: 'Pinterest Thirst',
+      description: 'Pinterest-style thirst trap photo',
+      icon: 'heart-outline',
+      isPopular: true,
+      images: getScenarioImages('pinterest_thirst'),
+    },
+    {
       id: 'photoshoot',
       name: 'Photoshoot',
       description: 'Professional studio photos',
       icon: 'camera-outline',
-      isPopular: true,
       images: getScenarioImages('photoshoot'),
     },
     {
@@ -60,7 +115,6 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       name: 'Gym',
       description: 'Athletic and fit lifestyle',
       icon: 'barbell-outline',
-      isPopular: true,
       images: getScenarioImages('gym'),
     },
     {
@@ -68,7 +122,6 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       name: 'Beach',
       description: 'Relaxed beach vibes',
       icon: 'sunny-outline',
-      isPopular: true,
       images: getScenarioImages('beach'),
     },
     {
@@ -76,7 +129,6 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       name: 'Rooftop',
       description: 'Urban city views',
       icon: 'business-outline',
-      isPopular: true,
       images: getScenarioImages('rooftop'),
     },
     {
@@ -85,13 +137,6 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       description: 'Outdoor adventure',
       icon: 'leaf-outline',
       images: getScenarioImages('nature'),
-    },
-    {
-      id: 'coffee',
-      name: 'Coffee Shop',
-      description: 'Casual coffee date',
-      icon: 'cafe-outline',
-      images: getScenarioImages('coffee'),
     },
     {
       id: 'formal',
@@ -158,8 +203,8 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
     },
   ];
 
-  // Default select photoshoot but allow deselection
-  const [selectedScenarios, setSelectedScenarios] = useState<string[]>(['photoshoot']);
+  // Default select professional but allow deselection
+  const [selectedScenarios, setSelectedScenarios] = useState<string[]>(['professional']);
 
   const toggleScenario = (scenarioId: string) => {
     setSelectedScenarios(prev => {

@@ -39,6 +39,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 }) => {
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
+  const [previousViewMode, setPreviousViewMode] = useState<ViewMode>('preview');
   const [selectedPhotos, setSelectedPhotos] = useState<GeneratedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -366,6 +367,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onReselect={handleReselect}
           onGenerateAgain={onGenerateAgain}
           onViewAllPhotos={() => {
+            setPreviousViewMode(viewMode);
             setViewMode('all');
             // Don't mark photos as viewed here - let ProfileViewScreen handle it
             setHasUnviewedPhotos(false);
@@ -385,7 +387,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           selectedScenarios={selectedScenarios}
           onGenerateAgain={onGenerateAgain}
           onRefresh={onRefresh}
-          onViewProfile={() => setViewMode('preview')}
+          onViewProfile={() => setViewMode(previousViewMode)}
           hasSelectedPhotos={selectedPhotos.length > 0}
           isGenerating={isGenerating}
           generationMessage={generationMessage}
