@@ -77,10 +77,12 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
     if ((wasGenerating && isGenerating === false) || (isGenerating && isCompletionMessage)) {
       // Generation just completed, show bounce animation on All Photos button
       setShowCompletionBounce(true);
-      console.log('Generation completed - showing bounce on All Photos button');
+      console.log('ProfilePreview: Generation completed - showing bounce on All Photos button');
+      console.log('ProfilePreview: showCompletionBounce set to true');
 
       // Keep the bounce animation for longer (10 seconds instead of auto-hiding)
       setTimeout(() => {
+        console.log('ProfilePreview: Hiding completion bounce after 10 seconds');
         setShowCompletionBounce(false);
       }, 10000);
     }
@@ -330,6 +332,8 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
                 ]}
               />
             )}
+            {/* Debug logging for dot visibility */}
+            {console.log('ProfilePreview: Bouncing dot should be visible:', (isNewGeneration || showCompletionBounce), 'isNewGeneration:', isNewGeneration, 'showCompletionBounce:', showCompletionBounce)}
           </TouchableOpacity>
         </View>
       </BottomTab>

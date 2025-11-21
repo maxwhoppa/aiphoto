@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { ProfileViewScreen } from './ProfileViewScreen';
@@ -25,6 +25,8 @@ interface ProfileScreenProps {
   onRefresh?: () => Promise<void>;
   isGenerating?: boolean;
   generationMessage?: string;
+  hasNewGeneratedPhotos?: boolean;
+  onNewPhotosViewed?: () => void;
 }
 
 type ViewMode = 'ranking' | 'preview' | 'all' | 'single-select';
@@ -36,10 +38,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onRefresh,
   isGenerating = false,
   generationMessage = "Images Generating...",
+  hasNewGeneratedPhotos = false,
+  onNewPhotosViewed,
 }) => {
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const [previousViewMode, setPreviousViewMode] = useState<ViewMode>('preview');
+  const isInitialMount = useRef(true);
   const [selectedPhotos, setSelectedPhotos] = useState<GeneratedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,7 +80,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           );
           console.log('ProfileScreen: Sorted selections:', sortedSelections.map(p => ({ id: p.id, order: p.selectedProfileOrder })));
           setSelectedPhotos(sortedSelections);
-          setViewMode('preview');
+          // Only set to preview mode on initial mount, not on refreshes
+          if (isInitialMount.current) {
+            setViewMode('preview');
+          }
         } else {
           // Fall back to API call
           console.log('No selections in generatedPhotos, calling API...');
@@ -98,18 +106,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             console.log('Found selections from API:', sortedSelected.length);
             console.log('ProfileScreen: API sorted selections:', sortedSelected.map(p => ({ id: p.id, order: p.selectedProfileOrder })));
             setSelectedPhotos(sortedSelected);
-            setViewMode('preview');
+            // Only set to preview mode on initial mount, not on refreshes
+            if (isInitialMount.current) {
+              setViewMode('preview');
+            }
           } else {
             // No selections yet, show profile preview anyway
             console.log('No selections found, showing profile preview');
-            setViewMode('preview');
+            // Only set to preview mode on initial mount, not on refreshes
+            if (isInitialMount.current) {
+              setViewMode('preview');
+            }
           }
         }
       } catch (error) {
         console.error('Error loading selected photos:', error);
-        setViewMode('preview');
+        // Only set to preview mode on initial mount, not on refreshes
+        if (isInitialMount.current) {
+          setViewMode('preview');
+        }
       } finally {
         setIsLoading(false);
+        // Mark that initial mount is complete
+        isInitialMount.current = false;
       }
     };
 
@@ -371,10 +390,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             setViewMode('all');
             // Don't mark photos as viewed here - let ProfileViewScreen handle it
             setHasUnviewedPhotos(false);
+            // Clear the new generated photos flag when user views all photos
+            if (onNewPhotosViewed) {
+              onNewPhotosViewed();
+            }
           }}
           onSinglePhotoReplace={handleSinglePhotoReplace}
           downloadingPhotos={downloadingPhotos}
-          isNewGeneration={hasUnviewedPhotos}
+          isNewGeneration={hasUnviewedPhotos || hasNewGeneratedPhotos}
           isGenerating={isGenerating}
           generationMessage={generationMessage}
         />

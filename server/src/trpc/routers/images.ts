@@ -562,7 +562,8 @@ export const imagesRouter = router({
 
       // Update generation status and completion count
       try {
-        const newStatus = successfulGenerations.length > 0 ? 'completed' : 'failed';
+        // Only mark as 'completed' if ALL expected images were successfully generated
+        const newStatus = successfulGenerations.length === totalImages ? 'completed' : 'failed';
         await db
           .update(generations)
           .set({
@@ -579,6 +580,7 @@ export const imagesRouter = router({
           totalImages: totalImages,
           successfulCount: successfulGenerations.length,
           totalTasks: processedResults.length,
+          isFullyComplete: successfulGenerations.length === totalImages,
         });
       } catch (error) {
         logger.error('Failed to update generation status', {
