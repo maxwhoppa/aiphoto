@@ -148,21 +148,12 @@ class GeminiService {
       pinterest_thirst: 'create a pinterest thirst trap photo with the subject showing just the face, hair and upper chest laying down on a bed with their back on a propped pillow',
 
       // Original scenarios
-      photoshoot: 'change the photo so that it is a professional photoshoot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      nature: 'Change the photo so that it is a nature shot. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      gym: 'Change the photo so that it is a gym photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      beach: 'Change the photo so that it is a beach photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      rooftop: 'Change the photo so that it is a rooftop photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      casual: 'Change the photo so that it is a casual photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      coffee: 'Change the photo so that it is a coffee shop photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      formal: 'Change the photo so that it is a formal photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      travel: 'Change the photo so that it is a travel photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      restaurant: 'Change the photo so that it is a restaurant photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      art: 'Change the photo so that it is an art gallery photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      music: 'Change the photo so that it is a music event photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      sports: 'Change the photo so that it is a sports photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      home: 'Change the photo so that it is a home photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
-      winter: 'Change the photo so that it is a winter photo. Make the person hot with good posture. Ensure good lighting so you can see their face clearly.',
+      photoshoot: 'change the photo so that it is a professional photoshoot. Make the person hot with good posture. Make it look unediteded',
+      nature: 'Change the photo so that it is a fitness photo in nature. Make the person hot with good posture. Make it look unediteded',
+      rooftop: 'Change the photo so that it is a rooftop photo. Make the person hot with good posture. Make it look unediteded',
+      sports: 'Change the photo so that it is a sports photo. Make the person hot with good posture. Make it look unediteded',
+      home: 'Change the photo so that it is a home photo. Make the person hot with good posture. Make it look unediteded',
+      winter: 'Change the photo so that it is a winter photo. Make the person hot with good posture. Make it look unediteded',
     };
 
     const basePrompt = basePrompts[scenario];
