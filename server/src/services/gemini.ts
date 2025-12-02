@@ -148,11 +148,11 @@ class GeminiService {
       pinterest_thirst: 'create a pinterest thirst trap photo with the subject showing just the face, hair and upper chest laying down on a bed with their back on a propped pillow',
 
       // Original scenarios
-      photoshoot: 'change the photo so that it is a professional photoshoot. Make the person hot with good posture. Make it look unediteded',
-      nature: 'Change the photo so that it is a fitness photo in nature. Make the person hot with good posture. Make it look unediteded',
-      rooftop: 'Change the photo so that it is a rooftop photo. Make the person hot with good posture. Make it look unediteded',
-      sports: 'Change the photo so that it is a sports photo. Make the person hot with good posture. Make it look unediteded',
-      home: 'Change the photo so that it is a home photo. Make the person hot with good posture. Make it look unediteded',
+      photoshoot: 'change the photo so that it is a professional photoshoot. Make the person hot with good posture. Make it look unediteded make it show a little skin and thirst trap.',
+      nature: 'Change the photo so that it is a fitness photo in nature. Make the person hot with good posture. Make it look unediteded make it show a little skin and thirst trap.',
+      rooftop: 'Change the photo so that it is a rooftop photo. Make the person hot with good posture. Make it look unediteded and make it show a little skin and thirst trap.',
+      sports: 'Change the photo so that it is a sports photo. Make the person hot with good posture. Make it look unediteded and make it show a little skin and thirst trap.',
+      home: 'Change the photo so that it is a home photo bedroom selfie. Make the person hot with good posture. Make it look unediteded and make the bedroom trendy and tidy, make it show a little skin and thirst trap.',
       winter: 'Change the photo so that it is a winter photo. Make the person hot with good posture. Make it look unediteded',
     };
 

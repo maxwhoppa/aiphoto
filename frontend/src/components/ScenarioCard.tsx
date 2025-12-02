@@ -16,7 +16,7 @@ interface ScenarioCardProps {
   name: string;
   description: string;
   icon: string;
-  images: string[];
+  images: any[];
   isPopular?: boolean;
   isSelected: boolean;
   isDisabled: boolean;
@@ -67,14 +67,15 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
               styles.imageContainer,
               {
                 width: imageWidth,
+                height: imageWidth, // Make container square
                 marginLeft: index === 0 ? -imageWidth * 0.5 : 0, // First image 50% off-screen
                 marginRight: index === images.length - 1 ? -imageWidth * 0.2 : 8, // Last image 20% off-screen
               }
             ]}
           >
             <Image
-              source={{ uri: image }}
-              style={styles.image}
+              source={typeof image === 'string' ? { uri: image } : image}
+              style={[styles.image, { width: imageWidth, height: imageWidth }]}
               resizeMode="cover"
             />
           </View>
@@ -83,11 +84,15 @@ export const ScenarioCard: React.FC<ScenarioCardProps> = ({
 
       <View style={styles.header}>
         <View style={styles.textContainer}>
-          {isPopular && (
-            <Text variant="caption" weight="bold" style={[styles.popularLabel, { color: colors.accent, fontSize: 14, lineHeight: 17, marginBottom: 6 }]}>
-              MOST POPULAR
-            </Text>
-          )}
+          <View style={styles.popularLabelContainer}>
+            {isPopular ? (
+              <Text variant="caption" weight="bold" style={[styles.popularLabel, { color: colors.accent, fontSize: 14, lineHeight: 17 }]}>
+                MOST POPULAR
+              </Text>
+            ) : (
+              <View style={styles.popularLabelPlaceholder} />
+            )}
+          </View>
           <Text variant="subtitle" weight="bold" style={{ color: colors.text, fontSize: 20, lineHeight: 24 }}>
             {name}
           </Text>
@@ -112,11 +117,18 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: 'flex-start',
   },
+  popularLabelContainer: {
+    height: 23, // Fixed height to accommodate the label (17 line height + 6 margin)
+    marginBottom: 6,
+    justifyContent: 'flex-start',
+  },
   popularLabel: {
     fontSize: 12,
-    marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  popularLabelPlaceholder: {
+    height: 17, // Same as the line height of the popular label
   },
   imageScrollContainer: {
     paddingLeft: 0,
@@ -130,7 +142,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    aspectRatio: 1, // Makes the image square
+    height: '100%',
     backgroundColor: '#f0f0f0',
   },
 });

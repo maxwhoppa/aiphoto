@@ -14,6 +14,7 @@ import { ScenarioCard } from '../../components/ScenarioCard';
 import { Button } from '../../components/Button';
 import { BottomTab } from '../../components/BottomTab';
 import { Text } from '../../components/Text';
+import { getScenarioImages } from '../../utils/scenarioImages';
 
 interface Scenario {
   id: string;
@@ -41,27 +42,15 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   
-  const getScenarioImages = (scenarioId: string) => {
-    const baseUrl = 'https://picsum.photos/400/400?random='; // Square images
-    return Array.from({ length: 5 }, (_, i) => `${baseUrl}${scenarioId}_${i}`);
-  };
 
   const scenarios: Scenario[] = [
-    {
-      id: 'professional',
-      name: 'Professional',
-      description: 'Ultra-realistic corporate portrait',
-      icon: 'briefcase-outline',
+        {
+      id: 'pinterest_thirst',
+      name: 'Pinterest Thirst',
+      description: 'Pinterest-style thirst trap photo',
+      icon: 'heart-outline',
       isPopular: true,
-      images: getScenarioImages('professional'),
-    },
-    {
-      id: 'casual_fitting_room',
-      name: 'Casual Fitting Room',
-      description: 'Luxury designer fitting room selfie',
-      icon: 'shirt-outline',
-      isPopular: true,
-      images: getScenarioImages('casual_fitting_room'),
+      images: getScenarioImages('pinterest_thirst'),
     },
     {
       id: 'white_photoshoot',
@@ -72,11 +61,24 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       images: getScenarioImages('white_photoshoot'),
     },
     {
+      id: 'professional',
+      name: 'Professional',
+      description: 'Ultra-realistic corporate portrait',
+      icon: 'briefcase-outline',
+      images: getScenarioImages('professional'),
+    },
+    {
+      id: 'casual_fitting_room',
+      name: 'Casual Fitting Room',
+      description: 'Luxury designer fitting room selfie',
+      icon: 'shirt-outline',
+      images: getScenarioImages('casual_fitting_room'),
+    },
+    {
       id: 'editorial_photoshoot',
       name: 'Editorial Photoshoot',
       description: 'Contemporary studio portrait',
       icon: 'camera-outline',
-      isPopular: true,
       images: getScenarioImages('editorial_photoshoot'),
     },
     {
@@ -84,16 +86,14 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
       name: 'Hotel Bathroom',
       description: 'Luxury hotel bathroom mirror selfie',
       icon: 'bed-outline',
-      isPopular: true,
       images: getScenarioImages('hotel_bathroom'),
     },
     {
-      id: 'pinterest_thirst',
-      name: 'Pinterest Thirst',
-      description: 'Pinterest-style thirst trap photo',
-      icon: 'heart-outline',
-      isPopular: true,
-      images: getScenarioImages('pinterest_thirst'),
+      id: 'coffee_new',
+      name: 'Coffee',
+      description: 'Trendy café with fresh coffee',
+      icon: 'cafe-outline',
+      images: getScenarioImages('coffee_new'),
     },
     {
       id: 'photoshoot',
@@ -139,8 +139,8 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
     },
   ];
 
-  // Default select professional but allow deselection
-  const [selectedScenarios, setSelectedScenarios] = useState<string[]>(['professional']);
+  // Default select popular scenarios but allow deselection
+  const [selectedScenarios, setSelectedScenarios] = useState<string[]>(['pinterest_thirst', 'white_photoshoot']);
 
   const toggleScenario = (scenarioId: string) => {
     setSelectedScenarios(prev => {
