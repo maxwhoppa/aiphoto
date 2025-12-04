@@ -6,6 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -15,6 +17,8 @@ import { useAuth } from '../../context/AuthContext';
 import { apiRequestJson } from '../../services/authHandler';
 import { BackButton } from '../../components/BackButton';
 import { Text } from '../../components/Text';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface PaywallScreenProps {
   onPaymentSuccess: (paymentId?: string) => void;
@@ -120,29 +124,66 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
   // Show loading state while initializing payment
   if (isLoading && !showWebView) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text variant="subtitle" style={[styles.loadingTitle, { color: colors.text }]}>
-            Setting up payment...
-          </Text>
-          <Text variant="body" style={[styles.loadingSubtitle, { color: colors.textSecondary }]}>
-            You'll be redirected to secure checkout
-          </Text>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={true}
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHandle} />
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onPaymentCancel}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text variant="subtitle" style={[styles.loadingTitle, { color: colors.text }]}>
+                Setting up payment...
+              </Text>
+              <Text variant="body" style={[styles.loadingSubtitle, { color: colors.textSecondary }]}>
+                You'll be redirected to secure checkout
+              </Text>
+            </View>
+          </View>
         </View>
-      </SafeAreaView>
+      </Modal>
     );
   }
 
   // Show Stripe WebView
   if (showWebView && checkoutUrl) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-        <View style={styles.webViewHeader}>
-          <Text variant="subtitle" style={[styles.webViewTitle, { color: colors.text }]}>
-            Secure Payment
-          </Text>
-        </View>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={true}
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHandle} />
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onPaymentCancel}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.webViewHeader}>
+              <Text variant="subtitle" style={[styles.webViewTitle, { color: colors.text }]}>
+                Secure Payment
+              </Text>
+              <Text variant="caption" style={[styles.webViewSubtitle, { color: colors.textSecondary }]}>
+                External Web View
+              </Text>
+            </View>
 
         <WebView
           source={{
@@ -187,19 +228,39 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
             </View>
           )}
         />
-      </SafeAreaView>
+          </View>
+        </View>
+      </Modal>
     );
   }
 
   // Fallback - should not normally reach here
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <View style={styles.loadingContainer}>
-        <Text variant="body" style={[styles.errorText, { color: colors.text }]}>
-          Something went wrong
-        </Text>
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={true}
+      presentationStyle="pageSheet"
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHandle} />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onPaymentCancel}
+            >
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.loadingContainer}>
+            <Text variant="body" style={[styles.errorText, { color: colors.text }]}>
+              Exiting External Web View
+            </Text>
+          </View>
+        </View>
       </View>
-    </SafeAreaView>
+    </Modal>
   );
 };
 
@@ -421,5 +482,49 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     fontFamily: 'Poppins-Regular',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    height: SCREEN_HEIGHT * 0.9,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#CCC',
+    borderRadius: 2,
+    marginBottom: 10,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    top: 8,
+    padding: 8,
+    borderRadius: 20,
+  },
+  webViewSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
 });
