@@ -12,7 +12,7 @@ const stripe = new Stripe(config.STRIPE_SECRET_KEY, {
 });
 
 export const paymentsRouter = router({
-  // Check if user has an unredeemed payment, or create a new checkout session
+  // Always create a new checkout session (no more unredeemed payment checks)
   getOrCreateCheckout: protectedProcedure
     .mutation(async ({ ctx }) => {
       const db = getDb();
@@ -27,34 +27,6 @@ export const paymentsRouter = router({
           email: ctx.user.email || `${ctx.user.sub}@cognito.local`,
         }).returning();
         user = newUser;
-      }
-
-      // Check for existing unredeemed payment
-      const existingPayments = await db
-        .select()
-        .from(payments)
-        .where(and(
-          eq(payments.userId, user.id),
-          eq(payments.redeemed, false)
-        ))
-        .orderBy(desc(payments.paidAt))
-        .limit(1);
-
-      if (existingPayments.length > 0) {
-        const existingPayment = existingPayments[0];
-        
-        logger.info('User has unredeemed payment', {
-          cognitoUserId: ctx.user.sub,
-          paymentId: existingPayment.id,
-        });
-
-        return {
-          hasUnredeemedPayment: true,
-          paymentId: existingPayment.id,
-          checkoutUrl: null,
-          sessionId: null,
-          message: 'User already has an unredeemed payment'
-        };
       }
 
       // Create new Stripe checkout session

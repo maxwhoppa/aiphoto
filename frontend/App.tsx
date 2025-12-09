@@ -10,7 +10,7 @@ import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { EmailSignInScreen } from './src/screens/auth/EmailSignInScreen';
 import { PhotoUploadScreen } from './src/screens/upload/PhotoUploadScreen';
 import { ScenarioSelectionScreen } from './src/screens/scenarios/ScenarioSelectionScreen';
-import { PaywallScreen } from './src/screens/payment/PaywallScreen';
+import { PaywallScreenIAP } from './src/screens/payment/PaywallScreenIAP';
 import { LoadingScreen } from './src/screens/generation/LoadingScreen';
 import { ProfileViewScreen } from './src/screens/gallery/ProfileViewScreen';
 import { ThemeSelector } from './src/components/ThemeSelector';
@@ -169,25 +169,9 @@ function AppNavigator() {
   };
 
   const handleRegenerateFlow = async (navigation: any) => {
-    try {
-      // Check if user has an unredeemed payment
-      const paymentResponse = await checkPaymentAccess();
-
-      if (paymentResponse?.result?.data?.hasUnredeemedPayment) {
-        // User has an unredeemed payment - they can regenerate without paying
-        navigation.navigate('PhotoUpload', { isRegenerateFlow: true });
-      } else {
-        // User needs to pay for another generation
-        // Navigate to photo upload first, then they'll hit the paywall at scenario selection
-        setHasPaymentAccess(false); // Reset payment access so they hit the paywall
-        navigation.navigate('PhotoUpload', { isRegenerateFlow: true });
-      }
-    } catch (error) {
-      console.error('Error checking payment status:', error);
-      // If we can't check payment status, assume they need to pay
-      setHasPaymentAccess(false);
-      navigation.navigate('PhotoUpload', { isRegenerateFlow: true });
-    }
+    // Always require new payment for regeneration
+    setHasPaymentAccess(false);
+    navigation.navigate('PhotoUpload', { isRegenerateFlow: true });
   };
 
   if (isLoading || !isInitialized || (isAuthenticated && isCheckingImages)) {
@@ -287,7 +271,7 @@ function AppNavigator() {
               options={{ headerShown: false }}
             >
               {({ navigation, route }) => (
-                <PaywallScreen
+                <PaywallScreenIAP
                   selectedScenarios={route.params.selectedScenarios}
                   photoCount={route.params.imageIds.length}
                   navigation={navigation}

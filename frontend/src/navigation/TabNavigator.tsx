@@ -6,7 +6,7 @@ import { ProfileScreen } from '../screens/gallery/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { PhotoUploadScreen } from '../screens/upload/PhotoUploadScreen';
 import { ScenarioSelectionScreen } from '../screens/scenarios/ScenarioSelectionScreen';
-import { PaywallScreen } from '../screens/payment/PaywallScreen';
+import { PaywallScreenIAP } from '../screens/payment/PaywallScreenIAP';
 import { LoadingScreen } from '../screens/generation/LoadingScreen';
 import { useTheme } from '../context/ThemeContext';
 import { checkPaymentAccess, getGeneratedImages, checkGenerationStatus, setSelectedProfilePhotos } from '../services/api';
@@ -254,30 +254,12 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
           <ScenarioSelectionScreen
             photos={route.params.imageIds || []}
             navigation={navigation}
-            onNext={async (selectedScenarios) => {
-              try {
-                const paymentResponse = await checkPaymentAccess();
-
-                if (paymentResponse?.result?.data?.hasUnredeemedPayment) {
-                  navigation.navigate('Loading', {
-                    selectedScenarios,
-                    imageIds: route.params.imageIds,
-                    paymentId: paymentResponse.result.data.paymentId,
-                    isRegenerateFlow: true,
-                  });
-                } else {
-                  navigation.navigate('Paywall', {
-                    selectedScenarios,
-                    imageIds: route.params.imageIds,
-                  });
-                }
-              } catch (error) {
-                console.error('Error checking payment in scenario selection:', error);
-                navigation.navigate('Paywall', {
-                  selectedScenarios,
-                  imageIds: route.params.imageIds,
-                });
-              }
+            onNext={(selectedScenarios) => {
+              // Always navigate to paywall for new payment
+              navigation.navigate('Paywall', {
+                selectedScenarios,
+                imageIds: route.params.imageIds,
+              });
             }}
           />
         )}
@@ -288,7 +270,7 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
         options={{ headerShown: false }}
       >
         {({ navigation, route }) => (
-          <PaywallScreen
+          <PaywallScreenIAP
             selectedScenarios={route.params.selectedScenarios}
             photoCount={route.params.imageIds.length}
             navigation={navigation}

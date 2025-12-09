@@ -15,7 +15,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dreamboat.dreamboat",
+      "buildNumber": "1",
       "usesAppleSignIn": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -23,6 +27,12 @@
               "com.dreamboat.dreamboat"
             ]
           }
+        ],
+        "NSCameraUsageDescription": "This app needs access to camera to upload your photos for AI generation.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select and save your photos.",
+        "NSPhotoLibraryAddUsageDescription": "This app saves generated photos to your photo library.",
+        "SKAdNetworkIdentifier": [
+          "cstr6suwn9.skadnetwork"
         ]
       }
     },
@@ -33,7 +43,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.dreamboat.dreamboat"
+      "package": "com.dreamboat.dreamboat",
+      "permissions": [
+        "com.android.vending.BILLING"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
