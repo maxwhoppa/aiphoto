@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "dreamboat",
     "slug": "dreamboat",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -56,9 +56,10 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "744257a8-1918-4e76-9aa7-2f17202a578b"
       }
     },
-    "scheme": "dreamboat"
+    "scheme": "dreamboat",
+    "owner": "maxwhoppa"
   }
 }
