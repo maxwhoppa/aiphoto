@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "f8747b5f-363a-4fd5-9574-334b14c5f687"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.maxwhoppa.aiphotoexpressserver",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

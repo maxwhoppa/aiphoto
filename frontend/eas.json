@@ -18,19 +18,13 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m-medium",
-        "entitlements": {
-          "com.apple.developer.applesignin": ["Default"]
-        }
+        "resourceClass": "m-medium"
       }
     },
     "production": {
       "ios": {
         "resourceClass": "m-medium",
-        "autoIncrement": true,
-        "entitlements": {
-          "com.apple.developer.applesignin": ["Default"]
-        }
+        "autoIncrement": true
       }
     }
   },
