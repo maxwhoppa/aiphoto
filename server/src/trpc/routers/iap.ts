@@ -160,7 +160,7 @@ export const iapRouter = router({
         // Build query conditions
         const conditions = [eq(payments.userId, user.id)];
         if (input.transactionId) {
-          conditions.push(eq(payments.stripePaymentIntentId, input.transactionId));
+          conditions.push(eq(payments.transactionId, input.transactionId));
         }
 
         const payment = await db
@@ -237,15 +237,16 @@ export const iapRouter = router({
             const existingPayment = await db
               .select()
               .from(payments)
-              .where(eq(payments.stripePaymentIntentId, purchase.transactionId))
+              .where(eq(payments.transactionId, purchase.transactionId))
               .limit(1);
 
             if (existingPayment.length === 0) {
               // Create new payment record
               const [payment] = await db.insert(payments).values({
                 userId: user.id,
-                stripePaymentIntentId: purchase.transactionId,
-                stripeSessionId: `iap_${input.platform}_${purchase.transactionId}`,
+                transactionId: purchase.transactionId,
+                amount: '9999', // $99.99 in cents
+                currency: 'usd',
                 redeemed: false,
                 paidAt: new Date(),
               }).returning();

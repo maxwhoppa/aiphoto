@@ -68,11 +68,11 @@ export const scenarios = pgTable('scenarios', {
 export const payments = pgTable('payments', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  stripeSessionId: varchar('stripe_session_id', { length: 255 }).notNull().unique(),
+  transactionId: varchar('transaction_id', { length: 255 }).notNull().unique(),
   amount: varchar('amount', { length: 20 }).notNull(), // Amount in cents as string
   currency: varchar('currency', { length: 3 }).notNull().default('usd'),
   redeemed: boolean('redeemed').notNull().default(false), // Has the user used this payment to generate photos
-  paidAt: timestamp('paid_at').notNull().defaultNow(), // When payment was confirmed by Stripe
+  paidAt: timestamp('paid_at').notNull().defaultNow(), // When payment was confirmed
   redeemedAt: timestamp('redeemed_at'), // When user generated photos using this payment
 });
 
