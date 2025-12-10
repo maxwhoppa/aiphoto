@@ -300,7 +300,7 @@ export const paymentsRouter = router({
       // Create manual payment record
       const [payment] = await db.insert(payments).values({
         userId: user.id,
-        stripeSessionId: `manual_test_${Date.now()}`,
+        transactionId: `manual_test_${Date.now()}`,
         amount: (input.amount || 9999).toString(),
         currency: 'usd',
         redeemed: false,

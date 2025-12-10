@@ -110,8 +110,9 @@ export const iapRouter = router({
         // Store purchase in database
         const [payment] = await db.insert(payments).values({
           userId: user.id,
-          stripePaymentIntentId: input.transactionId,
-          stripeSessionId: `iap_${input.platform}_${input.transactionId}`,
+          transactionId: `iap_${input.platform}_${input.transactionId}`,
+          amount: '9999', // $99.99 in cents
+          currency: 'usd',
           redeemed: false,
           paidAt: new Date(),
         }).returning();

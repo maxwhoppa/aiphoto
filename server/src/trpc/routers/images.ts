@@ -195,7 +195,7 @@ export const imagesRouter = router({
               .select()
               .from(payments)
               .where(and(
-                eq(payments.stripeSessionId, input.paymentId),
+                eq(payments.transactionId, input.paymentId),
                 eq(payments.userId, user.id)
               ))
               .limit(1);
@@ -216,7 +216,7 @@ export const imagesRouter = router({
             paymentRecord = paymentResults[0];
             console.log('DEBUG: Found payment:', {
               id: paymentRecord.id,
-              stripeSessionId: paymentRecord.stripeSessionId,
+              transactionId: paymentRecord.transactionId,
               redeemed: paymentRecord.redeemed
             });
 
@@ -232,7 +232,7 @@ export const imagesRouter = router({
 
               logger.info('Payment redeemed for photo generation', {
                 paymentId: paymentRecord.id,
-                sessionId: paymentRecord.stripeSessionId,
+                sessionId: paymentRecord.transactionId,
                 cognitoUserId: ctx.user.sub,
                 userId: user.id,
               });

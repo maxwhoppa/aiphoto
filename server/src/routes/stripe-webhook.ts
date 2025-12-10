@@ -77,7 +77,7 @@ router.post('/stripe/webhook',
           const existingPayments = await db
             .select()
             .from(payments)
-            .where(eq(payments.stripeSessionId, session.id))
+            .where(eq(payments.transactionId, session.id))
             .limit(1);
 
           if (existingPayments.length > 0) {
@@ -111,7 +111,7 @@ router.post('/stripe/webhook',
           // Create payment record
           const [payment] = await db.insert(payments).values({
             userId,
-            stripeSessionId: session.id,
+            transactionId: session.id,
             amount: session.amount_total ? session.amount_total.toString() : '9999', // Amount in cents
             currency: session.currency || 'usd',
             redeemed: false,
