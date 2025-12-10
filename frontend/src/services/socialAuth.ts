@@ -153,17 +153,21 @@ export async function signInWithApple(): Promise<{
           } catch (confirmError: any) {
             console.error('Failed to confirm Apple user via server:', confirmError);
 
-            // Check if it's a server permission error
+            // For Apple Sign-In, we should be more lenient with server confirmation failures
+            console.log('Server confirmation failed, but this is expected for Apple Sign-In');
+            console.log('Apple users should be auto-confirmed without requiring manual verification');
+
+            // Check for specific server errors
             if (confirmError.message && confirmError.message.includes('not authorized to perform: cognito-idp:AdminGetUser')) {
-              console.log('Server lacks IAM permissions - proceeding with sign-in attempt anyway');
+              console.log('Server lacks IAM permissions - this is a configuration issue');
               console.log('Note: Server needs cognito-idp:AdminGetUser and cognito-idp:AdminConfirmSignUp permissions');
-              // Don't throw error - continue with sign-in attempt since user was created
             } else if (confirmError.message && confirmError.message.includes('500')) {
-              console.log('Server error during confirmation - proceeding with sign-in attempt anyway');
-              // Don't throw error - continue with sign-in attempt
-            } else {
-              throw new Error(`Failed to confirm Apple user account: ${confirmError.message}`);
+              console.log('Server error during confirmation - likely a temporary issue');
             }
+
+            // Don't throw error here - continue with sign-in attempt since user was created
+            // The server confirmation is a best-effort attempt for Apple users
+            console.log('Proceeding with Apple Sign-In despite server confirmation failure...');
           }
 
           // Try to sign in after confirmation
@@ -255,8 +259,61 @@ export async function signInWithApple(): Promise<{
           return { user: retryUser, tokens: retryTokens };
 
         } catch (confirmError: any) {
-          console.error('Failed to confirm Apple user:', confirmError);
-          throw new Error('Please check your email for a verification code and confirm your account first.');
+          console.error('Failed to confirm Apple user via server:', confirmError);
+
+          // For Apple Sign-In, we should not require email verification
+          // This is likely a server permission issue or the user is already confirmed
+          console.log('Apple Sign-In auto-confirmation failed, but proceeding...');
+          console.log('Note: Apple users should not require manual email verification');
+
+          // Instead of throwing an error, try signing in one more time
+          // The user might have been confirmed by another process
+          try {
+            const finalRetryAuthCommand = new InitiateAuthCommand({
+              ClientId: CLIENT_ID,
+              AuthFlow: AuthFlowType.USER_PASSWORD_AUTH,
+              AuthParameters: {
+                USERNAME: username,
+                PASSWORD: password,
+              },
+            });
+
+            const finalRetryResponse = await client.send(finalRetryAuthCommand);
+
+            if (!finalRetryResponse.AuthenticationResult) {
+              throw new Error('Apple Sign-In failed: Unable to authenticate user after multiple attempts');
+            }
+
+            const finalTokens = {
+              accessToken: finalRetryResponse.AuthenticationResult.AccessToken || '',
+              idToken: finalRetryResponse.AuthenticationResult.IdToken || '',
+              refreshToken: finalRetryResponse.AuthenticationResult.RefreshToken || '',
+              expiresIn: finalRetryResponse.AuthenticationResult.ExpiresIn || 3600,
+            };
+
+            const finalCognitoUser: any = jwtDecode(finalTokens.idToken);
+
+            const finalUser = {
+              sub: finalCognitoUser.sub,
+              email: email,
+              name: credential.fullName ?
+                `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim() :
+                'Apple User',
+              appleUserId: credential.user,
+              provider: 'apple',
+            };
+
+            return { user: finalUser, tokens: finalTokens };
+
+          } catch (finalError: any) {
+            console.error('Final Apple Sign-In attempt failed:', finalError);
+
+            if (finalError.name === 'UserNotConfirmedException') {
+              throw new Error('Apple Sign-In requires admin approval. Please contact support.');
+            } else {
+              throw new Error(`Apple Sign-In failed: ${finalError.message || 'Unable to complete authentication'}`);
+            }
+          }
         }
       } else {
         console.error('Apple sign-in auth error:', authError);
