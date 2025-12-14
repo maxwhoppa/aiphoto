@@ -179,19 +179,40 @@ export const imagesRouter = router({
         user = newUser;
       }
 
-      // Handle payment redemption if paymentId provided
+      // Handle payment validation and redemption
       let paymentRecord = null;
+
+      // First check if user has any unredeemed payment (they should have paid before generating)
+      const unredeemedPayments = await db
+        .select()
+        .from(payments)
+        .where(and(
+          eq(payments.userId, user.id),
+          eq(payments.redeemed, false)
+        ))
+        .orderBy(desc(payments.paidAt))
+        .limit(1);
+
+      if (unredeemedPayments.length === 0) {
+        throw new Error('No unredeemed payment found. Please complete payment before generating images.');
+      }
+
+      paymentRecord = unredeemedPayments[0];
+
+      // If a specific paymentId was provided, verify it matches
       if (input.paymentId) {
         console.log('DEBUG: generateImages received paymentId:', input.paymentId);
-        console.log('DEBUG: user.id:', user.id);
-        try {
-          let paymentResults;
 
-          // Try to find payment by ID first (UUID format), then by session ID
+        // Check if provided paymentId matches the unredeemed payment
+        const isValidPayment = paymentRecord.id === input.paymentId ||
+                              paymentRecord.transactionId === input.paymentId;
+
+        if (!isValidPayment) {
+          // Try to find the specific payment they requested
+          let specificPaymentResults;
           if (input.paymentId.includes('cs_')) {
             // This looks like a Stripe session ID
-            console.log('DEBUG: Looking up payment by Stripe session ID');
-            paymentResults = await db
+            specificPaymentResults = await db
               .select()
               .from(payments)
               .where(and(
@@ -201,8 +222,7 @@ export const imagesRouter = router({
               .limit(1);
           } else {
             // This looks like a payment UUID
-            console.log('DEBUG: Looking up payment by UUID');
-            paymentResults = await db
+            specificPaymentResults = await db
               .select()
               .from(payments)
               .where(and(
@@ -212,54 +232,40 @@ export const imagesRouter = router({
               .limit(1);
           }
 
-          if (paymentResults.length > 0) {
-            paymentRecord = paymentResults[0];
-            console.log('DEBUG: Found payment:', {
-              id: paymentRecord.id,
-              transactionId: paymentRecord.transactionId,
-              redeemed: paymentRecord.redeemed
-            });
-
-            // Mark payment as redeemed if not already
-            if (!paymentRecord.redeemed) {
-              await db
-                .update(payments)
-                .set({
-                  redeemed: true,
-                  redeemedAt: new Date(),
-                })
-                .where(eq(payments.id, paymentRecord.id));
-
-              logger.info('Payment redeemed for photo generation', {
-                paymentId: paymentRecord.id,
-                sessionId: paymentRecord.transactionId,
-                cognitoUserId: ctx.user.sub,
-                userId: user.id,
-              });
+          if (specificPaymentResults.length > 0) {
+            const specificPayment = specificPaymentResults[0];
+            if (specificPayment.redeemed) {
+              throw new Error('This payment has already been used for photo generation.');
             }
+            // Use the specific payment they requested
+            paymentRecord = specificPayment;
           } else {
-            console.log('DEBUG: Payment not found, proceeding without payment reference');
-            logger.warn('Payment not found but proceeding with generation', {
-              requestedPaymentId: input.paymentId,
-              cognitoUserId: ctx.user.sub,
-              userId: user.id,
-            });
+            throw new Error('Invalid payment ID provided.');
           }
-        } catch (error) {
-          logger.error('Failed to redeem payment', {
-            paymentId: input.paymentId,
-            cognitoUserId: ctx.user.sub,
-            error,
-          });
-          console.log('DEBUG: Payment redemption failed, but proceeding with generation anyway');
         }
       }
+
+      // Mark payment as redeemed
+      await db
+        .update(payments)
+        .set({
+          redeemed: true,
+          redeemedAt: new Date(),
+        })
+        .where(eq(payments.id, paymentRecord.id));
+
+      logger.info('Payment redeemed for photo generation', {
+        paymentId: paymentRecord.id,
+        sessionId: paymentRecord.transactionId,
+        cognitoUserId: ctx.user.sub,
+        userId: user.id,
+      });
 
       // Create generation record
       const totalImages = input.imageIds.length * input.scenarios.length;
       const [generation] = await db.insert(generations).values({
         userId: user.id,
-        paymentId: paymentRecord?.id || null,
+        paymentId: paymentRecord.id, // Always link to the payment since we validated it exists
         generationStatus: 'in_progress',
         totalImages,
         completedImages: 0,
