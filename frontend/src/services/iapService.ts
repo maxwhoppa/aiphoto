@@ -5,13 +5,12 @@ import {
   purchaseErrorListener,
   finishTransaction,
   requestPurchase,
-  getProducts,
+  fetchProducts,
   getAvailablePurchases,
   PurchaseError,
   Purchase,
-  ProductPurchase,
-  SubscriptionPurchase,
   Product,
+  ErrorCode,
 } from 'react-native-iap';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -51,9 +50,9 @@ export class IAPService {
 
   private setupListeners() {
     this.purchaseUpdateSubscription = purchaseUpdatedListener(
-      async (purchase: Purchase | SubscriptionPurchase) => {
+      async (purchase: Purchase) => {
         console.log('Purchase updated:', purchase);
-        const receipt = purchase.transactionReceipt;
+        const receipt = purchase.purchaseToken;
 
         if (receipt) {
           try {
@@ -69,7 +68,7 @@ export class IAPService {
     this.purchaseErrorSubscription = purchaseErrorListener(
       (error: PurchaseError) => {
         console.error('Purchase error:', error);
-        if (error.code !== 'E_USER_CANCELLED') {
+        if (error.code !== ErrorCode.UserCancelled) {
           Alert.alert(
             'Purchase Error',
             error.message || 'Something went wrong with your purchase.'
@@ -82,17 +81,18 @@ export class IAPService {
   async getProductsForSale(): Promise<Product[]> {
     try {
       console.log('Fetching products with SKUs:', PRODUCT_SKUS);
-      const products = await getProducts({ skus: PRODUCT_SKUS });
+      const products = await fetchProducts({ skus: PRODUCT_SKUS });
       console.log('Available products:', products);
-      console.log('Products count:', products.length);
-      if (products.length === 0) {
+      console.log('Products count:', products?.length);
+      if (!products || products.length === 0) {
         console.warn('No products returned. Verify in App Store Connect:');
         console.warn('1. Product ID matches: com.dreamboat.premium.photogeneration');
         console.warn('2. Product status is "Ready to Submit"');
         console.warn('3. Paid Apps Agreement is signed');
         console.warn('4. Using Sandbox tester account');
+        return [];
       }
-      return products;
+      return products as Product[];
     } catch (err: any) {
       console.error('Error getting products:', err);
       console.error('Error code:', err?.code);
@@ -105,20 +105,26 @@ export class IAPService {
     try {
       const productId = PRODUCT_SKUS[0];
 
-      if (Platform.OS === 'ios') {
-        const purchase = await requestPurchase({
-          sku: productId,
-          andDangerouslyFinishTransactionAutomaticallyIOS: false,
-        });
-        return purchase as ProductPurchase;
-      } else {
-        const purchase = await requestPurchase({
-          skus: [productId],
-        });
-        return purchase as ProductPurchase;
+      const purchase = await requestPurchase({
+        type: 'in-app',
+        request: {
+          apple: {
+            sku: productId,
+            andDangerouslyFinishTransactionAutomatically: false,
+          },
+          google: {
+            skus: [productId],
+          },
+        },
+      });
+
+      // requestPurchase can return Purchase | Purchase[] | null
+      if (Array.isArray(purchase)) {
+        return purchase[0] || null;
       }
+      return purchase;
     } catch (err: any) {
-      if (err.code === 'E_USER_CANCELLED') {
+      if (err.code === ErrorCode.UserCancelled) {
         console.log('User cancelled purchase');
       } else {
         console.error('Purchase error:', err);
@@ -144,14 +150,13 @@ export class IAPService {
     }
   }
 
-  private async savePurchase(purchase: Purchase | SubscriptionPurchase) {
+  private async savePurchase(purchase: Purchase) {
     try {
       const purchaseData = {
         productId: purchase.productId,
-        transactionId: purchase.transactionId,
+        transactionId: purchase.id,
         transactionDate: purchase.transactionDate,
-        transactionReceipt: purchase.transactionReceipt,
-        purchaseToken: (purchase as ProductPurchase).purchaseToken,
+        purchaseToken: purchase.purchaseToken,
       };
 
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(purchaseData));
@@ -185,10 +190,8 @@ export class IAPService {
 
   async validatePurchaseWithServer(purchase: Purchase): Promise<boolean> {
     try {
-      const receipt = Platform.select({
-        ios: purchase.transactionReceipt,
-        android: (purchase as ProductPurchase).purchaseToken,
-      });
+      // In v14, purchaseToken contains the receipt/token for both platforms
+      const receipt = purchase.purchaseToken;
 
       // Import apiRequestJson from authHandler to use TRPC endpoint
       const { apiRequestJson } = await import('./authHandler');
@@ -203,7 +206,7 @@ export class IAPService {
             platform: Platform.OS,
             receipt: receipt || '',
             productId: purchase.productId,
-            transactionId: purchase.transactionId,
+            transactionId: purchase.id,
           },
         }),
       });

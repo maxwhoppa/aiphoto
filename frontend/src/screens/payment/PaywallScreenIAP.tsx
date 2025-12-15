@@ -118,7 +118,7 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
         const isValid = await iapService.validatePurchaseWithServer(purchase);
 
         if (isValid) {
-          onPaymentSuccess(purchase.transactionId);
+          onPaymentSuccess(purchase.id);
         } else {
           Alert.alert(
             'Validation Failed',
@@ -131,7 +131,8 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
       }
     } catch (error: any) {
       console.error('Purchase error:', error);
-      if (error.code !== 'E_USER_CANCELLED') {
+      // v14 uses 'user-cancelled' instead of 'E_USER_CANCELLED'
+      if (error.code !== 'user-cancelled') {
         Alert.alert(
           'Purchase Failed',
           error.message || 'Failed to complete purchase. Please try again.'
