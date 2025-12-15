@@ -17,8 +17,8 @@ import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRODUCT_SKUS = Platform.select({
-  ios: ['com.aiphoto.premium.photogeneration'],
-  android: ['com.aiphoto.premium.photogeneration'],
+  ios: ['com.dreamboat.premium.photogeneration'],
+  android: ['com.dreamboat.premium.photogeneration'],
 }) || [];
 
 const STORAGE_KEY = '@aiphoto_purchase';
@@ -81,11 +81,22 @@ export class IAPService {
 
   async getProductsForSale(): Promise<Product[]> {
     try {
+      console.log('Fetching products with SKUs:', PRODUCT_SKUS);
       const products = await getProducts({ skus: PRODUCT_SKUS });
       console.log('Available products:', products);
+      console.log('Products count:', products.length);
+      if (products.length === 0) {
+        console.warn('No products returned. Verify in App Store Connect:');
+        console.warn('1. Product ID matches: com.dreamboat.premium.photogeneration');
+        console.warn('2. Product status is "Ready to Submit"');
+        console.warn('3. Paid Apps Agreement is signed');
+        console.warn('4. Using Sandbox tester account');
+      }
       return products;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error getting products:', err);
+      console.error('Error code:', err?.code);
+      console.error('Error message:', err?.message);
       return [];
     }
   }

@@ -25,7 +25,7 @@ export class IAPServiceMock {
     console.log('[MOCK IAP] Returning mock products');
     return [
       {
-        productId: 'com.aiphoto.premium.photogeneration',
+        productId: 'com.dreamboat.premium.photogeneration',
         localizedPrice: '$99.99',
         price: '99.99',
         currency: 'USD',
@@ -53,7 +53,7 @@ export class IAPServiceMock {
             text: 'Simulate Purchase',
             onPress: () => {
               const mockPurchase = {
-                productId: 'com.aiphoto.premium.photogeneration',
+                productId: 'com.dreamboat.premium.photogeneration',
                 transactionId: `mock_${Date.now()}`,
                 transactionDate: Date.now().toString(),
                 transactionReceipt: 'mock_receipt',
