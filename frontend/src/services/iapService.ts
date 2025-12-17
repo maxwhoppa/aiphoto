@@ -26,6 +26,8 @@ export class IAPService {
   private static instance: IAPService;
   private purchaseUpdateSubscription: any = null;
   private purchaseErrorSubscription: any = null;
+  private pendingPurchaseResolve: ((purchase: Purchase) => void) | null = null;
+  private pendingPurchaseReject: ((error: any) => void) | null = null;
 
   private constructor() {}
 
@@ -51,15 +53,30 @@ export class IAPService {
   private setupListeners() {
     this.purchaseUpdateSubscription = purchaseUpdatedListener(
       async (purchase: Purchase) => {
-        console.log('Purchase updated:', purchase);
-        const receipt = purchase.purchaseToken;
+        console.log('Purchase updated:', JSON.stringify(purchase, null, 2));
 
-        if (receipt) {
-          try {
-            await this.savePurchase(purchase);
-            await finishTransaction({ purchase, isConsumable: true });
-          } catch (error) {
-            console.error('Error processing purchase:', error);
+        // In v14: iOS uses transactionReceipt, Android uses purchaseToken
+        const receipt = Platform.OS === 'ios'
+          ? (purchase as any).transactionReceipt || purchase.purchaseToken
+          : purchase.purchaseToken;
+
+        // Process purchase even without receipt - the transaction ID is what matters
+        try {
+          await this.savePurchase(purchase);
+          await finishTransaction({ purchase, isConsumable: true });
+
+          // Resolve pending purchase promise
+          if (this.pendingPurchaseResolve) {
+            this.pendingPurchaseResolve(purchase);
+            this.pendingPurchaseResolve = null;
+            this.pendingPurchaseReject = null;
+          }
+        } catch (error) {
+          console.error('Error processing purchase:', error);
+          if (this.pendingPurchaseReject) {
+            this.pendingPurchaseReject(error);
+            this.pendingPurchaseResolve = null;
+            this.pendingPurchaseReject = null;
           }
         }
       }
@@ -68,6 +85,14 @@ export class IAPService {
     this.purchaseErrorSubscription = purchaseErrorListener(
       (error: PurchaseError) => {
         console.error('Purchase error:', error);
+
+        // Reject pending purchase promise
+        if (this.pendingPurchaseReject) {
+          this.pendingPurchaseReject(error);
+          this.pendingPurchaseResolve = null;
+          this.pendingPurchaseReject = null;
+        }
+
         if (error.code !== ErrorCode.UserCancelled) {
           Alert.alert(
             'Purchase Error',
@@ -105,26 +130,35 @@ export class IAPService {
     try {
       const productId = PRODUCT_SKUS[0];
 
-      const purchase = await requestPurchase({
-        type: 'in-app',
+      // Create a promise that will be resolved by the purchaseUpdatedListener
+      const purchasePromise = new Promise<Purchase>((resolve, reject) => {
+        this.pendingPurchaseResolve = resolve;
+        this.pendingPurchaseReject = reject;
+      });
+
+      // Initiate the purchase (this may return void in v14)
+      await requestPurchase({
         request: {
-          apple: {
+          ios: {
             sku: productId,
             andDangerouslyFinishTransactionAutomatically: false,
           },
-          google: {
+          android: {
             skus: [productId],
           },
         },
+        type: 'in-app',
       });
 
-      // requestPurchase can return Purchase | Purchase[] | null
-      if (Array.isArray(purchase)) {
-        return purchase[0] || null;
-      }
+      // Wait for the purchase to complete via the listener
+      const purchase = await purchasePromise;
       return purchase;
     } catch (err: any) {
-      if (err.code === ErrorCode.UserCancelled) {
+      // Clear pending promise on error
+      this.pendingPurchaseResolve = null;
+      this.pendingPurchaseReject = null;
+
+      if (err.code === ErrorCode.UserCancelled || err.code === 'user-cancelled') {
         console.log('User cancelled purchase');
       } else {
         console.error('Purchase error:', err);
@@ -188,10 +222,29 @@ export class IAPService {
     }
   }
 
-  async validatePurchaseWithServer(purchase: Purchase): Promise<boolean> {
+  async validatePurchaseWithServer(purchase: Purchase): Promise<{ valid: boolean; paymentId?: string }> {
     try {
-      // In v14, purchaseToken contains the receipt/token for both platforms
-      const receipt = purchase.purchaseToken;
+      // Log full purchase object to debug field names
+      console.log('Full purchase object:', JSON.stringify(purchase, null, 2));
+
+      // In v14: iOS uses transactionReceipt, Android uses purchaseToken
+      const receipt = Platform.OS === 'ios'
+        ? (purchase as any).transactionReceipt || purchase.purchaseToken
+        : purchase.purchaseToken;
+
+      // In v14: transaction ID might be in different fields
+      const transactionId = (purchase as any).transactionId
+        || purchase.id
+        || (purchase as any).originalTransactionIdentifierIOS
+        || `generated_${Date.now()}`;
+
+      console.log('Validating purchase:', {
+        platform: Platform.OS,
+        productId: purchase.productId,
+        transactionId,
+        hasReceipt: !!receipt,
+        receiptLength: receipt?.length,
+      });
 
       // Import apiRequestJson from authHandler to use TRPC endpoint
       const { apiRequestJson } = await import('./authHandler');
@@ -206,15 +259,28 @@ export class IAPService {
             platform: Platform.OS,
             receipt: receipt || '',
             productId: purchase.productId,
-            transactionId: purchase.id,
+            transactionId: transactionId,
           },
         }),
       });
 
-      return response?.result?.data?.valid || false;
+      console.log('Validation response:', JSON.stringify(response, null, 2));
+
+      // Check for error response
+      if (response?.error) {
+        console.error('Server returned error:', response.error);
+        return { valid: false };
+      }
+
+      // TRPC response format: { result: { data: { json: { valid: true, paymentId: "..." } } } }
+      const data = response?.result?.data?.json || response?.result?.data || {};
+      return {
+        valid: data.valid || false,
+        paymentId: data.paymentId,
+      };
     } catch (error) {
       console.error('Error validating purchase with server:', error);
-      return false;
+      return { valid: false };
     }
   }
 

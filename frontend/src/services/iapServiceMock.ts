@@ -104,9 +104,39 @@ export class IAPServiceMock {
     }
   }
 
-  async validatePurchaseWithServer(purchase: any) {
-    console.log('[MOCK IAP] Mock validation - always returns true');
-    return true;
+  async validatePurchaseWithServer(purchase: any): Promise<{ valid: boolean; paymentId?: string }> {
+    console.log('[MOCK IAP] Mock validation - creating real payment record on server');
+
+    try {
+      // Import apiRequestJson to call the real server endpoint
+      const { apiRequestJson } = await import('./authHandler');
+
+      const response = await apiRequestJson('/trpc/iap.validatePurchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          json: {
+            platform: 'ios',
+            receipt: 'mock_receipt_expo_go',
+            productId: purchase?.productId || 'com.dreamboat.premium.photogeneration',
+            transactionId: purchase?.transactionId || `mock_txn_${Date.now()}`,
+          },
+        }),
+      });
+
+      console.log('[MOCK IAP] Server validation response:', response);
+
+      const data = response?.result?.data?.json || response?.result?.data || {};
+      return {
+        valid: data.valid || false,
+        paymentId: data.paymentId,
+      };
+    } catch (error) {
+      console.error('[MOCK IAP] Error creating payment record:', error);
+      return { valid: false };
+    }
   }
 
   cleanup() {

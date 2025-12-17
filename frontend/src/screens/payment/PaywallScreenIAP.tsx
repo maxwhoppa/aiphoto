@@ -114,11 +114,11 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
       const purchase = await iapService.makePurchase();
 
       if (purchase) {
-        // Validate with server if needed
-        const isValid = await iapService.validatePurchaseWithServer(purchase);
+        // Validate with server and get the server's payment ID
+        const result = await iapService.validatePurchaseWithServer(purchase);
 
-        if (isValid) {
-          onPaymentSuccess(purchase.id);
+        if (result.valid && result.paymentId) {
+          onPaymentSuccess(result.paymentId);
         } else {
           Alert.alert(
             'Validation Failed',
