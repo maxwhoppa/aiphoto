@@ -255,12 +255,10 @@ export class IAPService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          json: {
-            platform: Platform.OS,
-            receipt: receipt || '',
-            productId: purchase.productId,
-            transactionId: transactionId,
-          },
+          platform: Platform.OS,
+          receipt: receipt || '',
+          productId: purchase.productId,
+          transactionId: transactionId,
         }),
       });
 

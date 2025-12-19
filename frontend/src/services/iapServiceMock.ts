@@ -117,12 +117,10 @@ export class IAPServiceMock {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          json: {
-            platform: 'ios',
-            receipt: 'mock_receipt_expo_go',
-            productId: purchase?.productId || 'com.dreamboat.premium.photogeneration',
-            transactionId: purchase?.transactionId || `mock_txn_${Date.now()}`,
-          },
+          platform: 'ios',
+          receipt: 'mock_receipt_expo_go',
+          productId: purchase?.productId || 'com.dreamboat.premium.photogeneration',
+          transactionId: purchase?.transactionId || `mock_txn_${Date.now()}`,
         }),
       });
 
