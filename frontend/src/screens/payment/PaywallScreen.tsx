@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequestJson } from '../../services/authHandler';
+import { checkPaymentAccess } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
 import { Text } from '../../components/Text';
 
@@ -55,6 +56,22 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
 
       setIsLoading(true);
       try {
+        // First, check if user has an unredeemed payment (free credit)
+        try {
+          const accessResult = await checkPaymentAccess();
+          console.log('Payment access check result:', accessResult);
+
+          if (accessResult?.hasAccess && accessResult?.paymentId) {
+            console.log('User has unredeemed payment/credit, bypassing payment flow');
+            // Automatically proceed with the existing payment
+            onPaymentSuccess(accessResult.paymentId);
+            return;
+          }
+        } catch (accessError) {
+          console.log('Error checking payment access, continuing with normal flow:', accessError);
+          // Continue with normal checkout flow if access check fails
+        }
+
         console.log('Creating Stripe checkout session...');
 
         // Call the server's TRPC endpoint to create or get checkout session
@@ -69,21 +86,6 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
         });
 
         console.log('Checkout response:', response);
-
-        if (response.result?.data?.hasUnredeemedPayment) {
-          // User already has an unredeemed payment, get the payment ID
-          const existingPaymentId = response.result?.data?.paymentId;
-          Alert.alert(
-            'Payment Already Exists',
-            'You already have an unredeemed payment. You can proceed to generate your photos without paying again.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => onPaymentCancel() },
-              { text: 'Proceed', onPress: () => onPaymentSuccess(existingPaymentId) }
-            ]
-          );
-          setIsLoading(false);
-          return;
-        }
 
         if (response.result?.data?.checkoutUrl) {
           // Store payment ID for later redemption

@@ -1,0 +1,123 @@
+{
+  "info": {
+    "name": "DreamBoat Admin",
+    "_postman_id": "dreamboat-admin-collection",
+    "description": "Admin endpoints for DreamBoat AI Photo app",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "adminKey",
+      "value": "dreamboat-admin-2024",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Free Credit (by email)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"transactionId\": \"free_credit_001\",\n  \"amount\": \"0\",\n  \"redeemed\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments/upsert",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "payments", "upsert"]
+            },
+            "description": "Create a free generation credit for a user by email"
+          }
+        },
+        {
+          "name": "Create Free Credit (by cognitoId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cognitoId\": \"us-east-1_xxxxx\",\n  \"transactionId\": \"free_credit_002\",\n  \"amount\": \"0\",\n  \"redeemed\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments/upsert",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "payments", "upsert"]
+            },
+            "description": "Create a free generation credit for a user by Cognito ID"
+          }
+        },
+        {
+          "name": "Update Payment to Unredeemed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"uuid-of-existing-payment\",\n  \"redeemed\": false,\n  \"redeemedAt\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments/upsert",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "payments", "upsert"]
+            },
+            "description": "Reset an existing payment to unredeemed state (give user another generation)"
+          }
+        },
+        {
+          "name": "Get User Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments/user@example.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "payments", "user@example.com"]
+            },
+            "description": "Get all payments for a user. The identifier can be email, cognitoId, or userId."
+          }
+        }
+      ]
+    }
+  ]
+}

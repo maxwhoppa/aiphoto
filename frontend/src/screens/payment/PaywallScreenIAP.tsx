@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Text } from '../../components/Text';
 import { BackButton } from '../../components/BackButton';
 import Constants from 'expo-constants';
+import { checkPaymentAccess } from '../../services/api';
 
 
 // Conditionally import IAP service based on environment
@@ -68,6 +69,23 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
   const initializeIAP = async () => {
     setIsLoading(true);
     try {
+      // First, check if user has an unredeemed payment (free credit)
+      try {
+        const accessResult = await checkPaymentAccess();
+        console.log('Payment access check result:', accessResult);
+
+        if (accessResult?.hasAccess && accessResult?.paymentId) {
+          console.log('User has unredeemed payment/credit, bypassing payment flow');
+          setHasExistingPurchase(true);
+          // Automatically proceed with the existing payment
+          onPaymentSuccess(accessResult.paymentId);
+          return;
+        }
+      } catch (accessError) {
+        console.log('Error checking payment access, continuing with normal flow:', accessError);
+        // Continue with normal IAP flow if access check fails
+      }
+
       const initialized = await iapService.initialize();
       if (!initialized) {
         Alert.alert(
@@ -77,8 +95,6 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
         );
         return;
       }
-
-      // Don't check for existing purchases - always require new payment
 
       // Get available products
       const products = await iapService.getProductsForSale();

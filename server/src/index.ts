@@ -8,6 +8,7 @@ import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
 import { config } from './utils/config';
 import { logger } from './utils/logger';
 import stripeWebhookRouter from './routes/stripe-webhook';
+import adminRouter from './routes/admin';
 
 const app = express();
 
@@ -36,6 +37,10 @@ app.get('/health', (req, res) => {
     environment: config.NODE_ENV,
   });
 });
+
+// Admin routes (no auth - intended for internal use via Postman)
+// WARNING: In production, consider adding API key authentication
+app.use('/admin', adminRouter);
 
 // All tRPC endpoints with optional auth
 app.use('/trpc', optionalAuthMiddleware, createExpressMiddleware({
