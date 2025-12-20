@@ -4,6 +4,7 @@ import { healthRouter } from './routers/health';
 import { paymentsRouter } from './routers/payments';
 import { authRouter } from './routers/auth';
 import { iapRouter } from './routers/iap';
+import { userRouter } from './routers/user';
 
 export const appRouter = router({
   images: imagesRouter,
@@ -11,6 +12,7 @@ export const appRouter = router({
   payments: paymentsRouter,
   auth: authRouter,
   iap: iapRouter,
+  user: userRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -8,6 +8,7 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   cognitoId: varchar('cognito_id', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull(),
+  phoneNumber: varchar('phone_number', { length: 20 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

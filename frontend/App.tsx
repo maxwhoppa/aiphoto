@@ -8,6 +8,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { EmailSignInScreen } from './src/screens/auth/EmailSignInScreen';
+import { PhoneNumberScreen } from './src/screens/auth/PhoneNumberScreen';
 import { PhotoUploadScreen } from './src/screens/upload/PhotoUploadScreen';
 import { ScenarioSelectionScreen } from './src/screens/scenarios/ScenarioSelectionScreen';
 import { PaywallScreenIAP } from './src/screens/payment/PaywallScreenIAP';
@@ -17,7 +18,7 @@ import { ThemeSelector } from './src/components/ThemeSelector';
 import { ParticleBackground } from './src/components/ParticleBackground';
 import { ShakeLogoutHandler } from './src/components/ShakeLogoutHandler';
 import { TabNavigator } from './src/navigation/TabNavigator';
-import { getGeneratedImages, checkPaymentAccess } from './src/services/api';
+import { getGeneratedImages, checkPaymentAccess, getUserInfo } from './src/services/api';
 
 interface GeneratedPhoto {
   id: string;
@@ -30,6 +31,7 @@ interface GeneratedPhoto {
 type RootStackParamList = {
   Onboarding: undefined;
   SignIn: undefined;
+  PhoneNumber: undefined;
   PhotoUpload: { isRegenerateFlow?: boolean };
   ScenarioSelection: { imageIds: string[] };
   Paywall: { selectedScenarios: string[]; imageIds: string[] };
@@ -50,6 +52,8 @@ function AppNavigator() {
   const [existingImages, setExistingImages] = useState<GeneratedPhoto[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [needsPhoneNumber, setNeedsPhoneNumber] = useState(false);
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
 
   // Check onboarding completion status on app start
   useEffect(() => {
@@ -65,6 +69,8 @@ function AppNavigator() {
       setHasPaymentAccess(false);
       setIsCheckingImages(false);
       setCurrentUserId(null);
+      setNeedsPhoneNumber(false);
+      setIsCheckingPhone(false);
     } else if (user && user.sub !== currentUserId) {
       // Different user signed in - clear previous user's data
       setHasGeneratedImages(false);
@@ -72,6 +78,8 @@ function AppNavigator() {
       setHasPaymentAccess(false);
       setIsCheckingImages(false);
       setCurrentUserId(user.sub);
+      setNeedsPhoneNumber(false);
+      setIsCheckingPhone(false);
     }
   }, [isAuthenticated, user, currentUserId]);
 
@@ -82,6 +90,31 @@ function AppNavigator() {
       checkForExistingImages();
     }
   }, [isAuthenticated]);
+
+  // Check if user needs to provide phone number when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isCheckingPhone) {
+      setIsCheckingPhone(true);
+      checkForPhoneNumber();
+    }
+  }, [isAuthenticated]);
+
+  const checkForPhoneNumber = async () => {
+    try {
+      const userData = await getUserInfo();
+      if (!userData.phoneNumber) {
+        setNeedsPhoneNumber(true);
+      } else {
+        setNeedsPhoneNumber(false);
+      }
+    } catch (error) {
+      console.log('Error checking phone number:', error);
+      // Don't block the user if we can't check
+      setNeedsPhoneNumber(false);
+    } finally {
+      setIsCheckingPhone(false);
+    }
+  };
 
   const checkOnboardingStatus = async () => {
     try {
@@ -174,7 +207,7 @@ function AppNavigator() {
     navigation.navigate('PhotoUpload', { isRegenerateFlow: true });
   };
 
-  if (isLoading || !isInitialized || (isAuthenticated && isCheckingImages)) {
+  if (isLoading || !isInitialized || (isAuthenticated && (isCheckingImages || isCheckingPhone))) {
     return null; // Show splash screen in real app
   }
 
@@ -212,6 +245,24 @@ function AppNavigator() {
                   // Navigation will be handled by auth state change
                 }}
                 onBack={() => setHasCompletedOnboarding(false)}
+              />
+            )}
+          </Stack.Screen>
+        ) : needsPhoneNumber ? (
+          <Stack.Screen
+            name="PhoneNumber"
+            options={{ headerShown: false }}
+          >
+            {(props) => (
+              <PhoneNumberScreen
+                {...props}
+                onComplete={() => {
+                  setNeedsPhoneNumber(false);
+                }}
+                onSkip={() => {
+                  // Skip for now - will ask again next login
+                  setNeedsPhoneNumber(false);
+                }}
               />
             )}
           </Stack.Screen>

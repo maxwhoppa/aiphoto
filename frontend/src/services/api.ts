@@ -270,6 +270,37 @@ export function useApiCalls() {
 }
 */
 
+// User API calls
+export async function getUserInfo() {
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/user.getUserInfo?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
+}
+
+export async function updatePhoneNumber(phoneNumber: string) {
+  console.log('updatePhoneNumber called with:', phoneNumber);
+
+  const requestBody = { phoneNumber };
+
+  try {
+    const response = await apiRequestJson('/trpc/user.updatePhoneNumber', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Update phone number response:', response);
+    return response;
+  } catch (error) {
+    console.error('updatePhoneNumber error:', error);
+    throw error;
+  }
+}
+
 // All these methods will:
 // 1. Automatically include the Authorization header with a valid access token
 // 2. Refresh the token if it's expired before making the request
