@@ -54,6 +54,7 @@ export const generatedImages = pgTable('generated_images', {
   s3Url: text('s3_url').notNull(),
   geminiRequestId: varchar('gemini_request_id', { length: 255 }),
   selectedProfileOrder: integer('selected_profile_order'), // 1-6 for selected profile photos
+  isSample: boolean('is_sample').notNull().default(false), // True for preview sample photos
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   // Ensure only one photo per order position per user

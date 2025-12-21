@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ProfileScreen } from '../screens/gallery/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { PhotoUploadScreen } from '../screens/upload/PhotoUploadScreen';
-import { PhotoValidationScreen } from '../screens/upload/PhotoValidationScreen';
+import { PhotoValidationScreen, SamplePhotos } from '../screens/upload/PhotoValidationScreen';
+import { SamplePreviewScreen } from '../screens/upload/SamplePreviewScreen';
 import { ScenarioSelectionScreen } from '../screens/scenarios/ScenarioSelectionScreen';
 import { PaywallScreenIAP } from '../screens/payment/PaywallScreenIAP';
 import { LoadingScreen } from '../screens/generation/LoadingScreen';
@@ -30,6 +31,7 @@ export type ProfileStackParamList = {
   ProfileView: { generatedPhotos: GeneratedPhoto[]; selectedScenarios: string[] };
   PhotoUpload: { isRegenerateFlow?: boolean };
   PhotoValidation: { imageIds: string[]; isRegenerateFlow?: boolean };
+  SamplePreview: { imageIds: string[]; samplePhotos?: SamplePhotos };
   ScenarioSelection: { imageIds: string[] };
   Paywall: { selectedScenarios: string[]; imageIds: string[] };
   Loading: { selectedScenarios: string[]; imageIds: string[]; paymentId?: string; isRegenerateFlow?: boolean };
@@ -258,8 +260,28 @@ function ProfileStackNavigator({ existingImages, onRegenerateFlow, onRefreshImag
         {({ navigation, route }) => (
           <PhotoValidationScreen
             imageIds={route.params.imageIds}
-            onNext={(validatedImageIds) => {
-              navigation.navigate('ScenarioSelection', { imageIds: validatedImageIds });
+            onNext={(validatedImageIds, samplePhotos) => {
+              navigation.navigate('SamplePreview', {
+                imageIds: validatedImageIds,
+                samplePhotos,
+              });
+            }}
+            onBack={() => navigation.goBack()}
+            navigation={navigation}
+          />
+        )}
+      </ProfileStack.Screen>
+
+      <ProfileStack.Screen
+        name="SamplePreview"
+        options={{ headerShown: false }}
+      >
+        {({ navigation, route }) => (
+          <SamplePreviewScreen
+            imageIds={route.params.imageIds}
+            samplePhotos={route.params.samplePhotos}
+            onNext={(imageIds) => {
+              navigation.navigate('ScenarioSelection', { imageIds });
             }}
             onBack={() => navigation.goBack()}
             navigation={navigation}

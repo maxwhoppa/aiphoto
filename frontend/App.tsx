@@ -10,7 +10,8 @@ import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import { EmailSignInScreen } from './src/screens/auth/EmailSignInScreen';
 import { PhoneNumberScreen } from './src/screens/auth/PhoneNumberScreen';
 import { PhotoUploadScreen } from './src/screens/upload/PhotoUploadScreen';
-import { PhotoValidationScreen } from './src/screens/upload/PhotoValidationScreen';
+import { PhotoValidationScreen, SamplePhotos } from './src/screens/upload/PhotoValidationScreen';
+import { SamplePreviewScreen } from './src/screens/upload/SamplePreviewScreen';
 import { ScenarioSelectionScreen } from './src/screens/scenarios/ScenarioSelectionScreen';
 import { PaywallScreenIAP } from './src/screens/payment/PaywallScreenIAP';
 import { LoadingScreen } from './src/screens/generation/LoadingScreen';
@@ -35,6 +36,7 @@ type RootStackParamList = {
   PhoneNumber: undefined;
   PhotoUpload: { isRegenerateFlow?: boolean };
   PhotoValidation: { imageIds: string[]; isRegenerateFlow?: boolean };
+  SamplePreview: { imageIds: string[]; samplePhotos?: SamplePhotos };
   ScenarioSelection: { imageIds: string[] };
   Paywall: { selectedScenarios: string[]; imageIds: string[] };
   Loading: { selectedScenarios: string[]; imageIds: string[]; paymentId?: string; isRegenerateFlow?: boolean };
@@ -310,8 +312,28 @@ function AppNavigator() {
               {({ navigation, route }) => (
                 <PhotoValidationScreen
                   imageIds={route.params.imageIds}
-                  onNext={(validatedImageIds) => {
-                    navigation.navigate('ScenarioSelection', { imageIds: validatedImageIds });
+                  onNext={(validatedImageIds, samplePhotos) => {
+                    navigation.navigate('SamplePreview', {
+                      imageIds: validatedImageIds,
+                      samplePhotos,
+                    });
+                  }}
+                  onBack={() => navigation.goBack()}
+                  navigation={navigation}
+                />
+              )}
+            </Stack.Screen>
+
+            <Stack.Screen
+              name="SamplePreview"
+              options={{ headerShown: false }}
+            >
+              {({ navigation, route }) => (
+                <SamplePreviewScreen
+                  imageIds={route.params.imageIds}
+                  samplePhotos={route.params.samplePhotos}
+                  onNext={(imageIds) => {
+                    navigation.navigate('ScenarioSelection', { imageIds });
                   }}
                   onBack={() => navigation.goBack()}
                   navigation={navigation}

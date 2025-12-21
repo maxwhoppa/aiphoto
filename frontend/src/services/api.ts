@@ -394,6 +394,53 @@ export async function replaceImage(oldImageId: string, newImage: {
   }
 }
 
+// Sample Photo API calls
+export interface SamplePhotoImage {
+  id: string;
+  scenario: string;
+  downloadUrl: string | null;
+  s3Key: string;
+  s3Url: string;
+}
+
+export interface SamplePhotosResponse {
+  success: boolean;
+  alreadyExists?: boolean;
+  sampleImages?: SamplePhotoImage[];
+  failedCount?: number;
+  error?: string;
+}
+
+export async function generateSamplePhotos(imageIds: string[]): Promise<SamplePhotosResponse> {
+  console.log('generateSamplePhotos called with:', imageIds);
+
+  const requestBody = { imageIds };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.generateSamplePhotos', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Generate sample photos response:', response);
+    return response?.result?.data || response;
+  } catch (error) {
+    console.error('generateSamplePhotos error:', error);
+    throw error;
+  }
+}
+
+export async function getSamplePhotos(): Promise<SamplePhotoImage[]> {
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/images.getSamplePhotos?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0] || [];
+}
+
 // All these methods will:
 // 1. Automatically include the Authorization header with a valid access token
 // 2. Refresh the token if it's expired before making the request

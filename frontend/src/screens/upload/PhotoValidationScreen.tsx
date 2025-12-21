@@ -26,6 +26,8 @@ import {
   replaceImage,
   ValidationResult,
   getMyImages,
+  generateSamplePhotos,
+  SamplePhotoImage,
 } from '../../services/api';
 
 // Simple UUID v4 generator
@@ -44,9 +46,15 @@ interface ImageData {
   warnings: string[];
 }
 
+export interface SamplePhotos {
+  photos: SamplePhotoImage[];
+  isGenerating: boolean;
+  error?: string;
+}
+
 interface PhotoValidationScreenProps {
   imageIds: string[];
-  onNext: (imageIds: string[]) => void;
+  onNext: (imageIds: string[], samplePhotos?: SamplePhotos) => void;
   onBack: () => void;
   navigation?: any;
 }
@@ -95,14 +103,74 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
 
+  // Sample photos generation state
+  const [samplePhotos, setSamplePhotos] = useState<SamplePhotos | null>(null);
+  const [sampleGenerationStarted, setSampleGenerationStarted] = useState(false);
+
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 3;
   const MAX_PHOTOS = 10;
+  const MAX_SAMPLES = 3;
 
   // Fetch image data and start validation on mount
   useEffect(() => {
     fetchImagesAndValidate();
   }, []);
+
+  // Start sample generation when we have at least 3 validated photos (or all photos are done validating)
+  useEffect(() => {
+    const validatedImages = images.filter(
+      img => img.validationStatus === 'validated' || img.validationStatus === 'bypassed'
+    );
+    const stillValidating = images.some(img => img.validationStatus === 'validating');
+
+    // Start generation when we have 3+ validated images, or when validation is complete with at least 1
+    const shouldStart = !sampleGenerationStarted && !samplePhotos && (
+      validatedImages.length >= MAX_SAMPLES ||
+      (!stillValidating && validatedImages.length > 0)
+    );
+
+    if (shouldStart) {
+      setSampleGenerationStarted(true);
+      const imageIdsToUse = validatedImages.slice(0, MAX_SAMPLES).map(img => img.id);
+      startSampleGeneration(imageIdsToUse);
+    }
+  }, [images, sampleGenerationStarted, samplePhotos]);
+
+  const startSampleGeneration = async (imageIds: string[]) => {
+    console.log('Starting sample photos generation for images:', imageIds);
+
+    setSamplePhotos({
+      photos: [],
+      isGenerating: true,
+    });
+
+    try {
+      const response = await generateSamplePhotos(imageIds);
+
+      if (response.success && response.sampleImages && response.sampleImages.length > 0) {
+        console.log('Sample photos generated successfully:', response.sampleImages.length);
+        setSamplePhotos({
+          photos: response.sampleImages,
+          isGenerating: false,
+        });
+      } else {
+        console.error('Sample generation failed:', response.error);
+        setSamplePhotos({
+          photos: [],
+          isGenerating: false,
+          error: response.error || 'Failed to generate samples',
+        });
+      }
+    } catch (error) {
+      console.error('Sample generation error:', error);
+      setSamplePhotos({
+        photos: [],
+        isGenerating: false,
+        error: error instanceof Error ? error.message : 'Failed to generate samples',
+      });
+    }
+  };
 
   const fetchImagesAndValidate = async () => {
     try {
@@ -202,9 +270,11 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
   const handleReplace = async () => {
     if (!selectedImage) return;
 
+    const imageIdToReplace = selectedImage.id;
+
     setShowWarningModal(false);
     setShowPhotoOptionsModal(false);
-    setReplacingImageId(selectedImage.id);
+    setReplacingImageId(imageIdToReplace);
 
     // Show photo picker options
     Alert.alert(
@@ -213,11 +283,11 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
       [
         {
           text: 'Choose from gallery',
-          onPress: () => pickReplacementImage('gallery'),
+          onPress: () => pickReplacementImage('gallery', imageIdToReplace),
         },
         {
           text: 'Take photo',
-          onPress: () => pickReplacementImage('camera'),
+          onPress: () => pickReplacementImage('camera', imageIdToReplace),
         },
         {
           text: 'Cancel',
@@ -393,7 +463,7 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
     }
   };
 
-  const pickReplacementImage = async (source: 'gallery' | 'camera') => {
+  const pickReplacementImage = async (source: 'gallery' | 'camera', imageIdToReplace: string) => {
     try {
       let result;
 
@@ -423,9 +493,9 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
         });
       }
 
-      if (!result.canceled && result.assets && result.assets[0] && replacingImageId) {
+      if (!result.canceled && result.assets && result.assets[0] && imageIdToReplace) {
         setIsReplacing(true);
-        await uploadReplacementPhoto(result.assets[0].uri, replacingImageId);
+        await uploadReplacementPhoto(result.assets[0].uri, imageIdToReplace);
       }
     } catch (error) {
       console.error('Pick image failed:', error);
@@ -533,7 +603,7 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
       .filter(img => img.validationStatus === 'validated' || img.validationStatus === 'bypassed')
       .map(img => img.id);
 
-    onNext(validImageIds);
+    onNext(validImageIds, samplePhotos || undefined);
   };
 
   // Calculate progress stats

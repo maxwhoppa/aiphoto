@@ -1255,4 +1255,252 @@ export const imagesRouter = router({
 
       return { success: true, newImage };
     }),
+
+  // Generate sample photos using validated images (for preview before payment)
+  generateSamplePhotos: protectedProcedure
+    .input(z.object({
+      imageIds: z.array(z.string().uuid()).min(1).max(3), // Up to 3 validated images
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      // Use different scenarios for each sample
+      const SAMPLE_SCENARIOS = ['white_photoshoot', 'pinterest_thirst', 'professional'];
+
+      // Get or create user in database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      let user = userResults[0];
+
+      if (!user) {
+        const [newUser] = await db.insert(users).values({
+          cognitoId: ctx.user.sub,
+          email: ctx.user.email || `${ctx.user.sub}@cognito.local`,
+        }).returning();
+        user = newUser;
+      }
+
+      // Check if user already has sample photos
+      const existingSamples = await db
+        .select()
+        .from(generatedImages)
+        .where(and(
+          eq(generatedImages.userId, user.id),
+          eq(generatedImages.isSample, true)
+        ))
+        .orderBy(desc(generatedImages.createdAt))
+        .limit(3);
+
+      if (existingSamples.length >= 3) {
+        // Return existing samples with download URLs
+        const samplesWithUrls = await Promise.all(
+          existingSamples.map(async (sample) => {
+            try {
+              const downloadUrlData = await s3Service.generateDownloadUrl(sample.s3Key, 604800);
+              return {
+                ...sample,
+                downloadUrl: downloadUrlData.downloadUrl,
+              };
+            } catch (error) {
+              return {
+                ...sample,
+                downloadUrl: null,
+              };
+            }
+          })
+        );
+
+        return {
+          success: true,
+          alreadyExists: true,
+          sampleImages: samplesWithUrls,
+        };
+      }
+
+      // Get the user's source images
+      const sourceImages = await db
+        .select()
+        .from(userImages)
+        .where(and(
+          eq(userImages.userId, user.id),
+          inArray(userImages.id, input.imageIds)
+        ));
+
+      if (sourceImages.length === 0) {
+        throw new Error('No valid images found');
+      }
+
+      logger.info('Starting sample photos generation', {
+        cognitoUserId: ctx.user.sub,
+        sourceImageCount: sourceImages.length,
+        scenarios: SAMPLE_SCENARIOS.slice(0, sourceImages.length),
+      });
+
+      // Generate samples in parallel - each with a different scenario
+      const generationResults = await Promise.allSettled(
+        sourceImages.map(async (sourceImage, index) => {
+          const scenario = SAMPLE_SCENARIOS[index] || SAMPLE_SCENARIOS[0];
+
+          try {
+            // Generate the prompt for this specific scenario
+            const prompt = await geminiService.generateImagePrompt(scenario);
+
+            // Generate S3 upload URL for the sample image
+            const uploadData = await s3Service.generateGeneratedImageUploadUrl(
+              user.id,
+              sourceImage.id,
+              `sample_${scenario}_${Date.now()}`
+            );
+
+            // Generate the image with retry logic
+            let generatedImageResult;
+            let lastError;
+            const MAX_RETRIES = 3;
+
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+              try {
+                logger.info('Attempting sample image generation', {
+                  cognitoUserId: ctx.user.sub,
+                  imageId: sourceImage.id,
+                  scenario,
+                  attempt,
+                  maxRetries: MAX_RETRIES,
+                });
+
+                generatedImageResult = await geminiService.generateAndUploadImage(
+                  sourceImage.s3Key,
+                  scenario,
+                  prompt,
+                  uploadData.uploadUrl
+                );
+
+                if (!generatedImageResult.error) {
+                  break;
+                }
+
+                lastError = generatedImageResult.error;
+
+                if (attempt < MAX_RETRIES) {
+                  const delay = Math.pow(2, attempt - 1) * 1000;
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              } catch (error) {
+                lastError = error instanceof Error ? error.message : 'Processing failed';
+
+                if (attempt < MAX_RETRIES) {
+                  const delay = Math.pow(2, attempt - 1) * 1000;
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              }
+            }
+
+            if (generatedImageResult?.error || !generatedImageResult) {
+              throw new Error(lastError || 'Sample image generation failed');
+            }
+
+            // Save the sample image record
+            const [sampleImage] = await db
+              .insert(generatedImages)
+              .values({
+                userId: user.id,
+                generationId: null,
+                originalImageId: sourceImage.id,
+                scenario,
+                prompt,
+                s3Key: uploadData.s3Key,
+                s3Url: uploadData.s3Url,
+                geminiRequestId: generatedImageResult.requestId,
+                isSample: true,
+              })
+              .returning();
+
+            // Generate download URL
+            const downloadUrlData = await s3Service.generateDownloadUrl(sampleImage.s3Key, 604800);
+
+            return {
+              ...sampleImage,
+              downloadUrl: downloadUrlData.downloadUrl,
+            };
+          } catch (error) {
+            logger.error('Sample photo generation failed for image', {
+              cognitoUserId: ctx.user.sub,
+              imageId: sourceImage.id,
+              scenario,
+              error: error instanceof Error ? error.message : error,
+            });
+            throw error;
+          }
+        })
+      );
+
+      // Extract successful results
+      const successfulSamples = generationResults
+        .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+        .map(result => result.value);
+
+      const failedCount = generationResults.filter(result => result.status === 'rejected').length;
+
+      logger.info('Sample photos generation completed', {
+        cognitoUserId: ctx.user.sub,
+        successCount: successfulSamples.length,
+        failedCount,
+      });
+
+      return {
+        success: successfulSamples.length > 0,
+        alreadyExists: false,
+        sampleImages: successfulSamples,
+        failedCount,
+      };
+    }),
+
+  // Get user's sample photos if they exist
+  getSamplePhotos: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        return [];
+      }
+
+      const samplePhotos = await db
+        .select()
+        .from(generatedImages)
+        .where(and(
+          eq(generatedImages.userId, user.id),
+          eq(generatedImages.isSample, true)
+        ))
+        .orderBy(desc(generatedImages.createdAt))
+        .limit(3);
+
+      if (samplePhotos.length === 0) {
+        return [];
+      }
+
+      // Generate download URLs for all samples
+      const photosWithUrls = await Promise.all(
+        samplePhotos.map(async (photo) => {
+          try {
+            const downloadUrlData = await s3Service.generateDownloadUrl(photo.s3Key, 604800);
+            return {
+              ...photo,
+              downloadUrl: downloadUrlData.downloadUrl,
+            };
+          } catch (error) {
+            logger.warn('Failed to generate download URL for sample photo', {
+              imageId: photo.id,
+              error,
+            });
+            return {
+              ...photo,
+              downloadUrl: null,
+            };
+          }
+        })
+      );
+
+      return photosWithUrls;
+    }),
 });
