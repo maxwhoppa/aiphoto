@@ -21,6 +21,11 @@ export const userImages = pgTable('user_images', {
   s3Url: text('s3_url').notNull(),
   contentType: varchar('content_type', { length: 100 }).notNull(),
   sizeBytes: varchar('size_bytes', { length: 20 }).notNull(),
+  // Validation fields
+  validationStatus: text('validation_status').notNull().default('pending'), // 'pending' | 'validated' | 'failed' | 'bypassed'
+  validationWarnings: text('validation_warnings'), // JSON array: ['multiple_people', 'face_covered_or_blurred', 'poor_lighting']
+  validatedAt: timestamp('validated_at'),
+  bypassedAt: timestamp('bypassed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   uniqueUserS3Key: unique().on(table.userId, table.s3Key),
@@ -140,3 +145,7 @@ export type Scenario = typeof scenarios.$inferSelect;
 export type NewScenario = typeof scenarios.$inferInsert;
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+
+// Validation types
+export type ValidationStatus = 'pending' | 'validated' | 'failed' | 'bypassed';
+export type ValidationWarning = 'multiple_people' | 'face_covered_or_blurred' | 'poor_lighting' | 'is_screenshot' | 'face_partially_covered';

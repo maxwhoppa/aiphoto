@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,6 +8,8 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,7 +18,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { BottomTab } from '../../components/BottomTab';
-import { getUploadUrls, recordUploadedImages } from '../../services/api';
+import { getUploadUrls, recordUploadedImages, getImageRepository } from '../../services/api';
 import { Text } from '../../components/Text';
 
 // Simple UUID v4 generator
@@ -27,6 +29,19 @@ const generateUUID = () => {
     return v.toString(16);
   });
 };
+
+interface RepositoryPhoto {
+  id: string;
+  downloadUrl: string;
+  originalFileName: string;
+  validationStatus: string;
+}
+
+interface SelectedPhoto {
+  uri: string;
+  id?: string; // Only present for repository photos
+  isFromRepository: boolean;
+}
 
 interface PhotoUploadScreenProps {
   onNext: (imageIds: string[]) => void; // Now passes uploaded image IDs instead of URIs
@@ -42,11 +57,38 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   navigation,
 }) => {
   const { colors } = useTheme();
-  const [selectedPhotos, setSelectedPhotos] = useState<string[]>(existingPhotos);
+  const [selectedPhotos, setSelectedPhotos] = useState<SelectedPhoto[]>(
+    existingPhotos.map(uri => ({ uri, isFromRepository: false }))
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [repositoryPhotos, setRepositoryPhotos] = useState<RepositoryPhoto[]>([]);
+  const [showRepositoryModal, setShowRepositoryModal] = useState(false);
+  const [selectedRepositoryIds, setSelectedRepositoryIds] = useState<Set<string>>(new Set());
+  const [isLoadingRepository, setIsLoadingRepository] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 3; // 3 photos per row with spacing
+
+  // Fetch repository photos on mount
+  useEffect(() => {
+    fetchRepositoryPhotos();
+  }, []);
+
+  const fetchRepositoryPhotos = async () => {
+    try {
+      const response = await getImageRepository();
+      // Handle various response formats
+      const photos = Array.isArray(response)
+        ? response
+        : (response?.result?.data || response?.data || []);
+
+      if (Array.isArray(photos)) {
+        setRepositoryPhotos(photos);
+      }
+    } catch (error) {
+      console.log('Failed to fetch repository photos:', error);
+    }
+  };
 
   const requestMediaLibraryPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -84,14 +126,17 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
     });
 
     if (!result.canceled && result.assets) {
-      const newPhotos = result.assets.map(asset => asset.uri);
+      const newPhotos: SelectedPhoto[] = result.assets.map(asset => ({
+        uri: asset.uri,
+        isFromRepository: false,
+      }));
       const totalPhotos = [...selectedPhotos, ...newPhotos];
-      
+
       if (totalPhotos.length > 10) {
         Alert.alert('Too many photos', 'You can upload a maximum of 10 photos.');
         return;
       }
-      
+
       setSelectedPhotos(totalPhotos);
     }
   };
@@ -107,14 +152,17 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
     });
 
     if (!result.canceled && result.assets && result.assets[0]) {
-      const newPhoto = result.assets[0].uri;
+      const newPhoto: SelectedPhoto = {
+        uri: result.assets[0].uri,
+        isFromRepository: false,
+      };
       const totalPhotos = [...selectedPhotos, newPhoto];
-      
+
       if (totalPhotos.length > 10) {
         Alert.alert('Too many photos', 'You can upload a maximum of 10 photos.');
         return;
       }
-      
+
       setSelectedPhotos(totalPhotos);
     }
   };
@@ -122,6 +170,60 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   const removePhoto = (index: number) => {
     const updatedPhotos = selectedPhotos.filter((_, i) => i !== index);
     setSelectedPhotos(updatedPhotos);
+  };
+
+  // Repository modal functions
+  const openRepositoryModal = () => {
+    // Filter out already selected repository photos
+    const alreadySelectedIds = new Set(
+      selectedPhotos.filter(p => p.isFromRepository && p.id).map(p => p.id)
+    );
+    setSelectedRepositoryIds(new Set());
+    setShowRepositoryModal(true);
+  };
+
+  const toggleRepositoryPhotoSelection = (photoId: string) => {
+    const newSelected = new Set(selectedRepositoryIds);
+    if (newSelected.has(photoId)) {
+      newSelected.delete(photoId);
+    } else {
+      // Check if we can add more photos
+      const totalAfterAdd = selectedPhotos.length + newSelected.size + 1;
+      if (totalAfterAdd > 10) {
+        Alert.alert('Too many photos', 'You can upload a maximum of 10 photos.');
+        return;
+      }
+      newSelected.add(photoId);
+    }
+    setSelectedRepositoryIds(newSelected);
+  };
+
+  const confirmRepositorySelection = () => {
+    const photosToAdd: SelectedPhoto[] = repositoryPhotos
+      .filter(p => selectedRepositoryIds.has(p.id))
+      .map(p => ({
+        uri: p.downloadUrl,
+        id: p.id,
+        isFromRepository: true,
+      }));
+
+    const totalPhotos = [...selectedPhotos, ...photosToAdd];
+    if (totalPhotos.length > 10) {
+      Alert.alert('Too many photos', 'You can upload a maximum of 10 photos.');
+      return;
+    }
+
+    setSelectedPhotos(totalPhotos);
+    setShowRepositoryModal(false);
+    setSelectedRepositoryIds(new Set());
+  };
+
+  // Get available repository photos (not already selected)
+  const getAvailableRepositoryPhotos = () => {
+    const alreadySelectedIds = new Set(
+      selectedPhotos.filter(p => p.isFromRepository && p.id).map(p => p.id)
+    );
+    return repositoryPhotos.filter(p => !alreadySelectedIds.has(p.id));
   };
 
   const uploadPhotosToS3 = async () => {
@@ -137,95 +239,114 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
     setUploadProgress(0);
 
     try {
-      // Step 1: Prepare file metadata from selected photos
-      setUploadProgress(10);
-      const files = await Promise.all(
-        selectedPhotos.map(async (photoUri, index) => {
-          const response = await fetch(photoUri);
+      // Separate repository photos (already uploaded) from new photos
+      const repositoryPhotoIds = selectedPhotos
+        .filter(p => p.isFromRepository && p.id)
+        .map(p => p.id as string);
+
+      const newPhotos = selectedPhotos.filter(p => !p.isFromRepository);
+
+      console.log('Repository photo IDs:', repositoryPhotoIds);
+      console.log('New photos to upload:', newPhotos.length);
+
+      let newPhotoIds: string[] = [];
+
+      // Only upload if there are new photos
+      if (newPhotos.length > 0) {
+        // Step 1: Prepare file metadata from new photos
+        setUploadProgress(10);
+        const files = await Promise.all(
+          newPhotos.map(async (photo) => {
+            const response = await fetch(photo.uri);
+            const blob = await response.blob();
+            const uniqueId = generateUUID();
+
+            return {
+              fileName: `${uniqueId}.jpg`,
+              contentType: 'image/jpeg',
+              sizeBytes: blob.size,
+            };
+          })
+        );
+
+        console.log('Files to upload:', files);
+
+        // Step 2: Get upload URLs
+        setUploadProgress(20);
+        const uploadUrlsResponse = await getUploadUrls(files);
+        console.log('Full upload URLs response:', uploadUrlsResponse);
+
+        // Extract uploadUrls from the response structure
+        const uploadUrls = uploadUrlsResponse?.uploadUrls ||
+                          uploadUrlsResponse?.result?.data?.uploadUrls ||
+                          uploadUrlsResponse?.data?.uploadUrls || [];
+
+        if (uploadUrls.length === 0) {
+          throw new Error('Failed to get upload URLs from server');
+        }
+
+        // Step 3: Upload photos to S3
+        const uploadedImages = [];
+        for (let i = 0; i < newPhotos.length; i++) {
+          const photo = newPhotos[i];
+          const uploadData = uploadUrls[i];
+
+          if (!uploadData) {
+            throw new Error(`No upload URL for photo ${i + 1}`);
+          }
+
+          // Upload to S3
+          const response = await fetch(photo.uri);
           const blob = await response.blob();
-          const uniqueId = generateUUID();
-          
-          return {
-            fileName: `${uniqueId}.jpg`,
-            contentType: 'image/jpeg',
-            sizeBytes: blob.size,
-          };
-        })
-      );
 
-      console.log('Files to upload:', files);
-      
-      // Step 2: Get upload URLs
-      setUploadProgress(20);
-      const uploadUrlsResponse = await getUploadUrls(files);
-      console.log('Full upload URLs response:', uploadUrlsResponse);
-      
-      // Extract uploadUrls from the response structure
-      const uploadUrls = uploadUrlsResponse?.uploadUrls || 
-                        uploadUrlsResponse?.result?.data?.uploadUrls || 
-                        uploadUrlsResponse?.data?.uploadUrls || [];
+          const uploadResponse = await fetch(uploadData.uploadUrl, {
+            method: 'PUT',
+            body: blob,
+            headers: {
+              'Content-Type': uploadData.contentType,
+            },
+          });
 
-      if (uploadUrls.length === 0) {
-        throw new Error('Failed to get upload URLs from server');
-      }
+          if (!uploadResponse.ok) {
+            throw new Error(`Failed to upload photo ${i + 1}`);
+          }
 
-      // Step 3: Upload photos to S3
-      const uploadedImages = [];
-      for (let i = 0; i < selectedPhotos.length; i++) {
-        const photoUri = selectedPhotos[i];
-        const uploadData = uploadUrls[i];
-        
-        if (!uploadData) {
-          throw new Error(`No upload URL for photo ${i + 1}`);
+          uploadedImages.push({
+            fileName: uploadData.fileName,
+            contentType: uploadData.contentType,
+            sizeBytes: uploadData.sizeBytes,
+            s3Key: uploadData.s3Key,
+            s3Url: uploadData.s3Url,
+          });
+
+          // Update progress for each upload
+          setUploadProgress(20 + (60 * (i + 1)) / newPhotos.length);
         }
-        
-        // Upload to S3
-        const response = await fetch(photoUri);
-        const blob = await response.blob();
-        
-        const uploadResponse = await fetch(uploadData.uploadUrl, {
-          method: 'PUT',
-          body: blob,
-          headers: {
-            'Content-Type': uploadData.contentType,
-          },
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error(`Failed to upload photo ${i + 1}`);
+
+        // Step 4: Record uploaded images in database
+        setUploadProgress(85);
+        const recordResponse = await recordUploadedImages(uploadedImages);
+        console.log('Full record response:', recordResponse);
+
+        // Extract images from the response structure
+        const recordedImages = recordResponse?.images ||
+                             recordResponse?.result?.data?.images ||
+                             recordResponse?.data?.images || [];
+
+        if (recordedImages.length === 0 && newPhotos.length > 0) {
+          throw new Error('Failed to record images in database');
         }
-        
-        uploadedImages.push({
-          fileName: uploadData.fileName,
-          contentType: uploadData.contentType,
-          sizeBytes: uploadData.sizeBytes,
-          s3Key: uploadData.s3Key,
-          s3Url: uploadData.s3Url,
-        });
-        
-        // Update progress for each upload
-        setUploadProgress(20 + (60 * (i + 1)) / selectedPhotos.length);
-      }
 
-      // Step 4: Record uploaded images in database
-      setUploadProgress(85);
-      const recordResponse = await recordUploadedImages(uploadedImages);
-      console.log('Full record response:', recordResponse);
-      
-      // Extract images from the response structure
-      const recordedImages = recordResponse?.images || 
-                           recordResponse?.result?.data?.images || 
-                           recordResponse?.data?.images || [];
-
-      if (recordedImages.length === 0) {
-        throw new Error('Failed to record images in database');
+        newPhotoIds = recordedImages.map((img: any) => img.id);
       }
 
       setUploadProgress(100);
 
-      // Pass the image IDs to the next screen
-      const imageIds = recordedImages.map((img: any) => img.id);
-      onNext(imageIds);
+      // Combine repository photo IDs with newly uploaded photo IDs
+      const allImageIds = [...repositoryPhotoIds, ...newPhotoIds];
+      console.log('All image IDs to pass:', allImageIds);
+
+      onNext(allImageIds);
 
     } catch (error: any) {
       console.error('Photo upload failed:', error);
@@ -362,10 +483,15 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
               {selectedPhotos.map((photo, index) => (
                 <View key={index} style={[styles.photoContainer, { width: photoSize, height: photoSize }]}>
                   <Image
-                    source={{ uri: photo }}
+                    source={{ uri: photo.uri }}
                     style={styles.photo}
                     resizeMode="cover"
                   />
+                  {photo.isFromRepository && (
+                    <View style={[styles.repositoryBadge, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="folder" size={12} color="white" />
+                    </View>
+                  )}
                   <TouchableOpacity
                     style={[
                       styles.removeButton,
@@ -433,20 +559,111 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
               variant="outline"
               icon="camera-outline"
             />
+            {repositoryPhotos.length > 0 && (
+              <Button
+                title={`Use previous photos (${repositoryPhotos.length})`}
+                onPress={openRepositoryModal}
+                variant="outline"
+                icon="folder-outline"
+              />
+            )}
           </View>
         )}
 
         {/* Upload and Continue Button - Show when photos are selected */}
         {selectedPhotos.length > 0 && (
-          <Button
-            title="Upload and continue"
-            onPress={handleNext}
-            disabled={selectedPhotos.length < 5 || isUploading}
-            loading={isUploading}
-            variant={selectedPhotos.length >= 5 && !isUploading ? 'primary' : 'disabled'}
-          />
+          <View style={styles.bottomButtonsContainer}>
+            <Button
+              title="Upload and continue"
+              onPress={handleNext}
+              disabled={selectedPhotos.length < 5 || isUploading}
+              loading={isUploading}
+              variant={selectedPhotos.length >= 5 && !isUploading ? 'primary' : 'disabled'}
+            />
+            {getAvailableRepositoryPhotos().length > 0 && selectedPhotos.length < 10 && !isUploading && (
+              <Button
+                title={`Add from previous photos (${getAvailableRepositoryPhotos().length})`}
+                onPress={openRepositoryModal}
+                variant="outline"
+                icon="folder-outline"
+              />
+            )}
+          </View>
         )}
       </BottomTab>
+
+      {/* Repository Modal */}
+      <Modal
+        visible={showRepositoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRepositoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <Text variant="subtitle" style={{ color: colors.text }}>
+                Previous Photos
+              </Text>
+              <TouchableOpacity onPress={() => setShowRepositoryModal(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Select photos you've uploaded before
+            </Text>
+
+            <FlatList
+              data={getAvailableRepositoryPhotos()}
+              numColumns={3}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.repositoryGrid}
+              renderItem={({ item }) => {
+                const isSelected = selectedRepositoryIds.has(item.id);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.repositoryPhotoContainer,
+                      { width: (screenWidth - 80) / 3, height: (screenWidth - 80) / 3 },
+                      isSelected && { borderColor: colors.primary, borderWidth: 3 },
+                    ]}
+                    onPress={() => toggleRepositoryPhotoSelection(item.id)}
+                  >
+                    <Image
+                      source={{ uri: item.downloadUrl }}
+                      style={styles.repositoryPhoto}
+                      resizeMode="cover"
+                    />
+                    {isSelected && (
+                      <View style={[styles.selectedCheckmark, { backgroundColor: colors.primary }]}>
+                        <Ionicons name="checkmark" size={16} color="white" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.emptyRepository}>
+                  <Ionicons name="folder-open-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    No previous photos available
+                  </Text>
+                </View>
+              }
+            />
+
+            <View style={styles.modalButtons}>
+              <Button
+                title={`Add ${selectedRepositoryIds.size} photo${selectedRepositoryIds.size !== 1 ? 's' : ''}`}
+                onPress={confirmRepositorySelection}
+                disabled={selectedRepositoryIds.size === 0}
+                variant={selectedRepositoryIds.size > 0 ? 'primary' : 'disabled'}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -616,5 +833,74 @@ const styles = StyleSheet.create({
   bottomButtonsContainer: {
     flexDirection: 'column',
     gap: 12,
+  },
+  repositoryBadge: {
+    position: 'absolute',
+    bottom: 5,
+    left: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 16,
+  },
+  repositoryGrid: {
+    paddingBottom: 20,
+  },
+  repositoryPhotoContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    margin: 5,
+    position: 'relative',
+  },
+  repositoryPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  selectedCheckmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyRepository: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    marginTop: 10,
   },
 });

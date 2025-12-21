@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../index';
 import { getDb, userImages, generatedImages, users, scenarios, payments, generations } from '../../db/index';
-import { eq, desc, and, isNotNull } from 'drizzle-orm';
+import { eq, desc, and, isNotNull, or, inArray } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import { geminiService } from '../../services/gemini';
 import { s3Service } from '../../services/s3';
+import { photoValidationService } from '../../services/photoValidation';
+import { ValidationStatus, ValidationWarning } from '../../db/schema';
 
 export const imagesRouter = router({
   // Get presigned upload URLs for S3
@@ -1018,5 +1020,239 @@ export const imagesRouter = router({
       });
 
       return { success: true };
+    }),
+
+  // Validate uploaded images using Gemini AI
+  validateImages: protectedProcedure
+    .input(z.object({
+      imageIds: z.array(z.string().uuid()),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get user's images that match the requested IDs
+      const images = await db
+        .select()
+        .from(userImages)
+        .where(and(
+          eq(userImages.userId, user.id),
+          inArray(userImages.id, input.imageIds)
+        ));
+
+      if (images.length === 0) {
+        throw new Error('No valid images found');
+      }
+
+      logger.info('Starting image validation', {
+        cognitoUserId: ctx.user.sub,
+        imageCount: images.length,
+      });
+
+      // Run validation on all images
+      const validationResults = await photoValidationService.validateBatch(
+        images.map(img => ({ id: img.id, s3Key: img.s3Key }))
+      );
+
+      // Update each image with validation results
+      for (const result of validationResults) {
+        const status: ValidationStatus = result.isValid ? 'validated' : 'failed';
+        const warnings = result.warnings.length > 0 ? JSON.stringify(result.warnings) : null;
+
+        await db
+          .update(userImages)
+          .set({
+            validationStatus: status,
+            validationWarnings: warnings,
+            validatedAt: new Date(),
+          })
+          .where(eq(userImages.id, result.imageId));
+      }
+
+      const validCount = validationResults.filter(r => r.isValid).length;
+      const imagesWithWarnings = validationResults
+        .filter(r => !r.isValid)
+        .map(r => r.imageId);
+
+      logger.info('Image validation completed', {
+        cognitoUserId: ctx.user.sub,
+        total: validationResults.length,
+        valid: validCount,
+        withWarnings: imagesWithWarnings.length,
+      });
+
+      return {
+        results: validationResults,
+        allValid: validCount === validationResults.length,
+        validCount,
+        imagesWithWarnings,
+      };
+    }),
+
+  // Bypass validation for specific images
+  bypassValidation: protectedProcedure
+    .input(z.object({
+      imageIds: z.array(z.string().uuid()),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Update images to bypassed status
+      const updatedImages = await db
+        .update(userImages)
+        .set({
+          validationStatus: 'bypassed',
+          bypassedAt: new Date(),
+        })
+        .where(and(
+          eq(userImages.userId, user.id),
+          inArray(userImages.id, input.imageIds)
+        ))
+        .returning();
+
+      logger.info('Validation bypassed for images', {
+        cognitoUserId: ctx.user.sub,
+        imageCount: updatedImages.length,
+        imageIds: input.imageIds,
+      });
+
+      return { success: true, updatedCount: updatedImages.length };
+    }),
+
+  // Get user's image repository (previously uploaded validated/bypassed images)
+  getImageRepository: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        return [];
+      }
+
+      // Get all user images that are validated or bypassed
+      const images = await db
+        .select()
+        .from(userImages)
+        .where(and(
+          eq(userImages.userId, user.id),
+          or(
+            eq(userImages.validationStatus, 'validated'),
+            eq(userImages.validationStatus, 'bypassed')
+          )
+        ))
+        .orderBy(desc(userImages.createdAt));
+
+      // Generate pre-signed download URLs for all images
+      const imagesWithUrls = await Promise.all(
+        images.map(async (image) => {
+          try {
+            const downloadUrlData = await s3Service.generateDownloadUrl(image.s3Key, 604800);
+            return {
+              ...image,
+              downloadUrl: downloadUrlData.downloadUrl,
+            };
+          } catch (error) {
+            logger.warn('Failed to generate download URL for repository image', {
+              imageId: image.id,
+              s3Key: image.s3Key,
+              error,
+            });
+            return {
+              ...image,
+              downloadUrl: null,
+            };
+          }
+        })
+      );
+
+      logger.info('Image repository fetched', {
+        cognitoUserId: ctx.user.sub,
+        imageCount: imagesWithUrls.length,
+      });
+
+      return imagesWithUrls;
+    }),
+
+  // Replace an image (delete old one, keep the new one with pending validation)
+  replaceImage: protectedProcedure
+    .input(z.object({
+      oldImageId: z.string().uuid(),
+      newImage: z.object({
+        fileName: z.string(),
+        contentType: z.string(),
+        sizeBytes: z.number(),
+        s3Key: z.string(),
+        s3Url: z.string(),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+
+      // Get user from database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      const user = userResults[0];
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Delete the old image
+      const deletedImages = await db
+        .delete(userImages)
+        .where(and(
+          eq(userImages.id, input.oldImageId),
+          eq(userImages.userId, user.id)
+        ))
+        .returning();
+
+      if (deletedImages.length === 0) {
+        throw new Error('Old image not found or not owned by user');
+      }
+
+      // Validate the new file exists in S3
+      const exists = await s3Service.checkFileExists(input.newImage.s3Key);
+      if (!exists) {
+        throw new Error('New image file not found in S3');
+      }
+
+      // Insert the new image with pending validation
+      const [newImage] = await db
+        .insert(userImages)
+        .values({
+          userId: user.id,
+          originalFileName: input.newImage.fileName,
+          s3Key: input.newImage.s3Key,
+          s3Url: input.newImage.s3Url,
+          contentType: input.newImage.contentType,
+          sizeBytes: input.newImage.sizeBytes.toString(),
+          validationStatus: 'pending',
+        })
+        .returning();
+
+      logger.info('Image replaced', {
+        cognitoUserId: ctx.user.sub,
+        oldImageId: input.oldImageId,
+        newImageId: newImage.id,
+      });
+
+      return { success: true, newImage };
     }),
 });

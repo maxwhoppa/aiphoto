@@ -301,6 +301,99 @@ export async function updatePhoneNumber(phoneNumber: string) {
   }
 }
 
+// Photo Validation API calls
+export interface ValidationResult {
+  imageId: string;
+  isValid: boolean;
+  warnings: ('multiple_people' | 'face_covered_or_blurred' | 'poor_lighting')[];
+  details: {
+    multiplePeople: boolean;
+    faceCoveredOrBlurred: boolean;
+    poorLighting: boolean;
+  };
+}
+
+export interface ValidationResponse {
+  results: ValidationResult[];
+  allValid: boolean;
+  validCount: number;
+  imagesWithWarnings: string[];
+}
+
+export async function validateImages(imageIds: string[]): Promise<ValidationResponse> {
+  console.log('validateImages called with:', imageIds);
+
+  const requestBody = { imageIds };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.validateImages', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Validate images response:', response);
+    return response;
+  } catch (error) {
+    console.error('validateImages error:', error);
+    throw error;
+  }
+}
+
+export async function bypassValidation(imageIds: string[]) {
+  console.log('bypassValidation called with:', imageIds);
+
+  const requestBody = { imageIds };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.bypassValidation', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Bypass validation response:', response);
+    return response;
+  } catch (error) {
+    console.error('bypassValidation error:', error);
+    throw error;
+  }
+}
+
+export async function getImageRepository() {
+  // tRPC queries need to be called with batch format
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/images.getImageRepository?${params}`);
+  // Extract from batch response format
+  return response[0]?.result?.data || response[0];
+}
+
+export async function replaceImage(oldImageId: string, newImage: {
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  s3Key: string;
+  s3Url: string;
+}) {
+  console.log('replaceImage called with:', { oldImageId, newImage });
+
+  const requestBody = { oldImageId, newImage };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.replaceImage', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Replace image response:', response);
+    return response;
+  } catch (error) {
+    console.error('replaceImage error:', error);
+    throw error;
+  }
+}
+
 // All these methods will:
 // 1. Automatically include the Authorization header with a valid access token
 // 2. Refresh the token if it's expired before making the request
