@@ -18,7 +18,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { BottomTab } from '../../components/BottomTab';
-import { getUploadUrls, recordUploadedImages, getImageRepository, checkPaymentAccess } from '../../services/api';
+import { getUploadUrls, recordUploadedImages, getImageRepository } from '../../services/api';
+import { ButtonWithFreeBadge } from '../../components/ButtonWithFreeBadge';
 import { Text } from '../../components/Text';
 
 // Simple UUID v4 generator
@@ -66,31 +67,12 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
   const [showRepositoryModal, setShowRepositoryModal] = useState(false);
   const [selectedRepositoryIds, setSelectedRepositoryIds] = useState<Set<string>>(new Set());
   const [isLoadingRepository, setIsLoadingRepository] = useState(false);
-  const [freeCredits, setFreeCredits] = useState(0);
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 3; // 3 photos per row with spacing
 
   // Fetch repository photos on mount
   useEffect(() => {
     fetchRepositoryPhotos();
-  }, []);
-
-  // Fetch free credits on mount
-  useEffect(() => {
-    const checkCredits = async () => {
-      try {
-        const accessResult = await checkPaymentAccess();
-        if (accessResult?.hasAccess) {
-          setFreeCredits(1);
-        } else {
-          setFreeCredits(0);
-        }
-      } catch (error) {
-        console.log('Failed to check credits:', error);
-        setFreeCredits(0);
-      }
-    };
-    checkCredits();
   }, []);
 
   const fetchRepositoryPhotos = async () => {
@@ -592,22 +574,13 @@ export const PhotoUploadScreen: React.FC<PhotoUploadScreenProps> = ({
         {/* Upload and Continue Button - Show when photos are selected */}
         {selectedPhotos.length > 0 && (
           <View style={styles.bottomButtonsContainer}>
-            <View style={styles.buttonWithBadge}>
-              <Button
-                title="Upload and continue"
-                onPress={handleNext}
-                disabled={selectedPhotos.length < 5 || isUploading}
-                loading={isUploading}
-                variant={selectedPhotos.length >= 5 && !isUploading ? 'primary' : 'disabled'}
-              />
-              {freeCredits > 0 && (
-                <View style={styles.freeCreditBadge}>
-                  <Text style={styles.freeCreditText}>
-                    {freeCredits} free
-                  </Text>
-                </View>
-              )}
-            </View>
+            <ButtonWithFreeBadge
+              title="Upload and continue"
+              onPress={handleNext}
+              disabled={selectedPhotos.length < 5 || isUploading}
+              loading={isUploading}
+              variant={selectedPhotos.length >= 5 && !isUploading ? 'primary' : 'disabled'}
+            />
             {getAvailableRepositoryPhotos().length > 0 && selectedPhotos.length < 10 && !isUploading && (
               <Button
                 title={`Add from previous photos (${getAvailableRepositoryPhotos().length})`}
@@ -714,25 +687,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingTop: 40,
     marginBottom: 10,
-  },
-  buttonWithBadge: {
-    position: 'relative',
-  },
-  freeCreditBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -4,
-    backgroundColor: '#FF9500',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    zIndex: 1,
-  },
-  freeCreditText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: 'Poppins-Bold',
   },
   title: {
     marginBottom: 20,
