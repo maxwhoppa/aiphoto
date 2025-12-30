@@ -9,7 +9,7 @@ export interface ValidationResult {
   isValid: boolean;
   warnings: ValidationWarning[];
   details: {
-    multiplePeople: boolean;
+    multipleFaces: boolean;
     faceCoveredOrBlurred: boolean;
     poorLighting: boolean;
     isScreenshot: boolean;
@@ -18,7 +18,7 @@ export interface ValidationResult {
 }
 
 interface GeminiValidationResponse {
-  multiple_people: boolean;
+  multiple_faces: boolean;
   face_covered_or_blurred: boolean;
   poor_lighting: boolean;
   is_screenshot: boolean;
@@ -101,14 +101,14 @@ class PhotoValidationService {
 
         const validationPrompt = `Analyze this photo for dating profile suitability. Evaluate the following criteria:
 
-1. MULTIPLE_PEOPLE: Is there more than one person clearly visible in this photo? (Look for multiple distinct faces or bodies)
+1. MULTIPLE_FACES: Are there multiple clear, distinct faces visible in this photo? (Only flag if you can clearly see more than one face - people in the background without visible faces or partially visible people don't count)
 2. FACE_VISIBILITY: Is the main subject's face completely covered, obscured, or significantly blurred? (Sunglasses are OK, but masks, heavy blur, or turned away are not)
 3. LIGHTING: Is the lighting so dark that the main subject's face is not clearly visible?
 4. SCREENSHOT: Is this a screenshot of another photo, social media post, or screen capture? (Look for UI elements, status bars, app interfaces, photo-of-a-screen artifacts, watermarks from other apps, or visible device bezels)
 5. FACE_PARTIALLY_COVERED: Are key facial features (eyes, nose, mouth, chin, or most of the hair/forehead) partially covered or hidden? (e.g., hand covering mouth, hair covering eyes, cropped forehead, chin cut off, face cut off at edges - sunglasses alone are OK)
 
 Respond with ONLY a valid JSON object in this exact format, no additional text:
-{"multiple_people": true or false, "face_covered_or_blurred": true or false, "poor_lighting": true or false, "is_screenshot": true or false, "face_partially_covered": true or false}`;
+{"multiple_faces": true or false, "face_covered_or_blurred": true or false, "poor_lighting": true or false, "is_screenshot": true or false, "face_partially_covered": true or false}`;
 
         const promptContent = [
           { text: validationPrompt },
@@ -148,8 +148,8 @@ Respond with ONLY a valid JSON object in this exact format, no additional text:
 
       // Build warnings array
       const warnings: ValidationWarning[] = [];
-      if (result.multiple_people) {
-        warnings.push('multiple_people');
+      if (result.multiple_faces) {
+        warnings.push('multiple_faces');
       }
       if (result.face_covered_or_blurred) {
         warnings.push('face_covered_or_blurred');
@@ -177,7 +177,7 @@ Respond with ONLY a valid JSON object in this exact format, no additional text:
         isValid,
         warnings,
         details: {
-          multiplePeople: result.multiple_people,
+          multipleFaces: result.multiple_faces,
           faceCoveredOrBlurred: result.face_covered_or_blurred,
           poorLighting: result.poor_lighting,
           isScreenshot: result.is_screenshot,
@@ -196,7 +196,7 @@ Respond with ONLY a valid JSON object in this exact format, no additional text:
         isValid: false,
         warnings: [],
         details: {
-          multiplePeople: false,
+          multipleFaces: false,
           faceCoveredOrBlurred: false,
           poorLighting: false,
           isScreenshot: false,

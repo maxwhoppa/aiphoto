@@ -1051,18 +1051,58 @@ export const imagesRouter = router({
         throw new Error('No valid images found');
       }
 
-      logger.info('Starting image validation', {
-        cognitoUserId: ctx.user.sub,
-        imageCount: images.length,
-      });
-
-      // Run validation on all images
-      const validationResults = await photoValidationService.validateBatch(
-        images.map(img => ({ id: img.id, s3Key: img.s3Key }))
+      // Separate already-validated images from those needing validation
+      const alreadyValidated = images.filter(
+        img => img.validationStatus === 'validated' || img.validationStatus === 'bypassed'
+      );
+      const needsValidation = images.filter(
+        img => img.validationStatus !== 'validated' && img.validationStatus !== 'bypassed'
       );
 
-      // Update each image with validation results
-      for (const result of validationResults) {
+      logger.info('Starting image validation', {
+        cognitoUserId: ctx.user.sub,
+        total: images.length,
+        alreadyValidated: alreadyValidated.length,
+        needsValidation: needsValidation.length,
+      });
+
+      // Build results for already-validated images from stored data
+      const existingResults = alreadyValidated.map(img => {
+        let warnings: string[] = [];
+        if (img.validationWarnings) {
+          try {
+            warnings = JSON.parse(img.validationWarnings);
+          } catch {
+            warnings = [];
+          }
+        }
+        return {
+          imageId: img.id,
+          isValid: img.validationStatus === 'validated' || img.validationStatus === 'bypassed',
+          warnings,
+          details: {
+            multipleFaces: warnings.includes('multiple_faces'),
+            faceCoveredOrBlurred: warnings.includes('face_covered_or_blurred'),
+            poorLighting: warnings.includes('poor_lighting'),
+            isScreenshot: warnings.includes('is_screenshot'),
+            facePartiallyCovered: warnings.includes('face_partially_covered'),
+          },
+        };
+      });
+
+      // Run validation only on images that need it
+      let newValidationResults: typeof existingResults = [];
+      if (needsValidation.length > 0) {
+        newValidationResults = await photoValidationService.validateBatch(
+          needsValidation.map(img => ({ id: img.id, s3Key: img.s3Key }))
+        );
+      }
+
+      // Combine results
+      const validationResults = [...existingResults, ...newValidationResults];
+
+      // Update only newly validated images (skip already-validated ones)
+      for (const result of newValidationResults) {
         const status: ValidationStatus = result.isValid ? 'validated' : 'failed';
         const warnings = result.warnings.length > 0 ? JSON.stringify(result.warnings) : null;
 

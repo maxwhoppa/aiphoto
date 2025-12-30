@@ -305,11 +305,13 @@ export async function updatePhoneNumber(phoneNumber: string) {
 export interface ValidationResult {
   imageId: string;
   isValid: boolean;
-  warnings: ('multiple_people' | 'face_covered_or_blurred' | 'poor_lighting')[];
+  warnings: ('multiple_faces' | 'face_covered_or_blurred' | 'poor_lighting' | 'is_screenshot' | 'face_partially_covered')[];
   details: {
-    multiplePeople: boolean;
+    multipleFaces: boolean;
     faceCoveredOrBlurred: boolean;
     poorLighting: boolean;
+    isScreenshot: boolean;
+    facePartiallyCovered: boolean;
   };
 }
 

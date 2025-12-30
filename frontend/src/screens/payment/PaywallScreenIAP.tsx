@@ -298,6 +298,21 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
               </Text>
             </View>
 
+            <View style={[styles.roiCard, { backgroundColor: colors.card, borderColor: colors.success }]}>
+              <View style={styles.roiHeader}>
+                <Ionicons name="trending-up" size={24} color={colors.success} />
+                <Text variant="subtitle" style={[styles.roiTitle, { color: colors.text }]}>
+                  It Pays for Itself
+                </Text>
+              </View>
+              <Text variant="body" style={[styles.roiText, { color: colors.textSecondary }]}>
+                One bad date costs $50-100 and hours of your time. Better photos mean better matches, fewer wasted dates, and faster connections with the right people.
+              </Text>
+              <Text variant="body" style={[styles.roiHighlight, { color: colors.success }]}>
+                Skip just one or two bad dates and you've already made your money back.
+              </Text>
+            </View>
+
       </ScrollView>
 
       <View style={[styles.buttonContainer, { backgroundColor: colors.background }]}>
@@ -562,5 +577,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
     marginTop: 16,
+  },
+  roiCard: {
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  roiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  roiTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  roiText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  roiHighlight: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+    lineHeight: 22,
   },
 });

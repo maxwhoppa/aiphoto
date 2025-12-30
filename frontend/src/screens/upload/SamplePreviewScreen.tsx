@@ -139,8 +139,6 @@ export const SamplePreviewScreen: React.FC<SamplePreviewScreenProps> = ({
     onNext(imageIds);
   };
 
-  const isReady = photos.length > 0 && !isLoading;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -221,7 +219,7 @@ export const SamplePreviewScreen: React.FC<SamplePreviewScreenProps> = ({
             <Ionicons name="sparkles" size={24} color={colors.primary} />
             <View style={styles.infoTextContainer}>
               <Text style={[styles.infoTitle, { color: colors.text }]}>
-                Re-enforcing AI-Enhanced Photos
+                Re-enforcing Photos
               </Text>
               <Text style={[styles.infoDescription, { color: colors.textSecondary }]}>
                 Models can struggle to match features on first generation. We will create many generations to ensure that photos are able to match your features.
@@ -234,10 +232,9 @@ export const SamplePreviewScreen: React.FC<SamplePreviewScreenProps> = ({
       {/* Bottom Tab */}
       <BottomTab>
         <Button
-          title={isReady ? 'Choose Scenarios' : 'Generating Previews...'}
+          title="Choose Scenarios"
           onPress={handleContinue}
-          disabled={!isReady}
-          variant={isReady ? 'primary' : 'disabled'}
+          variant="primary"
         />
       </BottomTab>
     </View>

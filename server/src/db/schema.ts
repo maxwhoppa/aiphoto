@@ -23,7 +23,7 @@ export const userImages = pgTable('user_images', {
   sizeBytes: varchar('size_bytes', { length: 20 }).notNull(),
   // Validation fields
   validationStatus: text('validation_status').notNull().default('pending'), // 'pending' | 'validated' | 'failed' | 'bypassed'
-  validationWarnings: text('validation_warnings'), // JSON array: ['multiple_people', 'face_covered_or_blurred', 'poor_lighting']
+  validationWarnings: text('validation_warnings'), // JSON array: ['multiple_faces', 'face_covered_or_blurred', 'poor_lighting', 'is_screenshot', 'face_partially_covered']
   validatedAt: timestamp('validated_at'),
   bypassedAt: timestamp('bypassed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -149,4 +149,4 @@ export type NewPayment = typeof payments.$inferInsert;
 
 // Validation types
 export type ValidationStatus = 'pending' | 'validated' | 'failed' | 'bypassed';
-export type ValidationWarning = 'multiple_people' | 'face_covered_or_blurred' | 'poor_lighting' | 'is_screenshot' | 'face_partially_covered';
+export type ValidationWarning = 'multiple_faces' | 'face_covered_or_blurred' | 'poor_lighting' | 'is_screenshot' | 'face_partially_covered';

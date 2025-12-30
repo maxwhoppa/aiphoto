@@ -60,10 +60,10 @@ interface PhotoValidationScreenProps {
 }
 
 const WARNING_INFO: Record<string, { icon: string; title: string; description: string }> = {
-  multiple_people: {
+  multiple_faces: {
     icon: 'people-outline',
-    title: 'Multiple People Detected',
-    description: 'This photo appears to have more than one person. For best results, use photos with just you.',
+    title: 'Multiple Faces Detected',
+    description: 'This photo has multiple clear faces visible. For best results, use photos where only your face is clearly visible.',
   },
   face_covered_or_blurred: {
     icon: 'eye-off-outline',
@@ -174,7 +174,7 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
 
   const fetchImagesAndValidate = async () => {
     try {
-      // Fetch the user's images to get URIs
+      // Fetch the user's images to get URIs and existing validation status
       const myImagesResponse = await getMyImages();
 
       // Handle various response formats - ensure we have an array
@@ -184,32 +184,73 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
 
       console.log('PhotoValidationScreen: Fetched images:', myImages?.length || 0);
 
-      // Map initial image IDs to image data
+      // Map initial image IDs to image data, using stored validation status
       const imageDataList: ImageData[] = initialImageIds.map(id => {
         const imageInfo = Array.isArray(myImages)
           ? myImages.find((img: any) => img.id === id)
           : null;
+
+        // Parse stored validation warnings if available
+        let storedWarnings: string[] = [];
+        if (imageInfo?.validationWarnings) {
+          try {
+            storedWarnings = JSON.parse(imageInfo.validationWarnings);
+          } catch {
+            storedWarnings = [];
+          }
+        }
+
+        // Map stored status to our local status type
+        const storedStatus = imageInfo?.validationStatus;
+        let localStatus: ImageData['validationStatus'] = 'validating';
+        if (storedStatus === 'validated') {
+          localStatus = 'validated';
+        } else if (storedStatus === 'bypassed') {
+          localStatus = 'bypassed';
+        } else if (storedStatus === 'failed') {
+          localStatus = 'failed';
+        }
+        // 'pending' or unknown status will stay as 'validating' and get validated
+
         return {
           id,
           uri: imageInfo?.downloadUrl || imageInfo?.s3Url || '',
-          validationStatus: 'validating' as const,
-          warnings: [],
+          validationStatus: localStatus,
+          warnings: storedWarnings,
         };
       });
 
       setImages(imageDataList);
 
-      // Start validation
-      const response = await validateImages(initialImageIds);
+      // Only validate images that haven't been validated yet (still 'validating' status)
+      const imagesToValidate = imageDataList.filter(img => img.validationStatus === 'validating');
+      const imageIdsToValidate = imagesToValidate.map(img => img.id);
+
+      console.log('PhotoValidationScreen: Images needing validation:', imageIdsToValidate.length, 'of', imageDataList.length);
+
+      if (imageIdsToValidate.length === 0) {
+        // All images already validated, nothing to do
+        console.log('PhotoValidationScreen: All images already validated, skipping validation');
+        setIsValidating(false);
+        return;
+      }
+
+      // Start validation only for pending images
+      const response = await validateImages(imageIdsToValidate);
 
       // Handle various response formats
       const validationResults = response?.results || response?.result?.data?.results || [];
 
       console.log('PhotoValidationScreen: Validation results:', validationResults?.length || 0);
 
-      // Update images with validation results
+      // Update only the newly validated images with validation results
       setImages(prevImages =>
         prevImages.map(img => {
+          // Skip images that were already validated
+          if (img.validationStatus !== 'validating') {
+            return img;
+          }
+
           const result = Array.isArray(validationResults)
             ? validationResults.find((r: ValidationResult) => r.imageId === img.id)
             : null;
