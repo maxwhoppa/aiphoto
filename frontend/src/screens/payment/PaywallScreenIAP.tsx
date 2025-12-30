@@ -309,7 +309,7 @@ export const PaywallScreenIAP: React.FC<PaywallScreenIAPProps> = ({
                 </Text>
               </View>
               <Text variant="body" style={[styles.guaranteeText, { color: colors.textSecondary }]}>
-                We're confident you'll love your photos. If you're not satisfied, contact support for assistance.
+                We're confident you'll love your photos. If you're not satisfied, contact support for assistance and we may help with a new generation.
               </Text>
             </View>
 

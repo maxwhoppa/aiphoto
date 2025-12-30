@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../index';
 import { getDb, userImages, generatedImages, users, scenarios, payments, generations } from '../../db/index';
-import { eq, desc, and, isNotNull, or, inArray } from 'drizzle-orm';
+import { eq, desc, and, isNotNull, or, inArray, ne } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import { geminiService } from '../../services/gemini';
 import { s3Service } from '../../services/s3';
@@ -527,7 +527,8 @@ export const imagesRouter = router({
           .where(
             and(
               eq(generatedImages.userId, user.id),
-              isNotNull(generatedImages.selectedProfileOrder)
+              isNotNull(generatedImages.selectedProfileOrder),
+              ne(generatedImages.s3Url, '') // Exclude placeholders
             )
           );
 
@@ -538,11 +539,14 @@ export const imagesRouter = router({
             generatedCount: successfulGenerations.length,
           });
 
-          // Get all generated images for this user to randomly select from
+          // Get all generated images for this user to randomly select from (exclude placeholders)
           const allGeneratedImages = await db
             .select()
             .from(generatedImages)
-            .where(eq(generatedImages.userId, user.id))
+            .where(and(
+              eq(generatedImages.userId, user.id),
+              ne(generatedImages.s3Url, '') // Exclude placeholders
+            ))
             .orderBy(desc(generatedImages.createdAt));
 
           if (allGeneratedImages.length > 0) {
@@ -622,10 +626,14 @@ export const imagesRouter = router({
         return [];
       }
 
+      // Only return images that have been fully generated (have s3Url)
       let query = db
         .select()
         .from(generatedImages)
-        .where(eq(generatedImages.userId, user.id))
+        .where(and(
+          eq(generatedImages.userId, user.id),
+          ne(generatedImages.s3Url, '') // Exclude placeholders
+        ))
         .$dynamic();
 
       if (input.originalImageId) {
@@ -685,7 +693,8 @@ export const imagesRouter = router({
         .from(generatedImages)
         .where(and(
           eq(generatedImages.id, input.generatedImageId),
-          eq(generatedImages.userId, user.id)
+          eq(generatedImages.userId, user.id),
+          ne(generatedImages.s3Url, '') // Exclude placeholders
         ))
         .limit(1);
 
@@ -896,7 +905,8 @@ export const imagesRouter = router({
         .from(generatedImages)
         .where(and(
           eq(generatedImages.userId, user.id),
-          isNotNull(generatedImages.selectedProfileOrder)
+          isNotNull(generatedImages.selectedProfileOrder),
+          ne(generatedImages.s3Url, '') // Exclude placeholders
         ))
         .orderBy(generatedImages.selectedProfileOrder);
 
@@ -944,13 +954,14 @@ export const imagesRouter = router({
       }
 
       if (input.order) {
-        // Check if another photo already has this order
+        // Check if another photo already has this order (exclude placeholders)
         const existingAtOrder = await db
           .select()
           .from(generatedImages)
           .where(and(
             eq(generatedImages.userId, user.id),
-            eq(generatedImages.selectedProfileOrder, input.order)
+            eq(generatedImages.selectedProfileOrder, input.order),
+            ne(generatedImages.s3Url, '') // Exclude placeholders
           ))
           .limit(1);
 
@@ -963,13 +974,14 @@ export const imagesRouter = router({
         }
       }
 
-      // Update the selected photo
+      // Update the selected photo (only if it has s3Url - not a placeholder)
       const result = await db
         .update(generatedImages)
         .set({ selectedProfileOrder: input.order || null })
         .where(and(
           eq(generatedImages.id, input.generatedImageId),
-          eq(generatedImages.userId, user.id)
+          eq(generatedImages.userId, user.id),
+          ne(generatedImages.s3Url, '') // Exclude placeholders
         ))
         .returning();
 
@@ -1231,142 +1243,133 @@ export const imagesRouter = router({
         warnings: validationResult.warnings,
       });
 
-      // Check if sample photos already exist
-      const existingSamples = await db
+      // Get existing sample records (including placeholders without s3Url)
+      const existingSampleRecords = await db
         .select()
         .from(generatedImages)
         .where(and(
           eq(generatedImages.userId, user.id),
           eq(generatedImages.isSample, true)
-        ))
-        .limit(1);
+        ));
 
+      const sampleCount = existingSampleRecords.length;
       let sampleGenerationStarted = false;
 
-      // If no samples exist, check if we should generate them
-      if (existingSamples.length === 0) {
-        // Get all validated/bypassed images for this user
-        const validatedImages = await db
-          .select()
-          .from(userImages)
-          .where(and(
-            eq(userImages.userId, user.id),
-            or(
-              eq(userImages.validationStatus, 'validated'),
-              eq(userImages.validationStatus, 'bypassed')
-            )
-          ))
-          .orderBy(desc(userImages.createdAt))
-          .limit(3);
+      // If we have fewer than 3 sample records, create a placeholder and generate for this image
+      if (sampleCount < 3) {
+        // Find the first scenario that hasn't been used yet
+        const usedScenarios = existingSampleRecords.map(r => r.scenario);
+        const scenario = SAMPLE_SCENARIOS.find(s => !usedScenarios.includes(s)) || SAMPLE_SCENARIOS[0];
 
-        // If we have at least 1 validated image, start sample generation in background
-        if (validatedImages.length >= 1) {
-          sampleGenerationStarted = true;
+        // Create a placeholder record immediately (claims the slot)
+        const [placeholderRecord] = await db
+          .insert(generatedImages)
+          .values({
+            userId: user.id,
+            generationId: null,
+            originalImageId: image.id,
+            scenario,
+            prompt: '', // Will be updated after generation
+            s3Key: '', // Placeholder - empty until generated
+            s3Url: '', // Placeholder - empty until generated
+            isSample: true,
+          })
+          .returning();
 
-          logger.info('Starting sample photo generation after validation', {
-            cognitoUserId: ctx.user.sub,
-            validatedImageCount: validatedImages.length,
-          });
+        sampleGenerationStarted = true;
 
-          // Generate samples in background (don't await)
-          (async () => {
-            try {
-              const generationResults = await Promise.allSettled(
-                validatedImages.map(async (sourceImage, index) => {
-                  const scenario = SAMPLE_SCENARIOS[index] || SAMPLE_SCENARIOS[0];
+        logger.info('Created sample placeholder, starting generation', {
+          cognitoUserId: ctx.user.sub,
+          placeholderId: placeholderRecord.id,
+          scenario,
+          existingSampleCount: sampleCount,
+        });
 
-                  try {
-                    const prompt = await geminiService.generateImagePrompt(scenario);
+        // Generate sample in background (don't await)
+        (async () => {
+          console.log('DEBUG: Starting background sample generation for placeholder:', placeholderRecord.id);
+          try {
+            const prompt = await geminiService.generateImagePrompt(scenario);
+            console.log('DEBUG: Got prompt for scenario:', scenario);
 
-                    const uploadData = await s3Service.generateGeneratedImageUploadUrl(
-                      user.id,
-                      sourceImage.id,
-                      `sample_${scenario}_${Date.now()}`
-                    );
+            const uploadData = await s3Service.generateGeneratedImageUploadUrl(
+              user.id,
+              image.id,
+              `sample_${scenario}_${Date.now()}`
+            );
+            console.log('DEBUG: Got upload URL, s3Key:', uploadData.s3Key);
 
-                    let generatedImageResult;
-                    let lastError;
-                    const MAX_RETRIES = 3;
+            let generatedImageResult;
+            let lastError;
+            const MAX_RETRIES = 3;
 
-                    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                      try {
-                        generatedImageResult = await geminiService.generateAndUploadImage(
-                          sourceImage.s3Key,
-                          scenario,
-                          prompt,
-                          uploadData.uploadUrl
-                        );
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+              try {
+                generatedImageResult = await geminiService.generateAndUploadImage(
+                  image.s3Key,
+                  scenario,
+                  prompt,
+                  uploadData.uploadUrl
+                );
 
-                        if (!generatedImageResult.error) {
-                          break;
-                        }
+                if (!generatedImageResult.error) {
+                  break;
+                }
 
-                        lastError = generatedImageResult.error;
+                lastError = generatedImageResult.error;
 
-                        if (attempt < MAX_RETRIES) {
-                          const delay = Math.pow(2, attempt - 1) * 1000;
-                          await new Promise(resolve => setTimeout(resolve, delay));
-                        }
-                      } catch (error) {
-                        lastError = error instanceof Error ? error.message : 'Processing failed';
+                if (attempt < MAX_RETRIES) {
+                  const delay = Math.pow(2, attempt - 1) * 1000;
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              } catch (error) {
+                lastError = error instanceof Error ? error.message : 'Processing failed';
 
-                        if (attempt < MAX_RETRIES) {
-                          const delay = Math.pow(2, attempt - 1) * 1000;
-                          await new Promise(resolve => setTimeout(resolve, delay));
-                        }
-                      }
-                    }
-
-                    if (generatedImageResult?.error || !generatedImageResult) {
-                      throw new Error(lastError || 'Sample image generation failed');
-                    }
-
-                    // Save the sample image record
-                    await db
-                      .insert(generatedImages)
-                      .values({
-                        userId: user.id,
-                        generationId: null,
-                        originalImageId: sourceImage.id,
-                        scenario,
-                        prompt,
-                        s3Key: uploadData.s3Key,
-                        s3Url: uploadData.s3Url,
-                        geminiRequestId: generatedImageResult.requestId,
-                        isSample: true,
-                      });
-
-                    logger.info('Sample photo generated successfully', {
-                      cognitoUserId: ctx.user.sub,
-                      sourceImageId: sourceImage.id,
-                      scenario,
-                    });
-                  } catch (error) {
-                    logger.error('Sample photo generation failed for image', {
-                      cognitoUserId: ctx.user.sub,
-                      imageId: sourceImage.id,
-                      scenario,
-                      error: error instanceof Error ? error.message : error,
-                    });
-                    throw error;
-                  }
-                })
-              );
-
-              const successCount = generationResults.filter(r => r.status === 'fulfilled').length;
-              logger.info('Background sample generation completed', {
-                cognitoUserId: ctx.user.sub,
-                successCount,
-                failedCount: generationResults.length - successCount,
-              });
-            } catch (error) {
-              logger.error('Background sample generation failed', {
-                cognitoUserId: ctx.user.sub,
-                error: error instanceof Error ? error.message : error,
-              });
+                if (attempt < MAX_RETRIES) {
+                  const delay = Math.pow(2, attempt - 1) * 1000;
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+              }
             }
-          })();
-        }
+
+            if (generatedImageResult?.error || !generatedImageResult) {
+              // Delete the placeholder on failure
+              console.log('DEBUG: Generation failed, deleting placeholder:', placeholderRecord.id, 'Error:', lastError);
+              await db
+                .delete(generatedImages)
+                .where(eq(generatedImages.id, placeholderRecord.id));
+              throw new Error(lastError || 'Sample image generation failed');
+            }
+
+            console.log('DEBUG: Generation succeeded, updating placeholder with s3Key:', uploadData.s3Key);
+
+            // Update the placeholder with actual data
+            await db
+              .update(generatedImages)
+              .set({
+                prompt,
+                s3Key: uploadData.s3Key,
+                s3Url: uploadData.s3Url,
+                geminiRequestId: generatedImageResult.requestId,
+              })
+              .where(eq(generatedImages.id, placeholderRecord.id));
+
+            console.log('DEBUG: Placeholder updated successfully:', placeholderRecord.id);
+
+            logger.info('Sample photo generated successfully', {
+              cognitoUserId: ctx.user.sub,
+              placeholderId: placeholderRecord.id,
+              scenario,
+            });
+          } catch (error) {
+            console.log('DEBUG: Background generation error:', error instanceof Error ? error.message : error);
+            logger.error('Sample photo generation failed', {
+              cognitoUserId: ctx.user.sub,
+              placeholderId: placeholderRecord.id,
+              error: error instanceof Error ? error.message : error,
+            });
+          }
+        })();
       }
 
       return {
@@ -1560,13 +1563,14 @@ export const imagesRouter = router({
         user = newUser;
       }
 
-      // Check if user already has sample photos
+      // Check if user already has sample photos (exclude placeholders without s3Url)
       const existingSamples = await db
         .select()
         .from(generatedImages)
         .where(and(
           eq(generatedImages.userId, user.id),
-          eq(generatedImages.isSample, true)
+          eq(generatedImages.isSample, true),
+          ne(generatedImages.s3Url, '') // Exclude placeholders
         ))
         .orderBy(desc(generatedImages.createdAt))
         .limit(3);
@@ -1747,12 +1751,14 @@ export const imagesRouter = router({
         return [];
       }
 
+      // Only return samples that have been fully generated (have s3Url)
       const samplePhotos = await db
         .select()
         .from(generatedImages)
         .where(and(
           eq(generatedImages.userId, user.id),
-          eq(generatedImages.isSample, true)
+          eq(generatedImages.isSample, true),
+          ne(generatedImages.s3Url, '') // Exclude placeholders
         ))
         .orderBy(desc(generatedImages.createdAt))
         .limit(3);
