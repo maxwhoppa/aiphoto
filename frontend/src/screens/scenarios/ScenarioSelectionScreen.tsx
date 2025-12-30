@@ -15,6 +15,7 @@ import { Button } from '../../components/Button';
 import { BottomTab } from '../../components/BottomTab';
 import { Text } from '../../components/Text';
 import { getScenarioImages } from '../../utils/scenarioImages';
+import { checkPaymentAccess } from '../../services/api';
 
 interface Scenario {
   id: string;
@@ -41,6 +42,25 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
   const screenWidth = Dimensions.get('window').width;
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [freeCredits, setFreeCredits] = useState(0);
+
+  // Fetch free credits on mount
+  useEffect(() => {
+    const checkCredits = async () => {
+      try {
+        const accessResult = await checkPaymentAccess();
+        if (accessResult?.hasAccess) {
+          setFreeCredits(1);
+        } else {
+          setFreeCredits(0);
+        }
+      } catch (error) {
+        console.log('Failed to check credits:', error);
+        setFreeCredits(0);
+      }
+    };
+    checkCredits();
+  }, []);
   
 
   const scenarios: Scenario[] = [
@@ -227,12 +247,21 @@ export const ScenarioSelectionScreen: React.FC<ScenarioSelectionScreenProps> = (
         showScrollIndicator={showScrollIndicator}
         onScrollIndicatorPress={handleScrollIndicatorPress}
       >
-        <Button
-          title="Generate photos"
-          onPress={handleNext}
-          disabled={selectedScenarios.length !== 6}
-          variant={selectedScenarios.length === 6 ? 'primary' : 'disabled'}
-        />
+        <View style={styles.buttonWithBadge}>
+          <Button
+            title="Generate photos"
+            onPress={handleNext}
+            disabled={selectedScenarios.length !== 6}
+            variant={selectedScenarios.length === 6 ? 'primary' : 'disabled'}
+          />
+          {freeCredits > 0 && (
+            <View style={styles.freeCreditBadge}>
+              <Text style={styles.freeCreditText}>
+                {freeCredits} free
+              </Text>
+            </View>
+          )}
+        </View>
       </BottomTab>
     </View>
   );
@@ -319,5 +348,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  buttonWithBadge: {
+    position: 'relative',
+  },
+  freeCreditBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -4,
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    zIndex: 1,
+  },
+  freeCreditText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Poppins-Bold',
   },
 });

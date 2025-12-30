@@ -1136,6 +1136,248 @@ export const imagesRouter = router({
       };
     }),
 
+  // Validate a single image and trigger sample generation if needed
+  validateSingleImage: protectedProcedure
+    .input(z.object({
+      imageId: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      const SAMPLE_SCENARIOS = ['white_photoshoot', 'pinterest_thirst', 'professional'];
+
+      // Get or create user in database
+      const userResults = await db.select().from(users).where(eq(users.cognitoId, ctx.user.sub)).limit(1);
+      let user = userResults[0];
+
+      if (!user) {
+        const [newUser] = await db.insert(users).values({
+          cognitoId: ctx.user.sub,
+          email: ctx.user.email || `${ctx.user.sub}@cognito.local`,
+        }).returning();
+        user = newUser;
+      }
+
+      // Get the specific image
+      const [image] = await db
+        .select()
+        .from(userImages)
+        .where(and(
+          eq(userImages.userId, user.id),
+          eq(userImages.id, input.imageId)
+        ))
+        .limit(1);
+
+      if (!image) {
+        throw new Error('Image not found');
+      }
+
+      // Check if already validated
+      if (image.validationStatus === 'validated' || image.validationStatus === 'bypassed') {
+        let warnings: string[] = [];
+        if (image.validationWarnings) {
+          try {
+            warnings = JSON.parse(image.validationWarnings);
+          } catch {
+            warnings = [];
+          }
+        }
+
+        logger.info('Image already validated, skipping', {
+          cognitoUserId: ctx.user.sub,
+          imageId: input.imageId,
+          status: image.validationStatus,
+        });
+
+        return {
+          imageId: image.id,
+          isValid: true,
+          warnings,
+          details: {
+            multipleFaces: warnings.includes('multiple_faces'),
+            faceCoveredOrBlurred: warnings.includes('face_covered_or_blurred'),
+            poorLighting: warnings.includes('poor_lighting'),
+            isScreenshot: warnings.includes('is_screenshot'),
+            facePartiallyCovered: warnings.includes('face_partially_covered'),
+          },
+          sampleGenerationStarted: false,
+        };
+      }
+
+      logger.info('Starting single image validation', {
+        cognitoUserId: ctx.user.sub,
+        imageId: input.imageId,
+      });
+
+      // Validate the image
+      const validationResult = await photoValidationService.validateImage(image.id, image.s3Key);
+
+      // Update the image with validation result
+      const status: ValidationStatus = validationResult.isValid ? 'validated' : 'failed';
+      const warnings = validationResult.warnings.length > 0 ? JSON.stringify(validationResult.warnings) : null;
+
+      await db
+        .update(userImages)
+        .set({
+          validationStatus: status,
+          validationWarnings: warnings,
+          validatedAt: new Date(),
+        })
+        .where(eq(userImages.id, input.imageId));
+
+      logger.info('Single image validation completed', {
+        cognitoUserId: ctx.user.sub,
+        imageId: input.imageId,
+        isValid: validationResult.isValid,
+        warnings: validationResult.warnings,
+      });
+
+      // Check if sample photos already exist
+      const existingSamples = await db
+        .select()
+        .from(generatedImages)
+        .where(and(
+          eq(generatedImages.userId, user.id),
+          eq(generatedImages.isSample, true)
+        ))
+        .limit(1);
+
+      let sampleGenerationStarted = false;
+
+      // If no samples exist, check if we should generate them
+      if (existingSamples.length === 0) {
+        // Get all validated/bypassed images for this user
+        const validatedImages = await db
+          .select()
+          .from(userImages)
+          .where(and(
+            eq(userImages.userId, user.id),
+            or(
+              eq(userImages.validationStatus, 'validated'),
+              eq(userImages.validationStatus, 'bypassed')
+            )
+          ))
+          .orderBy(desc(userImages.createdAt))
+          .limit(3);
+
+        // If we have at least 1 validated image, start sample generation in background
+        if (validatedImages.length >= 1) {
+          sampleGenerationStarted = true;
+
+          logger.info('Starting sample photo generation after validation', {
+            cognitoUserId: ctx.user.sub,
+            validatedImageCount: validatedImages.length,
+          });
+
+          // Generate samples in background (don't await)
+          (async () => {
+            try {
+              const generationResults = await Promise.allSettled(
+                validatedImages.map(async (sourceImage, index) => {
+                  const scenario = SAMPLE_SCENARIOS[index] || SAMPLE_SCENARIOS[0];
+
+                  try {
+                    const prompt = await geminiService.generateImagePrompt(scenario);
+
+                    const uploadData = await s3Service.generateGeneratedImageUploadUrl(
+                      user.id,
+                      sourceImage.id,
+                      `sample_${scenario}_${Date.now()}`
+                    );
+
+                    let generatedImageResult;
+                    let lastError;
+                    const MAX_RETRIES = 3;
+
+                    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                      try {
+                        generatedImageResult = await geminiService.generateAndUploadImage(
+                          sourceImage.s3Key,
+                          scenario,
+                          prompt,
+                          uploadData.uploadUrl
+                        );
+
+                        if (!generatedImageResult.error) {
+                          break;
+                        }
+
+                        lastError = generatedImageResult.error;
+
+                        if (attempt < MAX_RETRIES) {
+                          const delay = Math.pow(2, attempt - 1) * 1000;
+                          await new Promise(resolve => setTimeout(resolve, delay));
+                        }
+                      } catch (error) {
+                        lastError = error instanceof Error ? error.message : 'Processing failed';
+
+                        if (attempt < MAX_RETRIES) {
+                          const delay = Math.pow(2, attempt - 1) * 1000;
+                          await new Promise(resolve => setTimeout(resolve, delay));
+                        }
+                      }
+                    }
+
+                    if (generatedImageResult?.error || !generatedImageResult) {
+                      throw new Error(lastError || 'Sample image generation failed');
+                    }
+
+                    // Save the sample image record
+                    await db
+                      .insert(generatedImages)
+                      .values({
+                        userId: user.id,
+                        generationId: null,
+                        originalImageId: sourceImage.id,
+                        scenario,
+                        prompt,
+                        s3Key: uploadData.s3Key,
+                        s3Url: uploadData.s3Url,
+                        geminiRequestId: generatedImageResult.requestId,
+                        isSample: true,
+                      });
+
+                    logger.info('Sample photo generated successfully', {
+                      cognitoUserId: ctx.user.sub,
+                      sourceImageId: sourceImage.id,
+                      scenario,
+                    });
+                  } catch (error) {
+                    logger.error('Sample photo generation failed for image', {
+                      cognitoUserId: ctx.user.sub,
+                      imageId: sourceImage.id,
+                      scenario,
+                      error: error instanceof Error ? error.message : error,
+                    });
+                    throw error;
+                  }
+                })
+              );
+
+              const successCount = generationResults.filter(r => r.status === 'fulfilled').length;
+              logger.info('Background sample generation completed', {
+                cognitoUserId: ctx.user.sub,
+                successCount,
+                failedCount: generationResults.length - successCount,
+              });
+            } catch (error) {
+              logger.error('Background sample generation failed', {
+                cognitoUserId: ctx.user.sub,
+                error: error instanceof Error ? error.message : error,
+              });
+            }
+          })();
+        }
+      }
+
+      return {
+        imageId: image.id,
+        isValid: validationResult.isValid,
+        warnings: validationResult.warnings,
+        details: validationResult.details,
+        sampleGenerationStarted,
+      };
+    }),
+
   // Bypass validation for specific images
   bypassValidation: protectedProcedure
     .input(z.object({

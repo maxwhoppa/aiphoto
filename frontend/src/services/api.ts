@@ -341,6 +341,29 @@ export async function validateImages(imageIds: string[]): Promise<ValidationResp
   }
 }
 
+export interface SingleValidationResult extends ValidationResult {
+  sampleGenerationStarted: boolean;
+}
+
+export async function validateSingleImage(imageId: string): Promise<SingleValidationResult> {
+  console.log('validateSingleImage called with:', imageId);
+
+  const requestBody = { imageId };
+
+  try {
+    const response = await apiRequestJson('/trpc/images.validateSingleImage', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('Validate single image response:', response);
+    return response?.result?.data || response;
+  } catch (error) {
+    console.error('validateSingleImage error:', error);
+    throw error;
+  }
+}
+
 export async function bypassValidation(imageIds: string[]) {
   console.log('bypassValidation called with:', imageIds);
 

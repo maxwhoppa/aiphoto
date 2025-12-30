@@ -5,7 +5,7 @@ import { ProfileViewScreen } from './ProfileViewScreen';
 import { ProfilePreview } from './ProfilePreview';
 import { PhotoRanking } from './PhotoRanking';
 import { SinglePhotoSelectionScreen } from './SinglePhotoSelectionScreen';
-import { setSelectedProfilePhotos, getSelectedProfilePhotos } from '../../services/api';
+import { setSelectedProfilePhotos, getSelectedProfilePhotos, checkPaymentAccess } from '../../services/api';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { hasNewPhotos, setLastViewedPhotoCount } from '../../utils/photoViewTracking';
@@ -52,6 +52,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [photosToRank, setPhotosToRank] = useState<GeneratedPhoto[]>([]);
   const [hasUnviewedPhotos, setHasUnviewedPhotos] = useState(false);
   const [photoToReplace, setPhotoToReplace] = useState<{ index: number; photo: GeneratedPhoto } | null>(null);
+  const [freeCredits, setFreeCredits] = useState(0);
 
   // Group photos by scenario for selection flow
   const photosByScenario = generatedPhotos.reduce((acc, photo) => {
@@ -145,6 +146,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     checkForNewPhotos();
   }, [generatedPhotos.length]);
 
+  // Check for free credits on mount and when view mode changes to preview
+  useEffect(() => {
+    const checkCredits = async () => {
+      try {
+        const accessResult = await checkPaymentAccess();
+        if (accessResult?.hasAccess) {
+          setFreeCredits(1); // User has at least 1 free credit
+          console.log('ProfileScreen: User has free credit available');
+        } else {
+          setFreeCredits(0);
+        }
+      } catch (error) {
+        console.error('ProfileScreen: Error checking credits:', error);
+        setFreeCredits(0);
+      }
+    };
+
+    if (viewMode === 'preview') {
+      checkCredits();
+    }
+  }, [viewMode]);
+
   const handleSelectionComplete = useCallback(async (selections: { generatedImageId: string; order: number }[]) => {
     setIsSaving(true);
     try {
@@ -196,6 +219,86 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       [{ text: 'OK' }]
     );
   }, []);
+
+  const handleAutoAddPhotos = useCallback(async () => {
+    try {
+      console.log('handleAutoAddPhotos: Starting auto-add process');
+
+      // Refresh to get latest photos
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      // Calculate how many more photos we need
+      const currentCount = selectedPhotos.length;
+      const neededCount = Math.min(6 - currentCount, 6);
+
+      if (neededCount <= 0) {
+        console.log('handleAutoAddPhotos: Already have 6 photos');
+        return;
+      }
+
+      // Get IDs of already selected photos
+      const selectedIds = new Set(selectedPhotos.map(p => p.id));
+
+      // Find unselected photos from generatedPhotos
+      const unselectedPhotos = generatedPhotos.filter(p => !selectedIds.has(p.id));
+
+      console.log('handleAutoAddPhotos: Found', unselectedPhotos.length, 'unselected photos, need', neededCount);
+
+      if (unselectedPhotos.length === 0) {
+        Alert.alert(
+          'No More Photos Available',
+          'All your photos have already been selected. Would you like to generate more photos to add to your profile?',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'Generate More', onPress: onGenerateAgain },
+          ]
+        );
+        return;
+      }
+
+      // Take the first N unselected photos (they should be sorted by quality/recency)
+      const photosToAdd = unselectedPhotos.slice(0, neededCount);
+
+      // Create new selections array with existing + new photos
+      // Order must be 1-indexed (1-6) for the server
+      const newSelections = [
+        ...selectedPhotos.map((photo, index) => ({
+          generatedImageId: photo.id,
+          order: photo.selectedProfileOrder ?? (index + 1),
+        })),
+        ...photosToAdd.map((photo, index) => ({
+          generatedImageId: photo.id,
+          order: currentCount + index + 1, // 1-indexed
+        })),
+      ];
+
+      console.log('handleAutoAddPhotos: Saving', newSelections.length, 'selections', newSelections);
+
+      // Save to API
+      await setSelectedProfilePhotos(newSelections);
+
+      // Update local state
+      const updatedSelectedPhotos = [
+        ...selectedPhotos,
+        ...photosToAdd.map((photo, index) => ({
+          ...photo,
+          selectedProfileOrder: currentCount + index + 1, // 1-indexed
+        })),
+      ];
+      setSelectedPhotos(updatedSelectedPhotos);
+
+      console.log('handleAutoAddPhotos: Added', photosToAdd.length, 'photos');
+    } catch (error) {
+      console.error('handleAutoAddPhotos: Error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to add photos. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  }, [selectedPhotos, generatedPhotos, onRefresh, onGenerateAgain]);
 
   const handleSinglePhotoReplace = useCallback((photoIndex: number, currentPhoto: GeneratedPhoto) => {
     setPhotoToReplace({ index: photoIndex, photo: currentPhoto });
@@ -400,6 +503,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           isNewGeneration={hasUnviewedPhotos || hasNewGeneratedPhotos}
           isGenerating={isGenerating}
           generationMessage={generationMessage}
+          freeCredits={freeCredits}
+          onAutoAddPhotos={handleAutoAddPhotos}
         />
       );
 

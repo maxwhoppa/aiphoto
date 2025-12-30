@@ -19,14 +19,12 @@ import { Button } from '../../components/Button';
 import { BottomTab } from '../../components/BottomTab';
 import { Text } from '../../components/Text';
 import {
-  validateImages,
+  validateSingleImage,
   bypassValidation,
   getUploadUrls,
   recordUploadedImages,
   replaceImage,
-  ValidationResult,
   getMyImages,
-  generateSamplePhotos,
   SamplePhotoImage,
 } from '../../services/api';
 
@@ -103,74 +101,17 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
 
-  // Sample photos generation state
-  const [samplePhotos, setSamplePhotos] = useState<SamplePhotos | null>(null);
+  // Sample generation is now handled by the server automatically
   const [sampleGenerationStarted, setSampleGenerationStarted] = useState(false);
 
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 3;
   const MAX_PHOTOS = 10;
-  const MAX_SAMPLES = 3;
 
   // Fetch image data and start validation on mount
   useEffect(() => {
     fetchImagesAndValidate();
   }, []);
-
-  // Start sample generation when we have at least 3 validated photos (or all photos are done validating)
-  useEffect(() => {
-    const validatedImages = images.filter(
-      img => img.validationStatus === 'validated' || img.validationStatus === 'bypassed'
-    );
-    const stillValidating = images.some(img => img.validationStatus === 'validating');
-
-    // Start generation when we have 3+ validated images, or when validation is complete with at least 1
-    const shouldStart = !sampleGenerationStarted && !samplePhotos && (
-      validatedImages.length >= MAX_SAMPLES ||
-      (!stillValidating && validatedImages.length > 0)
-    );
-
-    if (shouldStart) {
-      setSampleGenerationStarted(true);
-      const imageIdsToUse = validatedImages.slice(0, MAX_SAMPLES).map(img => img.id);
-      startSampleGeneration(imageIdsToUse);
-    }
-  }, [images, sampleGenerationStarted, samplePhotos]);
-
-  const startSampleGeneration = async (imageIds: string[]) => {
-    console.log('Starting sample photos generation for images:', imageIds);
-
-    setSamplePhotos({
-      photos: [],
-      isGenerating: true,
-    });
-
-    try {
-      const response = await generateSamplePhotos(imageIds);
-
-      if (response.success && response.sampleImages && response.sampleImages.length > 0) {
-        console.log('Sample photos generated successfully:', response.sampleImages.length);
-        setSamplePhotos({
-          photos: response.sampleImages,
-          isGenerating: false,
-        });
-      } else {
-        console.error('Sample generation failed:', response.error);
-        setSamplePhotos({
-          photos: [],
-          isGenerating: false,
-          error: response.error || 'Failed to generate samples',
-        });
-      }
-    } catch (error) {
-      console.error('Sample generation error:', error);
-      setSamplePhotos({
-        photos: [],
-        isGenerating: false,
-        error: error instanceof Error ? error.message : 'Failed to generate samples',
-      });
-    }
-  };
 
   const fetchImagesAndValidate = async () => {
     try {
@@ -224,46 +165,54 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
 
       // Only validate images that haven't been validated yet (still 'validating' status)
       const imagesToValidate = imageDataList.filter(img => img.validationStatus === 'validating');
-      const imageIdsToValidate = imagesToValidate.map(img => img.id);
 
-      console.log('PhotoValidationScreen: Images needing validation:', imageIdsToValidate.length, 'of', imageDataList.length);
+      console.log('PhotoValidationScreen: Images needing validation:', imagesToValidate.length, 'of', imageDataList.length);
 
-      if (imageIdsToValidate.length === 0) {
+      if (imagesToValidate.length === 0) {
         // All images already validated, nothing to do
         console.log('PhotoValidationScreen: All images already validated, skipping validation');
         setIsValidating(false);
         return;
       }
 
-      // Start validation only for pending images
-      const response = await validateImages(imageIdsToValidate);
+      // Validate each image individually - server will trigger sample generation automatically
+      for (const img of imagesToValidate) {
+        try {
+          console.log('PhotoValidationScreen: Validating image:', img.id);
+          const result = await validateSingleImage(img.id);
 
-      // Handle various response formats
-      const validationResults = response?.results || response?.result?.data?.results || [];
-
-      console.log('PhotoValidationScreen: Validation results:', validationResults?.length || 0);
-
-      // Update only the newly validated images with validation results
-      setImages(prevImages =>
-        prevImages.map(img => {
-          // Skip images that were already validated
-          if (img.validationStatus !== 'validating') {
-            return img;
+          // Track if sample generation was started
+          if (result.sampleGenerationStarted && !sampleGenerationStarted) {
+            setSampleGenerationStarted(true);
+            console.log('PhotoValidationScreen: Sample generation started by server');
           }
 
-          const result = Array.isArray(validationResults)
-            ? validationResults.find((r: ValidationResult) => r.imageId === img.id)
-            : null;
-          if (result) {
-            return {
-              ...img,
-              validationStatus: result.isValid ? 'validated' : 'failed',
-              warnings: result.warnings || [],
-            };
-          }
-          return { ...img, validationStatus: 'validated', warnings: [] };
-        })
-      );
+          // Update this image's status immediately
+          setImages(prevImages =>
+            prevImages.map(prevImg =>
+              prevImg.id === img.id
+                ? {
+                    ...prevImg,
+                    validationStatus: result.isValid ? 'validated' : 'failed',
+                    warnings: result.warnings || [],
+                  }
+                : prevImg
+            )
+          );
+
+          console.log('PhotoValidationScreen: Image validated:', img.id, 'isValid:', result.isValid);
+        } catch (error) {
+          console.error('PhotoValidationScreen: Failed to validate image:', img.id, error);
+          // Mark as validated on error to allow proceeding
+          setImages(prevImages =>
+            prevImages.map(prevImg =>
+              prevImg.id === img.id
+                ? { ...prevImg, validationStatus: 'validated', warnings: [] }
+                : prevImg
+            )
+          );
+        }
+      }
     } catch (error) {
       console.error('Validation failed:', error);
       Alert.alert('Validation Error', 'Failed to validate photos. Please try again.');
@@ -480,12 +429,13 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
         },
       ]);
 
-      // Validate the new image
-      const validationResponse = await validateImages([newImageId]);
-      const validationResults = validationResponse?.results || validationResponse?.result?.data?.results || [];
-      const validationResult = Array.isArray(validationResults)
-        ? validationResults.find((r: ValidationResult) => r.imageId === newImageId)
-        : null;
+      // Validate the new image - server will trigger sample generation if needed
+      const validationResult = await validateSingleImage(newImageId);
+
+      if (validationResult.sampleGenerationStarted && !sampleGenerationStarted) {
+        setSampleGenerationStarted(true);
+        console.log('PhotoValidationScreen: Sample generation started by server (new photo)');
+      }
 
       setImages(prevImages =>
         prevImages.map(img =>
@@ -613,20 +563,21 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
         )
       );
 
-      // Validate the new image
-      const validationResponse = await validateImages([newImageId]);
-      const validationResults = validationResponse?.results || validationResponse?.result?.data?.results || [];
-      const result = Array.isArray(validationResults)
-        ? validationResults.find((r: ValidationResult) => r.imageId === newImageId)
-        : null;
+      // Validate the new image - server will trigger sample generation if needed
+      const validationResult = await validateSingleImage(newImageId);
+
+      if (validationResult.sampleGenerationStarted && !sampleGenerationStarted) {
+        setSampleGenerationStarted(true);
+        console.log('PhotoValidationScreen: Sample generation started by server (replacement photo)');
+      }
 
       setImages(prevImages =>
         prevImages.map(img =>
           img.id === newImageId
             ? {
                 ...img,
-                validationStatus: result?.isValid ? 'validated' : 'failed',
-                warnings: result?.warnings || [],
+                validationStatus: validationResult?.isValid ? 'validated' : 'failed',
+                warnings: validationResult?.warnings || [],
               }
             : img
         )
@@ -644,7 +595,9 @@ export const PhotoValidationScreen: React.FC<PhotoValidationScreenProps> = ({
       .filter(img => img.validationStatus === 'validated' || img.validationStatus === 'bypassed')
       .map(img => img.id);
 
-    onNext(validImageIds, samplePhotos || undefined);
+    // Pass samplePhotos as generating if sample generation was started
+    // The SamplePreviewScreen will poll for the actual photos
+    onNext(validImageIds, sampleGenerationStarted ? { photos: [], isGenerating: true } : undefined);
   };
 
   // Calculate progress stats

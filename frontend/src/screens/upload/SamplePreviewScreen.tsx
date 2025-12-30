@@ -163,7 +163,7 @@ export const SamplePreviewScreen: React.FC<SamplePreviewScreenProps> = ({
                   Generating your previews...
                 </Text>
                 <Text style={[styles.loadingSubtext, { color: colors.textSecondary }]}>
-                  This usually takes 30-60 seconds
+                  This usually takes 20-30 seconds
                 </Text>
               </View>
             ) : (

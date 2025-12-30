@@ -37,6 +37,8 @@ interface ProfilePreviewProps {
   isNewGeneration?: boolean;
   isGenerating?: boolean;
   generationMessage?: string;
+  freeCredits?: number;
+  onAutoAddPhotos?: () => Promise<void>;
 }
 
 export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
@@ -51,6 +53,8 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   isNewGeneration = false,
   isGenerating = false,
   generationMessage = "Images Generating...",
+  freeCredits = 0,
+  onAutoAddPhotos,
 }) => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
@@ -65,6 +69,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [isAtTop, setIsAtTop] = useState(true);
   const [showCompletionBounce, setShowCompletionBounce] = useState(false);
+  const [isAddingPhotos, setIsAddingPhotos] = useState(false);
   const prevIsGenerating = useRef(isGenerating);
   const bounceAnim = useRef(new Animated.Value(0)).current;
 
@@ -265,15 +270,38 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
         {sortedPhotos.length < 6 && (
           <TouchableOpacity
             style={[styles.addMoreCard, { borderColor: colors.primary }]}
-            onPress={onReselect}
+            onPress={async () => {
+              if (onAutoAddPhotos && !isAddingPhotos) {
+                setIsAddingPhotos(true);
+                try {
+                  await onAutoAddPhotos();
+                } finally {
+                  setIsAddingPhotos(false);
+                }
+              } else {
+                onReselect();
+              }
+            }}
+            disabled={isAddingPhotos}
           >
-            <Ionicons name="add-circle-outline" size={48} color={colors.primary} />
-            <Text style={[styles.addMoreText, { color: colors.primary }]}>
-              Add More Photos
-            </Text>
-            <Text style={[styles.addMoreSubtext, { color: colors.textSecondary }]}>
-              You can add up to {6 - sortedPhotos.length} more photos
-            </Text>
+            {isAddingPhotos ? (
+              <>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.addMoreText, { color: colors.primary }]}>
+                  Adding Photos...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="add-circle-outline" size={48} color={colors.primary} />
+                <Text style={[styles.addMoreText, { color: colors.primary }]}>
+                  Add More Photos
+                </Text>
+                <Text style={[styles.addMoreSubtext, { color: colors.textSecondary }]}>
+                  You can add up to {6 - sortedPhotos.length} more photos
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
 
@@ -305,6 +333,13 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
             <Text style={styles.sideButtonText}>
               Generate
             </Text>
+            {freeCredits > 0 && (
+              <View style={styles.freeCreditBadge}>
+                <Text style={styles.freeCreditText}>
+                  {freeCredits} free
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -385,6 +420,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 3,
     elevation: 3,
+  },
+  freeCreditBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -4,
+    backgroundColor: '#FF6B35', // Orange color
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  freeCreditText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   title: {
   },
