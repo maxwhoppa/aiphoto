@@ -5,6 +5,7 @@ import { ProfileViewScreen } from './ProfileViewScreen';
 import { ProfilePreview } from './ProfilePreview';
 import { PhotoRanking } from './PhotoRanking';
 import { SinglePhotoSelectionScreen } from './SinglePhotoSelectionScreen';
+import { SettingsScreen } from '../settings/SettingsScreen';
 import { setSelectedProfilePhotos, getSelectedProfilePhotos, checkPaymentAccess } from '../../services/api';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -29,7 +30,7 @@ interface ProfileScreenProps {
   onNewPhotosViewed?: () => void;
 }
 
-type ViewMode = 'ranking' | 'preview' | 'all' | 'single-select';
+type ViewMode = 'ranking' | 'preview' | 'all' | 'single-select' | 'settings';
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   generatedPhotos,
@@ -505,6 +506,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           generationMessage={generationMessage}
           freeCredits={freeCredits}
           onAutoAddPhotos={handleAutoAddPhotos}
+          onOpenSettings={() => setViewMode('settings')}
         />
       );
 
@@ -533,6 +535,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           onCancel={handleCancelSingleSelection}
         />
       ) : null;
+
+    case 'settings':
+      return (
+        <SettingsScreen
+          onBack={() => setViewMode('preview')}
+        />
+      );
 
     default:
       return null;

@@ -5,6 +5,7 @@ import {
   confirmEmail,
   loginWithEmail,
   signOut as cognitoSignOut,
+  deleteUser as cognitoDeleteUser,
 } from '../services/cognito';
 import { authHandler } from '../services/authHandler';
 import {
@@ -26,6 +27,7 @@ interface AuthContextType {
   confirmSignUp: (email: string, code: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   token: string | null;
   isAppleSignInAvailable: boolean;
   // Authenticated request methods
@@ -230,6 +232,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      console.log('Deleting user account...');
+
+      // Get the current access token
+      const accessToken = await authHandler.getValidAccessToken();
+
+      if (!accessToken) {
+        throw new Error('No valid access token found');
+      }
+
+      // Delete the user from Cognito (this allows re-registration with same email)
+      await cognitoDeleteUser(accessToken);
+
+      // Clear local tokens
+      await authHandler.clearTokens();
+
+      // Clear local state
+      setUser(null);
+      setToken(null);
+
+      console.log('Account deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -241,6 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         confirmSignUp,
         signInWithApple,
         signOut,
+        deleteAccount,
         token,
         isAppleSignInAvailable: appleSignInAvailable,
         // Provide access to authHandler methods

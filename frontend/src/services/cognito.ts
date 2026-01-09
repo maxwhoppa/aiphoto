@@ -4,6 +4,7 @@ import {
   ConfirmSignUpCommand,
   InitiateAuthCommand,
   AuthFlowType,
+  DeleteUserCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 import * as SecureStore from 'expo-secure-store';
 
@@ -116,6 +117,29 @@ export function signOut(): void {
   // Clear stored tokens
   SecureStore.deleteItemAsync('auth_token');
   SecureStore.deleteItemAsync('user_data');
+}
+
+// Delete user account - allows re-registration with the same email
+export async function deleteUser(accessToken: string): Promise<void> {
+  try {
+    console.log('Deleting user account from Cognito...');
+    const command = new DeleteUserCommand({
+      AccessToken: accessToken,
+    });
+
+    await client.send(command);
+    console.log('User account deleted successfully from Cognito');
+
+    // Clear stored tokens after deletion
+    await SecureStore.deleteItemAsync('auth_token');
+    await SecureStore.deleteItemAsync('user_data');
+    await SecureStore.deleteItemAsync('access_token');
+    await SecureStore.deleteItemAsync('id_token');
+    await SecureStore.deleteItemAsync('refresh_token');
+  } catch (error) {
+    console.error('Delete user error:', error);
+    throw error;
+  }
 }
 
 // Get user attributes (simplified version)

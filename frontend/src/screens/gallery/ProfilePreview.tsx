@@ -39,6 +39,7 @@ interface ProfilePreviewProps {
   generationMessage?: string;
   freeCredits?: number;
   onAutoAddPhotos?: () => Promise<void>;
+  onOpenSettings?: () => void;
 }
 
 export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
@@ -55,6 +56,7 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   generationMessage = "Images Generating...",
   freeCredits = 0,
   onAutoAddPhotos,
+  onOpenSettings,
 }) => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
@@ -148,7 +150,17 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
 
       {/* Profile Preview Title */}
       <View style={styles.titleSection}>
-        <Text variant="title" style={[styles.title, { color: colors.text }]}>Your profile preview</Text>
+        <View style={styles.titleRow}>
+          <Text variant="title" style={[styles.title, { color: colors.text }]}>Your profile preview</Text>
+          {onOpenSettings && (
+            <TouchableOpacity
+              style={[styles.settingsButton, { backgroundColor: colors.surface }]}
+              onPress={onOpenSettings}
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )}
+        </View>
         <Text variant="body" style={[styles.subtitle, { color: colors.textSecondary }]}>
           Swipe to see how your profile looks
         </Text>
@@ -367,8 +379,6 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({
                 ]}
               />
             )}
-            {/* Debug logging for dot visibility */}
-            {console.log('ProfilePreview: Bouncing dot should be visible:', (isNewGeneration || showCompletionBounce), 'isNewGeneration:', isNewGeneration, 'showCompletionBounce:', showCompletionBounce)}
           </TouchableOpacity>
         </View>
       </BottomTab>
@@ -384,6 +394,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 5,
     paddingBottom: 10,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   sideBySideButtons: {
     flexDirection: 'row',

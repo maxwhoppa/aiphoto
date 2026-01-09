@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,9 +14,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import * as SecureStore from 'expo-secure-store';
 
-export const SettingsScreen: React.FC = () => {
+interface SettingsScreenProps {
+  onBack?: () => void;
+}
+
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const { colors } = useTheme();
-  const { signOut } = useAuth();
+  const { signOut, deleteAccount, user } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert(
@@ -43,12 +49,102 @@ export const SettingsScreen: React.FC = () => {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // Second confirmation
+            Alert.alert(
+              'Confirm Deletion',
+              'This will permanently delete your account and all associated data. You can create a new account with the same email after deletion.',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: 'Delete Forever',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setIsDeleting(true);
+                    try {
+                      // Clear any stored data
+                      await SecureStore.deleteItemAsync('hasCompletedOnboarding');
+                      await deleteAccount();
+                    } catch (error: any) {
+                      console.error('Error deleting account:', error);
+                      Alert.alert(
+                        'Error',
+                        'Failed to delete account. Please try again later.',
+                        [{ text: 'OK' }]
+                      );
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      {/* Loading overlay for delete operation */}
+      {isDeleting && (
+        <View style={styles.loadingOverlay}>
+          <View style={[styles.loadingModal, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.text }]}>
+              Deleting account...
+            </Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Header with back button */}
         <View style={styles.header}>
+          {onBack && (
+            <TouchableOpacity style={styles.backButton} onPress={onBack}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          )}
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         </View>
+
+        {/* Account Info Section */}
+        {user?.email && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Info</Text>
+
+            <View style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.settingContent}>
+                <View style={styles.settingIconContainer}>
+                  <Ionicons name="mail-outline" size={24} color={colors.textSecondary} />
+                </View>
+                <View style={styles.settingTextContainer}>
+                  <Text style={[styles.settingTitle, { color: colors.text }]}>Email</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                    {user.email}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
@@ -59,12 +155,30 @@ export const SettingsScreen: React.FC = () => {
           >
             <View style={styles.settingContent}>
               <View style={styles.settingIconContainer}>
-                <Ionicons name="log-out-outline" size={24} color={colors.error} />
+                <Ionicons name="log-out-outline" size={24} color={colors.text} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingTitle, { color: colors.error }]}>Sign Out</Text>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>Sign Out</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                   Sign out of your account
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.settingItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={handleDeleteAccount}
+            disabled={isDeleting}
+          >
+            <View style={styles.settingContent}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="trash-outline" size={24} color={colors.error} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingTitle, { color: colors.error }]}>Delete Account</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  Permanently delete your account and data
                 </Text>
               </View>
             </View>
@@ -111,13 +225,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 30,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 20,
+    padding: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingModal: {
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 30,
