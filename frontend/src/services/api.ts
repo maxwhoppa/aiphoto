@@ -466,6 +466,28 @@ export async function getSamplePhotos(): Promise<SamplePhotoImage[]> {
   return response[0]?.result?.data || response[0] || [];
 }
 
+// Feedback API calls
+export async function checkHasSubmittedFeedback(): Promise<boolean> {
+  const params = new URLSearchParams({
+    batch: '1',
+    input: JSON.stringify({ '0': {} })
+  });
+  const response = await apiRequestJson(`/trpc/feedback.hasSubmitted?${params}`);
+  const result = response[0]?.result?.data || response[0];
+  return result?.hasSubmitted || false;
+}
+
+export async function submitFeedback(signal: 'positive' | 'neutral' | 'negative', feedbackText?: string) {
+  const requestBody = { signal, feedbackText };
+
+  const response = await apiRequestJson('/trpc/feedback.submit', {
+    method: 'POST',
+    body: JSON.stringify(requestBody),
+  });
+
+  return response;
+}
+
 // All these methods will:
 // 1. Automatically include the Authorization header with a valid access token
 // 2. Refresh the token if it's expired before making the request

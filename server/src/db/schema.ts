@@ -4,6 +4,9 @@ import { relations } from 'drizzle-orm';
 // Enum for generation status
 export const generationStatusEnum = pgEnum('generation_status', ['in_progress', 'completed', 'failed']);
 
+// Enum for feedback signal
+export const feedbackSignalEnum = pgEnum('feedback_signal', ['positive', 'neutral', 'negative']);
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   cognitoId: varchar('cognito_id', { length: 255 }).notNull().unique(),
@@ -83,12 +86,21 @@ export const payments = pgTable('payments', {
   redeemedAt: timestamp('redeemed_at'), // When user generated photos using this payment
 });
 
+export const feedback = pgTable('feedback', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  signal: feedbackSignalEnum('signal').notNull(), // positive, neutral, negative
+  feedbackText: text('feedback_text'), // Optional text feedback (for neutral/negative)
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userImages: many(userImages),
   generatedImages: many(generatedImages),
   generations: many(generations),
   payments: many(payments),
+  feedback: many(feedback),
 }));
 
 export const userImagesRelations = relations(userImages, ({ one, many }) => ({
@@ -134,6 +146,13 @@ export const paymentsRelations = relations(payments, ({ one, many }) => ({
   generations: many(generations),
 }));
 
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  user: one(users, {
+    fields: [feedback.userId],
+    references: [users.id],
+  }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type UserImage = typeof userImages.$inferSelect;
@@ -146,6 +165,9 @@ export type Scenario = typeof scenarios.$inferSelect;
 export type NewScenario = typeof scenarios.$inferInsert;
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+export type Feedback = typeof feedback.$inferSelect;
+export type NewFeedback = typeof feedback.$inferInsert;
+export type FeedbackSignal = 'positive' | 'neutral' | 'negative';
 
 // Validation types
 export type ValidationStatus = 'pending' | 'validated' | 'failed' | 'bypassed';

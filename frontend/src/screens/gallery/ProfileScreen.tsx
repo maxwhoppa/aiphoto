@@ -7,10 +7,11 @@ import { ProfilePreview } from './ProfilePreview';
 import { PhotoRanking } from './PhotoRanking';
 import { SinglePhotoSelectionScreen } from './SinglePhotoSelectionScreen';
 import { SettingsScreen } from '../settings/SettingsScreen';
-import { setSelectedProfilePhotos, getSelectedProfilePhotos, checkPaymentAccess } from '../../services/api';
+import { setSelectedProfilePhotos, getSelectedProfilePhotos, checkPaymentAccess, checkHasSubmittedFeedback } from '../../services/api';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { hasNewPhotos, setLastViewedPhotoCount } from '../../utils/photoViewTracking';
+import { FeedbackModal } from '../../components/FeedbackModal';
 
 interface GeneratedPhoto {
   id: string;
@@ -55,6 +56,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [hasUnviewedPhotos, setHasUnviewedPhotos] = useState(false);
   const [photoToReplace, setPhotoToReplace] = useState<{ index: number; photo: GeneratedPhoto } | null>(null);
   const [freeCredits, setFreeCredits] = useState(0);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const hasPromptedFeedbackThisSession = useRef(false);
 
   // Group photos by scenario for selection flow
   const photosByScenario = generatedPhotos.reduce((acc, photo) => {
@@ -427,6 +430,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
               if (failedCount === 0) {
                 Alert.alert('Success', `All ${successCount} profile photos saved!`);
+
+                // Show feedback modal if not prompted this session and user hasn't submitted feedback before
+                if (!hasPromptedFeedbackThisSession.current) {
+                  try {
+                    const hasSubmitted = await checkHasSubmittedFeedback();
+                    if (!hasSubmitted) {
+                      hasPromptedFeedbackThisSession.current = true;
+                      // Small delay to let the success alert dismiss
+                      setTimeout(() => {
+                        setShowFeedbackModal(true);
+                      }, 500);
+                    }
+                  } catch (error) {
+                    console.log('Error checking feedback status:', error);
+                  }
+                }
               } else {
                 Alert.alert(
                   'Partially Complete',
@@ -487,30 +506,36 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
     case 'preview':
       return (
-        <ProfilePreview
-          selectedPhotos={selectedPhotos}
-          onDownloadAll={handleDownloadAll}
-          onReselect={handleReselect}
-          onGenerateAgain={onGenerateAgain}
-          onViewAllPhotos={() => {
-            setPreviousViewMode(viewMode);
-            setViewMode('all');
-            // Don't mark photos as viewed here - let ProfileViewScreen handle it
-            setHasUnviewedPhotos(false);
-            // Clear the new generated photos flag when user views all photos
-            if (onNewPhotosViewed) {
-              onNewPhotosViewed();
-            }
-          }}
-          onSinglePhotoReplace={handleSinglePhotoReplace}
-          downloadingPhotos={downloadingPhotos}
-          isNewGeneration={hasUnviewedPhotos || hasNewGeneratedPhotos}
-          isGenerating={isGenerating}
-          generationMessage={generationMessage}
-          freeCredits={freeCredits}
-          onAutoAddPhotos={handleAutoAddPhotos}
-          onOpenSettings={() => setViewMode('settings')}
-        />
+        <>
+          <ProfilePreview
+            selectedPhotos={selectedPhotos}
+            onDownloadAll={handleDownloadAll}
+            onReselect={handleReselect}
+            onGenerateAgain={onGenerateAgain}
+            onViewAllPhotos={() => {
+              setPreviousViewMode(viewMode);
+              setViewMode('all');
+              // Don't mark photos as viewed here - let ProfileViewScreen handle it
+              setHasUnviewedPhotos(false);
+              // Clear the new generated photos flag when user views all photos
+              if (onNewPhotosViewed) {
+                onNewPhotosViewed();
+              }
+            }}
+            onSinglePhotoReplace={handleSinglePhotoReplace}
+            downloadingPhotos={downloadingPhotos}
+            isNewGeneration={hasUnviewedPhotos || hasNewGeneratedPhotos}
+            isGenerating={isGenerating}
+            generationMessage={generationMessage}
+            freeCredits={freeCredits}
+            onAutoAddPhotos={handleAutoAddPhotos}
+            onOpenSettings={() => setViewMode('settings')}
+          />
+          <FeedbackModal
+            visible={showFeedbackModal}
+            onClose={() => setShowFeedbackModal(false)}
+          />
+        </>
       );
 
     case 'all':
