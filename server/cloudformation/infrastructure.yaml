@@ -61,6 +61,12 @@ Parameters:
     Default: '*'
     Description: CORS allowed origins
 
+  GrantFreeCreditOnSignup:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Grant new users a free payment credit on signup
+
   GitHubRepo:
     Type: String
     Description: GitHub repository (owner/repo)
@@ -325,6 +331,7 @@ Resources:
             STRIPE_SECRET_KEY=${StripeSecretKey}
             STRIPE_WEBHOOK_SECRET=${StripeWebhookSecret}
             CORS_ORIGIN=${CorsOrigin}
+            GRANT_FREE_CREDIT_ON_SIGNUP=${GrantFreeCreditOnSignup}
             EOF
 
             # Install CodeDeploy agent

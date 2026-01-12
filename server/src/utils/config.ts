@@ -1,3 +1,7 @@
+// NOTE: When adding new environment variables, also update:
+//   - .github/workflows/deploy.yml (CloudFormation parameter overrides)
+//   - cloudformation/infrastructure.yaml (Parameters section + UserData .env file)
+
 // Load .env file in development (or when NODE_ENV is undefined)
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   const { config } = require('dotenv');

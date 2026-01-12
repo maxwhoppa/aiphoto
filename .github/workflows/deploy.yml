@@ -168,6 +168,7 @@ jobs:
               StripeWebhookSecret="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
               S3BucketName="${{ secrets.S3_BUCKET_NAME || 'aiphoto-images-dev' }}" \
               CorsOrigin="${{ secrets.CORS_ORIGIN || 'http://localhost:3000,http://localhost:19006' }}" \
+              GrantFreeCreditOnSignup="${{ secrets.GRANT_FREE_CREDIT_ON_SIGNUP || 'false' }}" \
               GitHubRepo="${{ github.repository }}" \
               DomainName="api.autorizz.app" \
             --capabilities CAPABILITY_NAMED_IAM \
