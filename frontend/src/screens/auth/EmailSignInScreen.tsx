@@ -261,8 +261,8 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                     placeholderTextColor={colors.textSecondary}
                     secureTextEntry
                     autoCapitalize="none"
-                    autoComplete="password"
-                    textContentType="password"
+                    autoComplete={mode === 'signup' ? 'new-password' : 'password'}
+                    textContentType={mode === 'signup' ? 'newPassword' : 'password'}
                     returnKeyType={mode === 'signin' ? 'done' : 'next'}
                     blurOnSubmit={false}
                   />
@@ -284,8 +284,8 @@ export const EmailSignInScreen: React.FC<EmailSignInScreenProps> = ({
                       placeholderTextColor={colors.textSecondary}
                       secureTextEntry
                       autoCapitalize="none"
-                      autoComplete="password"
-                      textContentType="password"
+                      autoComplete="new-password"
+                      textContentType="newPassword"
                       returnKeyType="done"
                       blurOnSubmit={false}
                     />
