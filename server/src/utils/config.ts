@@ -39,6 +39,9 @@ const configSchema = z.object({
   
   // CORS
   CORS_ORIGIN: z.string().default('*'),
+
+  // Feature flags
+  GRANT_FREE_CREDIT_ON_SIGNUP: z.string().transform((val) => val === 'true').default('false'),
 });
 
 export const config = configSchema.parse(process.env);

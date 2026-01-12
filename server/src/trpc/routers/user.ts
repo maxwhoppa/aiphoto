@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../index';
-import { getDb, users } from '../../db/index';
+import { getDb, users, payments } from '../../db/index';
 import { eq } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
+import { config } from '../../utils/config';
 
 export const userRouter = router({
   // Get current user's data
@@ -20,6 +21,21 @@ export const userRouter = router({
           email: ctx.user.email || `${ctx.user.sub}@cognito.local`,
         }).returning();
         user = newUser;
+
+        // Grant free credit on signup if enabled
+        if (config.GRANT_FREE_CREDIT_ON_SIGNUP) {
+          await db.insert(payments).values({
+            userId: user.id,
+            transactionId: `free_signup_credit_${user.id}`,
+            amount: '0',
+            currency: 'usd',
+            redeemed: false,
+          });
+          logger.info('Granted free signup credit', {
+            userId: user.id,
+            cognitoUserId: ctx.user.sub,
+          });
+        }
       }
 
       logger.info('Get user data', {
@@ -55,6 +71,21 @@ export const userRouter = router({
           phoneNumber: input.phoneNumber,
         }).returning();
         user = newUser;
+
+        // Grant free credit on signup if enabled
+        if (config.GRANT_FREE_CREDIT_ON_SIGNUP) {
+          await db.insert(payments).values({
+            userId: user.id,
+            transactionId: `free_signup_credit_${user.id}`,
+            amount: '0',
+            currency: 'usd',
+            redeemed: false,
+          });
+          logger.info('Granted free signup credit', {
+            userId: user.id,
+            cognitoUserId: ctx.user.sub,
+          });
+        }
       } else {
         // Update phone number
         const [updatedUser] = await db.update(users)
