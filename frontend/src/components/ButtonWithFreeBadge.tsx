@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text } from './Text';
 import { Button } from './Button';
 import { checkPaymentAccess } from '../services/api';
@@ -23,22 +24,24 @@ export const ButtonWithFreeBadge: React.FC<ButtonWithFreeBadgeProps> = ({
 }) => {
   const [freeCredits, setFreeCredits] = useState(0);
 
-  useEffect(() => {
-    const checkCredits = async () => {
-      try {
-        const accessResult = await checkPaymentAccess();
-        if (accessResult?.hasAccess) {
-          setFreeCredits(1);
-        } else {
+  useFocusEffect(
+    useCallback(() => {
+      const checkCredits = async () => {
+        try {
+          const accessResult = await checkPaymentAccess();
+          if (accessResult?.hasAccess) {
+            setFreeCredits(1);
+          } else {
+            setFreeCredits(0);
+          }
+        } catch (error) {
+          console.log('Failed to check credits:', error);
           setFreeCredits(0);
         }
-      } catch (error) {
-        console.log('Failed to check credits:', error);
-        setFreeCredits(0);
-      }
-    };
-    checkCredits();
-  }, []);
+      };
+      checkCredits();
+    }, [])
+  );
 
   return (
     <View style={styles.buttonWithBadge}>

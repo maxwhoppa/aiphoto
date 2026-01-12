@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { ProfileViewScreen } from './ProfileViewScreen';
 import { ProfilePreview } from './ProfilePreview';
@@ -147,27 +148,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     checkForNewPhotos();
   }, [generatedPhotos.length]);
 
-  // Check for free credits on mount and when view mode changes to preview
-  useEffect(() => {
-    const checkCredits = async () => {
-      try {
-        const accessResult = await checkPaymentAccess();
-        if (accessResult?.hasAccess) {
-          setFreeCredits(1); // User has at least 1 free credit
-          console.log('ProfileScreen: User has free credit available');
-        } else {
+  // Check for free credits on focus and when view mode changes to preview
+  useFocusEffect(
+    useCallback(() => {
+      const checkCredits = async () => {
+        try {
+          const accessResult = await checkPaymentAccess();
+          if (accessResult?.hasAccess) {
+            setFreeCredits(1); // User has at least 1 free credit
+            console.log('ProfileScreen: User has free credit available');
+          } else {
+            setFreeCredits(0);
+          }
+        } catch (error) {
+          console.error('ProfileScreen: Error checking credits:', error);
           setFreeCredits(0);
         }
-      } catch (error) {
-        console.error('ProfileScreen: Error checking credits:', error);
-        setFreeCredits(0);
-      }
-    };
+      };
 
-    if (viewMode === 'preview') {
-      checkCredits();
-    }
-  }, [viewMode]);
+      if (viewMode === 'preview') {
+        checkCredits();
+      }
+    }, [viewMode])
+  );
 
   const handleSelectionComplete = useCallback(async (selections: { generatedImageId: string; order: number }[]) => {
     setIsSaving(true);
