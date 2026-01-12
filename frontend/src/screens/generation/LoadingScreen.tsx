@@ -79,19 +79,20 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       console.log('LoadingScreen received imageIds:', imageIds);
       console.log('LoadingScreen received scenarios:', selectedScenarios);
 
-      // Only check for existing images if this is NOT a regeneration flow
-      // (for first-time users who might have navigated here incorrectly)
-      if (!isRegenerateFlow) {
+      // If user has a paymentId, always proceed with generation
+      // Only redirect to existing photos if there's no payment to redeem
+      if (!paymentId) {
         const existingImagesResponse = await getGeneratedImages({});
         const existingImages = existingImagesResponse?.result?.data || existingImagesResponse?.data || existingImagesResponse || [];
+        // Filter to only non-sample images
+        const realImages = existingImages.filter((img: any) => !img.isSample);
 
-        if (existingImages.length > 0) {
-          // User already has images, redirect to profile view instead of generating new ones
-          console.log('User already has generated images, redirecting to existing photos');
+        if (realImages.length > 0) {
+          // User already has real generated images and no payment to redeem
+          console.log('User has existing generated photos and no payment, redirecting to profile');
           setIsProcessing(false);
 
-          // Convert existing images to the expected format and complete immediately
-          const generatedPhotos = existingImages.map((img: any) => ({
+          const generatedPhotos = realImages.map((img: any) => ({
             id: img.id,
             uri: img.downloadUrl || img.s3Url,
             scenario: img.scenario,
@@ -138,37 +139,26 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       }, 100); // Update every 100ms for smooth animation
 
       // Start the actual API work and wait for it to complete
-      console.log('About to call generateImages with paymentId:', paymentId);
+      console.log('About to call generateImages with:', { imageIds, selectedScenarios, paymentId });
 
-      // For regeneration flow, check if there are existing images first
-      if (isRegenerateFlow) {
-        const existingImagesResponse = await getGeneratedImages({});
-        const existingImages = existingImagesResponse.result?.data || existingImagesResponse.data || [];
-
-        if (existingImages.length > 0) {
-          // Start generation in background for regeneration
-          generateImages(imageIds, selectedScenarios, paymentId);
-
-          console.log('User has existing images, redirecting to profile while new generation runs in background');
-
-          // Clear the interval since we're redirecting
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-          }
-
-          // Set progress to show something happened
-          setProgress(25);
-
-          // Redirect with existing images (new ones will be generated in background)
-          setTimeout(() => {
-            onComplete(existingImages);
-          }, 1000);
-          return;
-        }
+      // Validate we have required params
+      if (!imageIds || imageIds.length === 0) {
+        throw new Error('No images provided for generation');
+      }
+      if (!selectedScenarios || selectedScenarios.length === 0) {
+        throw new Error('No scenarios selected for generation');
       }
 
-      // For first-time generation or if no existing images, wait for generation to complete
+      // Check for existing non-sample images (for regeneration flow)
+      let existingNonSampleImages: any[] = [];
+      if (isRegenerateFlow) {
+        const existingImagesResponse = await getGeneratedImages({});
+        const allImages = existingImagesResponse.result?.data || existingImagesResponse.data || [];
+        existingNonSampleImages = allImages.filter((img: any) => !img.isSample);
+        console.log('Existing non-sample images:', existingNonSampleImages.length);
+      }
+
+      // Always wait for generation to complete to ensure payment is redeemed
       console.log('Waiting for generation to complete...');
       const generateResponse = await generateImages(imageIds, selectedScenarios, paymentId);
       console.log('Generation completed, response:', generateResponse);
